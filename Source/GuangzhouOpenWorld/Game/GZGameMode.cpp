@@ -160,16 +160,16 @@ AGZGameMode::AGZGameMode()
 	RoadWetState = EGZRoadWetState::Dry;
 	WindStrength = 0.0f;
 
-	// v5.1 Cloud Tiers - 3 entries
+	// v5.1 Cloud Tiers - 3 entries (15-45s random flow, ±0.08 shadow variation)
 	CloudTiers.Empty();
 	{
-		FCloudTierLighting Heavy; Heavy.TopAmbientReduction = -0.06f; Heavy.ShadowVariationPeriod = 4.0f; Heavy.ShadowVariationAmplitude = 0.15f;
-		FCloudTierLighting Medium; Medium.TopAmbientReduction = 0.0f; Medium.ShadowVariationPeriod = 4.0f; Medium.ShadowVariationAmplitude = 0.10f;
-		FCloudTierLighting Thin; Thin.TopAmbientReduction = 0.05f; Thin.ShadowVariationPeriod = 4.0f; Thin.ShadowVariationAmplitude = 0.05f;
+		FCloudTierLighting Heavy; Heavy.TopAmbientReduction = -0.06f; Heavy.ShadowVariationPeriod = 4.0f; Heavy.ShadowVariationAmplitude = 0.08f; Heavy.CloudFlowPeriodMin = 15.0f; Heavy.CloudFlowPeriodMax = 45.0f;
+		FCloudTierLighting Medium; Medium.TopAmbientReduction = 0.0f; Medium.ShadowVariationPeriod = 4.0f; Medium.ShadowVariationAmplitude = 0.08f; Medium.CloudFlowPeriodMin = 15.0f; Medium.CloudFlowPeriodMax = 45.0f;
+		FCloudTierLighting Thin; Thin.TopAmbientReduction = 0.05f; Thin.ShadowVariationPeriod = 4.0f; Thin.ShadowVariationAmplitude = 0.08f; Thin.CloudFlowPeriodMin = 15.0f; Thin.CloudFlowPeriodMax = 45.0f;
 		CloudTiers.Add(Heavy); CloudTiers.Add(Medium); CloudTiers.Add(Thin);
 	}
 
-	// v5.1 RayTracingConfig
+	// v5.1 RayTracingConfig (distance-tiered samples: 0-50m=32, 50-200m=16, 200m+=8)
 	RayTracingConfig.bEnableRTGI = true;
 	RayTracingConfig.bEnableRTShadows = true;
 	RayTracingConfig.bEnableRTAO = true;
@@ -178,6 +178,11 @@ AGZGameMode::AGZGameMode()
 	RayTracingConfig.bEnableFSR = true;
 	RayTracingConfig.bEnableFrameGen = true;
 	RayTracingConfig.RTSamplesPerPixel = 1;
+	RayTracingConfig.RTNearSamples = 32;
+	RayTracingConfig.RTMidSamples = 16;
+	RayTracingConfig.RTFarSamples = 8;
+	RayTracingConfig.RTNearDistance = 5000.0f;
+	RayTracingConfig.RTMidDistance = 20000.0f;
 
 	// v5.1 DirectStorageConfig
 	DirectStorageConfig.bEnableDirectStorage = true;
@@ -204,11 +209,11 @@ AGZGameMode::AGZGameMode()
 		TrafficBehaviors.Add(Normal); TrafficBehaviors.Add(RushHour); TrafficBehaviors.Add(NightSparse); TrafficBehaviors.Add(RainCautious); TrafficBehaviors.Add(FogSlow);
 	}
 
-	// v5.1 FogSpatialization
-	FogSpatialization.LowElevationBoost = 0.15f;
-	FogSpatialization.HighElevationReduction = 0.1f;
-	FogSpatialization.CoolWavelengthDecay = 1.3f;
-	FogSpatialization.WarmWavelengthRetention = 0.8f;
+	// v5.1 FogSpatialization (low elevation +30%, high elevation -20%, cool decay 20% faster, warm retain +15%)
+	FogSpatialization.LowElevationBoost = 0.30f;
+	FogSpatialization.HighElevationReduction = 0.20f;
+	FogSpatialization.CoolWavelengthDecay = 1.2f;
+	FogSpatialization.WarmWavelengthRetention = 0.85f;
 	FogSpatialization.ElevationThreshold = 5000.0f;
 
 	// v5.1 WeatherPreTransition
@@ -357,16 +362,21 @@ void AGZGameMode::Tick(float DeltaSeconds)
 		CurrentAdaptiveScreenPercentage = FMath::Lerp(AdaptiveTransitionFrom, AdaptiveTransitionTarget, FMath::Clamp(Alpha, 0.0f, 1.0f));
 	}
 
-	// v5.1 Fog spatialization and weather pre-transition
+	// v5.1 Fog spatialization, TSR distance weights, and weather pre-transition
 	float Elevation = 0.0f;
+	float CameraDistance = 0.0f;
+	float VehicleSpeedKmh = 0.0f;
 	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
 	{
 		if (APawn* Pawn = PC->GetPawn())
 		{
 			Elevation = Pawn->GetActorLocation().Z;
+			CameraDistance = Pawn->GetVelocity().Size();
+			VehicleSpeedKmh = CameraDistance * 0.036f; // cm/s to km/h
 		}
 	}
 	ApplyFogSpatialization(Elevation);
+	ApplyTSRDistanceWeights(CameraDistance, VehicleSpeedKmh);
 
 	if (WeatherTransitionProgress < 1.0f)
 	{
@@ -476,22 +486,38 @@ void AGZGameMode::UpdateAdaptiveResolution(float VehicleSpeedKmh, bool bIsInCBD,
 {
 	float Target = QualitySettings.ScreenPercentage;
 
-	if (bIsInCBD)
+	if (AdaptiveResolution.bUseEightSteps)
 	{
-		Target = AdaptiveResolution.CBDScreenPercentage;
-	}
-	else if (bIsFar)
-	{
-		Target = AdaptiveResolution.FarScreenPercentage;
-	}
-	else if (bIsInStreet)
-	{
-		Target = AdaptiveResolution.StreetScreenPercentage;
-	}
+		// 8 smooth resolution steps: 100, 95, 90, 85, 80, 75, 70, 65
+		if (bIsInCBD) Target = AdaptiveResolution.Step0_Ultra;
+		else if (bIsInStreet) Target = AdaptiveResolution.Step2_MediumHigh;
+		else if (bIsFar) Target = AdaptiveResolution.Step5_Low;
+		else Target = AdaptiveResolution.Step1_High;
 
-	if (VehicleSpeedKmh > AdaptiveResolution.VehicleHighSpeedThreshold)
+		if (VehicleSpeedKmh > AdaptiveResolution.VehicleHighSpeedThreshold)
+		{
+			Target = FMath::Min(Target, AdaptiveResolution.VehicleHighSpeedScreenPercentage);
+		}
+	}
+	else
 	{
-		Target = FMath::Min(Target, AdaptiveResolution.VehicleHighSpeedScreenPercentage);
+		if (bIsInCBD)
+		{
+			Target = AdaptiveResolution.CBDScreenPercentage;
+		}
+		else if (bIsFar)
+		{
+			Target = AdaptiveResolution.FarScreenPercentage;
+		}
+		else if (bIsInStreet)
+		{
+			Target = AdaptiveResolution.StreetScreenPercentage;
+		}
+
+		if (VehicleSpeedKmh > AdaptiveResolution.VehicleHighSpeedThreshold)
+		{
+			Target = FMath::Min(Target, AdaptiveResolution.VehicleHighSpeedScreenPercentage);
+		}
 	}
 
 	if (FMath::Abs(Target - CurrentAdaptiveScreenPercentage) > 0.5f)
@@ -987,8 +1013,9 @@ void AGZGameMode::ApplyRoadBleedParams()
 
 // ============================================================================
 // v5.0 TSR Distance Weights - 7 tiers, per-distance frame accumulation
+// High-speed movement: far-distance frame cache locked to 6 frames, near reduced
 // ============================================================================
-void AGZGameMode::ApplyTSRDistanceWeights(float CameraDistance)
+void AGZGameMode::ApplyTSRDistanceWeights(float CameraDistance, float VehicleSpeedKmh)
 {
 	EGZTSRDistanceTier Tier;
 	if (CameraDistance < 5000.0f) Tier = EGZTSRDistanceTier::Near_0_50;
@@ -1003,10 +1030,24 @@ void AGZGameMode::ApplyTSRDistanceWeights(float CameraDistance)
 	float TierWeights[] = {0.0f, 0.05f, 0.08f, 0.12f, 0.15f, 0.18f, 0.20f};
 	float Weight = TierWeights[(int32)Tier];
 
+	// Far-distance frame cache locked to 6 frames during high-speed movement (>60km/h)
+	bool bHighSpeed = VehicleSpeedKmh > AdaptiveResolution.VehicleHighSpeedThreshold;
+	int32 FrameCache = TSRDistanceWeights[(int32)Tier].FrameCacheCount;
+	if (bHighSpeed && (int32)Tier >= (int32)EGZTSRDistanceTier::Far_400_800)
+	{
+		FrameCache = 6;
+	}
+	else if (bHighSpeed)
+	{
+		FrameCache = FMath::Max(FrameCache - 2, 4);
+	}
+
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.TSR.HistoryWeightBoost"))->Set(Weight);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.TSR.DistanceTier"))->Set((int32)Tier);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.TSR.FrameCacheCount"))->Set(FrameCache);
 
-	UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("TSR: tier=%d dist=%.0f weight=%.2f"), (int32)Tier, CameraDistance, Weight);
+	UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("TSR: tier=%d dist=%.0f weight=%.2f cache=%d highSpeed=%d"),
+		(int32)Tier, CameraDistance, Weight, FrameCache, bHighSpeed ? 1 : 0);
 }
 
 // ============================================================================
@@ -1182,7 +1223,8 @@ void AGZGameMode::ApplyCloudTierLighting(EGZCloudThickness Tier)
 }
 
 // ============================================================================
-// v5.1 Ray Tracing Config
+// v5.1 Ray Tracing Config with distance-tiered sample counts
+// 0-50m = 32 samples, 50-200m = 16 samples, 200m+ = 8 samples
 // ============================================================================
 void AGZGameMode::ApplyRayTracingConfig()
 {
@@ -1191,10 +1233,16 @@ void AGZGameMode::ApplyRayTracingConfig()
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.AmbientOcclusion"))->Set(RayTracingConfig.bEnableRTAO ? 1 : 0);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Reflections"))->Set(RayTracingConfig.bEnableRTReflections ? 1 : 0);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.SamplesPerPixel"))->Set(RayTracingConfig.RTSamplesPerPixel);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.NearSamples"))->Set(RayTracingConfig.RTNearSamples);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.MidSamples"))->Set(RayTracingConfig.RTMidSamples);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.FarSamples"))->Set(RayTracingConfig.RTFarSamples);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.NearDistance"))->Set(RayTracingConfig.RTNearDistance);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.MidDistance"))->Set(RayTracingConfig.RTMidDistance);
 
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("RayTracingConfig: GI=%d Shadows=%d AO=%d Reflections=%d SPP=%d"),
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("RayTracingConfig: GI=%d Shadows=%d AO=%d Reflections=%d SPP=%d Near=%d Mid=%d Far=%d"),
 		RayTracingConfig.bEnableRTGI, RayTracingConfig.bEnableRTShadows, RayTracingConfig.bEnableRTAO,
-		RayTracingConfig.bEnableRTReflections, RayTracingConfig.RTSamplesPerPixel);
+		RayTracingConfig.bEnableRTReflections, RayTracingConfig.RTSamplesPerPixel,
+		RayTracingConfig.RTNearSamples, RayTracingConfig.RTMidSamples, RayTracingConfig.RTFarSamples);
 }
 
 // ============================================================================

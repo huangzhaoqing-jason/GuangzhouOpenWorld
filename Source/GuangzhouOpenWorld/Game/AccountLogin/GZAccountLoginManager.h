@@ -192,6 +192,16 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Account")
 	float EmailCodeExpiry = 300.0f;
 
+	// Verification lockout: 5 consecutive failures lock code sending for 30 seconds
+	UPROPERTY(BlueprintReadOnly, Category = "Account")
+	int32 VerificationFailCount = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Account")
+	FDateTime VerificationLockoutUntil;
+
+	UFUNCTION(BlueprintPure, Category = "Account")
+	bool IsVerificationLocked() const { return FDateTime::Now() < VerificationLockoutUntil; }
+
 private:
 	bool ValidateEmail(const FString& Email) const;
 	bool ValidatePhone(const FString& Phone) const;
@@ -206,6 +216,9 @@ private:
 	FGZPlayerAccount* FindAccountByEmail(const FString& Email);
 	FGZPlayerAccount* FindAccountByPhone(const FString& Phone);
 	FGZPlayerAccount* FindAccountByID(const FString& PlayerID);
+	void HandleVerificationFailure();
+	void ResetVerificationFailures() { VerificationFailCount = 0; VerificationLockoutUntil = FDateTime::MinValue(); }
+	bool CanSendVerificationCode() const { return !IsVerificationLocked(); }
 
 	FString AccountsFilePath;
 	FString CurrentVerificationCode;

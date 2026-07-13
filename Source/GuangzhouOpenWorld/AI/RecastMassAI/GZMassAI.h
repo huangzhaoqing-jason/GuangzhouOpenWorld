@@ -228,6 +228,33 @@ struct FGZNPCSchedule
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float RestProbability = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float CrowdDensity = 0.6f; // 0.2-1.0 crowd density multiplier for this hour
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float SpeedMultiplier = 1.0f; // NPC movement speed multiplier for this hour
+};
+
+USTRUCT(BlueprintType)
+struct FNPCDensityByTime
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float HourStart = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float HourEnd = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float DensityMultiplier = 0.6f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float SpeedMultiplier = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString PeriodName;
 };
 
 USTRUCT(BlueprintType)
@@ -298,6 +325,12 @@ public:
 	static FGZNPCSchedule GetScheduleForHour(float Hour);
 	static FGZPoliceTactics GetPoliceTacticsForWantedLevel(int32 WantedLevel);
 
+	UFUNCTION(BlueprintPure)
+	float GetCrowdDensityForHour(float Hour) const;
+
+	UFUNCTION(BlueprintPure)
+	float GetNPCSpeedMultiplierForHour(float Hour) const;
+
 private:
 	void UpdateAgentSchedules(float DeltaTime, float HourOfDay);
 	void UpdateDriverBehavior(float DeltaTime);
@@ -335,6 +368,9 @@ private:
 
 	UPROPERTY()
 	TArray<FAgentWeatherAction> WeatherActions;
+
+	UPROPERTY()
+	TArray<FNPCDensityByTime> TimeDensityTable;
 
 	float RushHourDensityMultiplier = 1.0f;
 	float NightSparseDensityMultiplier = 0.2f;

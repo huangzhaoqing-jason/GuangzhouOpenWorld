@@ -126,12 +126,22 @@ USTRUCT(BlueprintType)
 struct FAdaptiveResolutionSettings
 {
 	GENERATED_BODY()
+	// 8 smooth resolution steps for TSR/DLSS/FSR adaptive scaling
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float Step0_Ultra = 100.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float Step1_High = 95.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float Step2_MediumHigh = 90.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float Step3_Medium = 85.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float Step4_MediumLow = 80.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float Step5_Low = 75.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float Step6_VeryLow = 70.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float Step7_Minimum = 65.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float CBDScreenPercentage = 100.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float StreetScreenPercentage = 90.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float FarScreenPercentage = 75.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float VehicleHighSpeedScreenPercentage = 95.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float VehicleHighSpeedThreshold = 60.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float TransitionTime = 0.2f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bUseEightSteps = true;
 };
 
 // ============================================================================
@@ -234,9 +244,10 @@ struct FFogLightingParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float SatFarDecay = 8000.0f;        // 50-80m, -45% sat
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ShadowBlurMultiplier = 2.0f;  // Shadows 2x softer
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ShadowLengthReduction = 0.15f; // 15% shorter
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) float LowElevationFogBoost = 0.15f; // Dense fog in low areas
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) float CoolColorDecayFaster = 1.3f;  // Cool colors decay faster
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) float WarmColorRetention = 0.8f;    // Warm colors retained
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float LowElevationFogBoost = 0.30f; // Low-lying fog +30%
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float HighElevationReduction = 0.20f; // High elevation fog -20%
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float CoolColorDecayFaster = 1.2f;  // Cool colors decay 20% faster
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float WarmColorRetention = 0.85f;   // Warm colors retained +15%
 };
 
 USTRUCT(BlueprintType)
@@ -415,7 +426,9 @@ struct FCloudTierLighting
 	GENERATED_BODY()
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float TopAmbientReduction = 0.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ShadowVariationPeriod = 4.0f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ShadowVariationAmplitude = 0.15f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ShadowVariationAmplitude = 0.08f; // ±0.08 random shadow variation
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float CloudFlowPeriodMin = 15.0f;      // 15-45s random cloud flow
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float CloudFlowPeriodMax = 45.0f;
 };
 
 USTRUCT(BlueprintType)
@@ -430,6 +443,12 @@ struct FRayTracingConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnableFSR = true;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnableFrameGen = true;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 RTSamplesPerPixel = 1;
+	// Distance-tiered ray tracing sample counts (0-50m=32, 50-200m=16, 200m+=8)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 RTNearSamples = 32;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 RTMidSamples = 16;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 RTFarSamples = 8;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float RTNearDistance = 5000.0f;  // 50m
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float RTMidDistance = 20000.0f; // 200m
 };
 
 USTRUCT(BlueprintType)
@@ -554,7 +573,7 @@ protected:
 	void ApplyVegetationBleedParams(float SunAzimuth);
 	void ApplyWallBleedParams(float SunAzimuth, float SunElevation);
 	void ApplyRoadBleedParams();
-	void ApplyTSRDistanceWeights(float CameraDistance);
+	void ApplyTSRDistanceWeights(float CameraDistance, float VehicleSpeedKmh = 0.0f);
 	void ApplyTSRTextureSharpening(float AmbientLightLevel);
 	void ApplyGlassRefractionParams();
 	void ApplyRefinedFresnelParams();

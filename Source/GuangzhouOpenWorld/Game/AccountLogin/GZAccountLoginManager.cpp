@@ -155,6 +155,11 @@ void UGZAccountLoginManager::RegisterWithEmail(const FString& Email, const FStri
 
 void UGZAccountLoginManager::SendEmailVerificationCode(const FString& Email)
 {
+	if (IsVerificationLocked())
+	{
+		OnVerificationCodeSent.Broadcast(false);
+		return;
+	}
 	if (!ValidateEmail(Email))
 	{
 		OnVerificationCodeSent.Broadcast(false);
@@ -171,13 +176,26 @@ void UGZAccountLoginManager::VerifyEmailCode(const FString& Email, const FString
 {
 	if (Email == CurrentVerificationTarget && Code == CurrentVerificationCode)
 	{
+		ResetVerificationFailures();
 		CurrentVerificationCode.Empty();
 		CurrentVerificationTarget.Empty();
 		OnLoginResult.Broadcast(true, TEXT("验证成功"));
 	}
 	else
 	{
+		HandleVerificationFailure();
 		OnLoginResult.Broadcast(false, TEXT("验证码错误"));
+	}
+}
+
+void UGZAccountLoginManager::HandleVerificationFailure()
+{
+	VerificationFailCount++;
+	if (VerificationFailCount >= 5)
+	{
+		VerificationLockoutUntil = FDateTime::Now() + FTimespan::FromSeconds(30.0);
+		VerificationFailCount = 0;
+		UE_LOG(LogGuangzhouOpenWorld, Warning, TEXT("Verification locked for 30 seconds after 5 consecutive failures"));
 	}
 }
 
@@ -205,6 +223,7 @@ void UGZAccountLoginManager::LoginWithPhone(const FString& PhoneNumber, const FS
 
 	if (PhoneNumber == CurrentVerificationTarget && VerificationCode == CurrentVerificationCode)
 	{
+		ResetVerificationFailures();
 		FGZPlayerAccount* Existing = FindAccountByPhone(PhoneNumber);
 		if (Existing)
 		{
@@ -234,6 +253,7 @@ void UGZAccountLoginManager::LoginWithPhone(const FString& PhoneNumber, const FS
 	}
 	else
 	{
+		HandleVerificationFailure();
 		CurrentState = EGZLoginState::LoginFailed;
 		OnLoginResult.Broadcast(false, TEXT("验证码错误"));
 	}
@@ -241,6 +261,11 @@ void UGZAccountLoginManager::LoginWithPhone(const FString& PhoneNumber, const FS
 
 void UGZAccountLoginManager::SendPhoneVerificationCode(const FString& PhoneNumber)
 {
+	if (IsVerificationLocked())
+	{
+		OnVerificationCodeSent.Broadcast(false);
+		return;
+	}
 	if (!ValidatePhone(PhoneNumber))
 	{
 		OnVerificationCodeSent.Broadcast(false);
@@ -257,12 +282,14 @@ void UGZAccountLoginManager::VerifyPhoneCode(const FString& PhoneNumber, const F
 {
 	if (PhoneNumber == CurrentVerificationTarget && Code == CurrentVerificationCode)
 	{
+		ResetVerificationFailures();
 		CurrentVerificationCode.Empty();
 		CurrentVerificationTarget.Empty();
 		OnLoginResult.Broadcast(true, TEXT("验证成功"));
 	}
 	else
 	{
+		HandleVerificationFailure();
 		OnLoginResult.Broadcast(false, TEXT("验证码错误"));
 	}
 }

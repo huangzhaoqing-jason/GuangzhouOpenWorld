@@ -14,6 +14,8 @@ FGZNPCSchedule UGZMassAI::GetScheduleForHour(float Hour)
 		Schedule.CommuteProbability = 0.0f;
 		Schedule.WorkProbability = 0.0f;
 		Schedule.ShopProbability = 0.0f;
+		Schedule.CrowdDensity = 0.2f;
+		Schedule.SpeedMultiplier = 0.8f;
 	}
 	else if (Hour >= 6.0f && Hour < 9.0f)
 	{
@@ -21,6 +23,8 @@ FGZNPCSchedule UGZMassAI::GetScheduleForHour(float Hour)
 		Schedule.WorkProbability = 0.0f;
 		Schedule.ShopProbability = 0.0f;
 		Schedule.RestProbability = 0.0f;
+		Schedule.CrowdDensity = 1.0f;
+		Schedule.SpeedMultiplier = 1.2f;
 	}
 	else if (Hour >= 9.0f && Hour < 18.0f)
 	{
@@ -28,6 +32,8 @@ FGZNPCSchedule UGZMassAI::GetScheduleForHour(float Hour)
 		Schedule.CommuteProbability = 0.1f;
 		Schedule.ShopProbability = 0.2f;
 		Schedule.RestProbability = 0.1f;
+		Schedule.CrowdDensity = 0.6f;
+		Schedule.SpeedMultiplier = 1.0f;
 	}
 	else if (Hour >= 18.0f && Hour < 21.0f)
 	{
@@ -35,6 +41,8 @@ FGZNPCSchedule UGZMassAI::GetScheduleForHour(float Hour)
 		Schedule.CommuteProbability = 0.1f;
 		Schedule.WorkProbability = 0.05f;
 		Schedule.RestProbability = 0.05f;
+		Schedule.CrowdDensity = 1.0f;
+		Schedule.SpeedMultiplier = 1.1f;
 	}
 	else
 	{
@@ -42,9 +50,35 @@ FGZNPCSchedule UGZMassAI::GetScheduleForHour(float Hour)
 		Schedule.CommuteProbability = 0.1f;
 		Schedule.WorkProbability = 0.0f;
 		Schedule.RestProbability = 0.7f;
+		Schedule.CrowdDensity = 0.4f;
+		Schedule.SpeedMultiplier = 0.9f;
 	}
 
 	return Schedule;
+}
+
+float UGZMassAI::GetCrowdDensityForHour(float Hour) const
+{
+	for (const FNPCDensityByTime& Entry : TimeDensityTable)
+	{
+		if (Hour >= Entry.HourStart && Hour < Entry.HourEnd)
+		{
+			return Entry.DensityMultiplier;
+		}
+	}
+	return 0.6f;
+}
+
+float UGZMassAI::GetNPCSpeedMultiplierForHour(float Hour) const
+{
+	for (const FNPCDensityByTime& Entry : TimeDensityTable)
+	{
+		if (Hour >= Entry.HourStart && Hour < Entry.HourEnd)
+		{
+			return Entry.SpeedMultiplier;
+		}
+	}
+	return 1.0f;
 }
 
 FGZPoliceTactics UGZMassAI::GetPoliceTacticsForWantedLevel(int32 WantedLevel)
@@ -105,6 +139,14 @@ UGZMassAI::UGZMassAI()
 	AreaDensities.Add(EGZAreaType::Park, 0.3f);
 	AreaDensities.Add(EGZAreaType::Transport, 0.8f);
 	AreaDensities.Add(EGZAreaType::Tourist, 0.9f);
+
+	// 24-hour NPC density table: 23-6=20%, 6-9=100%, 9-18=60%, 18-21=100%, 21-23=40%
+	TimeDensityTable.SetNum(5);
+	TimeDensityTable[0].HourStart = 0.0f;  TimeDensityTable[0].HourEnd = 6.0f;  TimeDensityTable[0].DensityMultiplier = 0.2f; TimeDensityTable[0].SpeedMultiplier = 0.8f; TimeDensityTable[0].PeriodName = TEXT("LateNight");
+	TimeDensityTable[1].HourStart = 6.0f;  TimeDensityTable[1].HourEnd = 9.0f;  TimeDensityTable[1].DensityMultiplier = 1.0f; TimeDensityTable[1].SpeedMultiplier = 1.2f; TimeDensityTable[1].PeriodName = TEXT("MorningRush");
+	TimeDensityTable[2].HourStart = 9.0f;  TimeDensityTable[2].HourEnd = 18.0f; TimeDensityTable[2].DensityMultiplier = 0.6f; TimeDensityTable[2].SpeedMultiplier = 1.0f; TimeDensityTable[2].PeriodName = TEXT("Daytime");
+	TimeDensityTable[3].HourStart = 18.0f; TimeDensityTable[3].HourEnd = 21.0f; TimeDensityTable[3].DensityMultiplier = 1.0f; TimeDensityTable[3].SpeedMultiplier = 1.1f; TimeDensityTable[3].PeriodName = TEXT("EveningRush");
+	TimeDensityTable[4].HourStart = 21.0f; TimeDensityTable[4].HourEnd = 24.0f; TimeDensityTable[4].DensityMultiplier = 0.4f; TimeDensityTable[4].SpeedMultiplier = 0.9f; TimeDensityTable[4].PeriodName = TEXT("Night");
 
 	WeatherActions.SetNum(5);
 	WeatherActions[0].WeatherType = EGZWeatherType::Clear;
