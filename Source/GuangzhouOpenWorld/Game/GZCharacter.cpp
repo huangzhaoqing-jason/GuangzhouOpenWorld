@@ -103,4 +103,13 @@ void AGZCharacter::UpdateIKTerrainAdaptation(float DeltaSeconds)
 	RightFootIKAlpha = FMath::FInterpTo(RightFootIKAlpha, TargetRightAlpha, DeltaSeconds, IKInterpSpeed);
 	LeftFootIKOffset = FMath::VInterpTo(LeftFootIKOffset, TargetLeftOffset, DeltaSeconds, IKInterpSpeed);
 	RightFootIKOffset = FMath::VInterpTo(RightFootIKOffset, TargetRightOffset, DeltaSeconds, IKInterpSpeed);
+
+	if (FMath::Abs(LeftFootIKAlpha - TargetLeftAlpha) > IKPrecision)
+	{
+		LeftFootIKAlpha = FMath::FInterpTo(LeftFootIKAlpha, TargetLeftAlpha, DeltaSeconds, IKInterpSpeed * 2.0f);
+	}
+	if (FMath::Abs(RightFootIKAlpha - TargetRightAlpha) > IKPrecision)
+	{
+		RightFootIKAlpha = FMath::FInterpTo(RightFootIKAlpha, TargetRightAlpha, DeltaSeconds, IKInterpSpeed * 2.0f);
+	}
 }

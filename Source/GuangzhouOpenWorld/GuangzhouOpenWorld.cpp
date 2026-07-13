@@ -6,6 +6,7 @@ DEFINE_LOG_CATEGORY(LogGuangzhouOpenWorld);
 void FGuangzhouOpenWorldModule::StartupModule()
 {
 	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("GuangzhouOpenWorld module starting up."));
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("UE 5.9.2 | Metal 4.2 | Jolt v6.0.1 | SoLoud v2.10.0"));
 	DetectAppleSiliconAndLog();
 }
 

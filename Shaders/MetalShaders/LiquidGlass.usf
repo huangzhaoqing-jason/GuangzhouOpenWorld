@@ -1,9 +1,10 @@
-// LiquidGlass.usf - UE5.8 Metal 4 Liquid Glass Shader
+// LiquidGlass.usf - UE5.9.2 Metal 4.2 Liquid Glass Shader
 // iOS27 Physical Refraction Standard | 4A+ Guangzhou Open World
-// Metal Shader Language 4 native, Apple Silicon optimized
-// NO Gaussian blur, NO diffusion, NO frosted glass, NO matte effects
+// Metal Shading Language 3.1 native, Apple Silicon GPU-only
+// NO Gaussian blur, NO frosted glass, NO matte textures, NO diffusion at any point
 // All transparency achieved through physical light calculation
-// Compatible with Lumen GI: refracted light contributes to global illumination
+// Lumen GI integration: refracted light contributes to global illumination
+// Substrate material system compatible
 
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/DeferredShadingCommon.ush"
@@ -11,75 +12,108 @@
 
 // ============================================================================
 // Material Type Selection (set via CustomData0)
-// 0 = SkyscraperGlass (high precision, full multi-layer)
+// 0 = SkyscraperGlass (high precision, full multi-layer, chromatic dispersion)
 // 1 = VehicleGlass (medium precision, single-layer optimized)
-// 2 = UIGlass (low intensity, single-refraction)
+// 2 = UIGlass (low intensity, single-refraction, minimal absorption)
 // ============================================================================
 
-// Material inputs (from material graph)
+// Material inputs (from material graph / Substrate)
 float3 BaseColor;
 float Metallic;
 float Specular;
 float Roughness;
 float Opacity;
 float3 WorldNormal;
-float Thickness;       // Glass thickness in mm (0-50)
-float RefractionIndex; // IOR (1.45-1.52 for crown glass, 1.6-1.9 for flint)
+float Thickness;
+float RefractionIndex;
 float DirtAmount;
 float3 TintColor;
-uint MaterialType;     // 0=Skyscraper, 1=Vehicle, 2=UI
+uint MaterialType;
 
 // ============================================================================
 // Physical Constants
 // ============================================================================
 static const float AirIOR     = 1.000293;
-static const float MinIOR     = 1.33;
-static const float MaxIOR     = 2.42;
+static const float MinIOR     = 1.0;
+static const float MaxIOR     = 3.0;
 static const float Epsilon    = 0.0001;
 static const float PI         = 3.14159265359;
 
 // ============================================================================
-// IOR presets per material type
+// Type 1: SkyscraperGlass
+// IOR=1.52, thickness top=0.12 bottom=0.35 (linear gradient)
+// Fresnel 0°=0.05 90°=0.82, samples M3=16 M2=12 M1=8
 // ============================================================================
-static const float3 SkyscraperIORRange = float3(1.48, 1.52, 1.55); // Crown/flint glass
-static const float3 VehicleIORRange    = float3(1.49, 1.52, 1.53); // Laminated safety glass
-static const float3 UIIORRange         = float3(1.50, 1.52, 1.54); // Display glass
+static const float SKYSCRAPER_IOR         = 1.52;
+static const float SKYSCRAPER_THICK_TOP   = 0.12;  // mm
+static const float SKYSCRAPER_THICK_BOT   = 0.35;  // mm
+static const float SKYSCRAPER_FRESNEL_0   = 0.05;
+static const float SKYSCRAPER_FRESNEL_90  = 0.82;
+static const uint  SKYSCRAPER_SAMPLES_M3  = 16;
+static const uint  SKYSCRAPER_SAMPLES_M2  = 12;
+static const uint  SKYSCRAPER_SAMPLES_M1  = 8;
 
 // ============================================================================
-// Fresnel - Schlick Approximation (Physically Based)
-// F0 computed from IOR via Fresnel equations at normal incidence
+// Type 2: VehicleGlass
+// IOR=1.38, thickness=0.18, Fresnel 0°=0.08 90°=0.70
+// samples M3=12 M2=10 M1=6
 // ============================================================================
-float3 FresnelF0FromIOR(float IOR)
+static const float VEHICLE_IOR           = 1.38;
+static const float VEHICLE_THICKNESS     = 0.18;  // mm
+static const float VEHICLE_FRESNEL_0     = 0.08;
+static const float VEHICLE_FRESNEL_90    = 0.70;
+static const uint  VEHICLE_SAMPLES_M3    = 12;
+static const uint  VEHICLE_SAMPLES_M2    = 10;
+static const uint  VEHICLE_SAMPLES_M1    = 6;
+
+// ============================================================================
+// Type 3: UIGlass
+// IOR=1.05, thickness=0.05, Fresnel edge=0.25, samples=4 all chips
+// ============================================================================
+static const float UI_IOR              = 1.05;
+static const float UI_THICKNESS        = 0.05;  // mm
+static const float UI_FRESNEL_EDGE     = 0.25;
+static const uint  UI_SAMPLES_ALL      = 4;
+
+// ============================================================================
+// Fresnel - Schlick Approximation with Exact IOR
+// F0 = ((n1 - n2) / (n1 + n2))^2
+// ============================================================================
+float FresnelF0FromIOR(float IOR)
 {
     float R0 = (IOR - AirIOR) / (IOR + AirIOR);
-    return float3(R0 * R0, R0 * R0, R0 * R0);
+    return R0 * R0;
 }
 
 float3 FresnelSchlick(float CosTheta, float3 F0)
 {
     float InvCos  = saturate(1.0 - CosTheta);
-    float InvCos2 = InvCos * InvCos;
-    float InvCos5 = InvCos2 * InvCos2 * InvCos;
+    float InvCos5 = InvCos * InvCos;
+    InvCos5 = InvCos5 * InvCos5 * InvCos;
     return F0 + (1.0 - F0) * InvCos5;
 }
 
-// Full Fresnel with wavelength-dependent IOR (chromatic dispersion for skyscraper)
-float3 FresnelSchlickDispersion(float CosTheta, float IOR_R, float IOR_G, float IOR_B)
+// Chromatic dispersion: wavelength-dependent IOR
+// R=650nm, G=532nm, B=473nm → IOR_R/IOR_G/IOR_B
+float3 FresnelSchlickDispersion(float CosTheta, float IOR)
 {
-    float3 F0;
+    float IOR_R = IOR;
+    float IOR_G = IOR * 0.998;  // 532nm correction
+    float IOR_B = IOR * 0.996;  // 473nm correction
+
     float R0_R = (IOR_R - AirIOR) / (IOR_R + AirIOR);
     float R0_G = (IOR_G - AirIOR) / (IOR_G + AirIOR);
     float R0_B = (IOR_B - AirIOR) / (IOR_B + AirIOR);
-    F0 = float3(R0_R * R0_R, R0_G * R0_G, R0_B * R0_B);
+    float3 F0 = float3(R0_R * R0_R, R0_G * R0_G, R0_B * R0_B);
 
     float InvCos  = saturate(1.0 - CosTheta);
-    float InvCos5 = pow(InvCos, 5.0);
+    float InvCos5 = InvCos * InvCos;
+    InvCos5 = InvCos5 * InvCos5 * InvCos;
     return F0 + (1.0 - F0) * InvCos5;
 }
 
 // ============================================================================
-// Snell's Law Refraction (Multi-Layer Physical)
-// n1 * sin(theta1) = n2 * sin(theta2)
+// Snell's Law Refraction: n1 * sin(theta1) = n2 * sin(theta2)
 // ============================================================================
 float3 RefractRaySnell(float3 Incident, float3 Normal, float Eta)
 {
@@ -94,53 +128,45 @@ float3 RefractRaySnell(float3 Incident, float3 Normal, float Eta)
     return Eta * Incident - (Eta * NoI + sqrt(K)) * Normal;
 }
 
-// Multi-layer refraction: Air -> Glass -> Air
-// Computes entry refraction, internal travel, and exit refraction
-float3 MultiLayerRefraction(
+// Multi-layer refraction: Air → Glass → Air
+void MultiLayerRefraction(
     float3 Incident,
     float3 Normal,
     float Eta,
     float ThicknessMM,
-    float3 Absorption,
-    out float3 InternalRefracted,
+    out float3 RefractedEntry,
+    out float3 RefractedExit,
     out float TotalInternalDistance)
 {
-    // Layer 1: Air -> Glass (entry)
-    float3 RefractedEntry = RefractRaySnell(Incident, Normal, Eta);
+    // Layer 1: Air → Glass (entry)
+    RefractedEntry = RefractRaySnell(Incident, Normal, Eta);
 
-    // Internal travel distance through glass (thickness-dependent)
+    // Internal travel distance through glass
     float CosRefracted = abs(dot(RefractedEntry, Normal));
-    float InternalDist = ThicknessMM * 0.001 / max(CosRefracted, Epsilon); // Convert mm to meters
+    float InternalDist = ThicknessMM * 0.001 / max(CosRefracted, Epsilon);
     TotalInternalDistance = InternalDist;
 
-    // Layer 2: Glass -> Air (exit)
-    float3 RefractedExit = RefractRaySnell(RefractedEntry, -Normal, 1.0 / Eta);
-
-    InternalRefracted = RefractedEntry;
-    return RefractedExit;
+    // Layer 2: Glass → Air (exit)
+    RefractedExit = RefractRaySnell(RefractedEntry, -Normal, 1.0 / Eta);
 }
 
 // ============================================================================
-// Beer-Lambert Absorption (Thickness-Dependent)
-// I = I0 * exp(-alpha * distance)
-// wavelength-dependent absorption coefficients
+// Beer-Lambert Absorption: I = I0 * exp(-alpha * distance)
 // ============================================================================
 float3 BeerLambertAbsorption(float3 InColor, float3 AbsorptionCoeff, float Distance)
 {
     return InColor * exp(-AbsorptionCoeff * Distance);
 }
 
-// Compute absorption from tint color
 float3 ComputeAbsorptionCoeff(float3 Tint, float ThicknessMM)
 {
-    // Denser glass = more absorption, thicker = more absorption
     float3 Complementary = 1.0 - saturate(Tint);
     float ThicknessFactor = ThicknessMM * 0.02;
     return Complementary * (0.5 + ThicknessFactor);
 }
 
 // ============================================================================
-// Microfacet BRDF for specular highlight (GGX NDF, Smith G, Schlick F)
+// GGX Micro-facet BRDF (NDF)
 // ============================================================================
 float GGX_Distribution(float3 N, float3 H, float Roughness)
 {
@@ -152,6 +178,7 @@ float GGX_Distribution(float3 N, float3 H, float Roughness)
     return a2 / (PI * Denom * Denom + Epsilon);
 }
 
+// Smith Geometry Shadowing
 float SmithG1(float3 N, float3 V, float Roughness)
 {
     float a  = Roughness * Roughness;
@@ -189,8 +216,6 @@ float3 SampleLumenRefractedGI(float3 WorldPosition, float3 RefractedDirection, f
 
     #if LUMEN_DIFFUSE_INDIRECT
         DiffuseIndirect = LumenGetDiffuseLighting(TranslatedWorldPos, BentNormal, Roughness);
-    #else
-        DiffuseIndirect = 0.0;
     #endif
 
     #if LUMEN_REFLECTIONS
@@ -200,16 +225,38 @@ float3 SampleLumenRefractedGI(float3 WorldPosition, float3 RefractedDirection, f
             Roughness,
             0.0
         );
-    #else
-        RoughSpecularIndirect = 0.0;
     #endif
 
     return DiffuseIndirect + RoughSpecularIndirect;
 }
 
 // ============================================================================
-// Material Type: SkyscraperGlass - High Precision Multi-Layer
-// Full chromatic dispersion, multi-layer refraction, thickness-dependent absorption
+// Sample Count Selection by Chip
+// M3: Skyscraper=16, Vehicle=12, UI=4
+// M2: Skyscraper=12, Vehicle=10, UI=4
+// M1: Skyscraper=8,  Vehicle=6,  UI=4
+// ============================================================================
+uint GetSampleCount(uint MatType)
+{
+    #if defined(APPLE_M3)
+        if (MatType == 0) return SKYSCRAPER_SAMPLES_M3;
+        if (MatType == 1) return VEHICLE_SAMPLES_M3;
+        return UI_SAMPLES_ALL;
+    #elif defined(APPLE_M2)
+        if (MatType == 0) return SKYSCRAPER_SAMPLES_M2;
+        if (MatType == 1) return VEHICLE_SAMPLES_M2;
+        return UI_SAMPLES_ALL;
+    #else
+        if (MatType == 0) return SKYSCRAPER_SAMPLES_M1;
+        if (MatType == 1) return VEHICLE_SAMPLES_M1;
+        return UI_SAMPLES_ALL;
+    #endif
+}
+
+// ============================================================================
+// Material Type 1: SkyscraperGlass
+// IOR=1.52, thickness top=0.12 bottom=0.35 (linear gradient)
+// Full chromatic dispersion + multi-layer refraction + Beer-Lambert
 // ============================================================================
 void SkyscraperGlassPixel(
     float3 V,
@@ -230,41 +277,37 @@ void SkyscraperGlassPixel(
     float NoV = abs(dot(N, V)) + Epsilon;
     float CosTheta = NoV;
 
-    // Chromatic dispersion: slightly different IOR per wavelength
-    float IOR_R = IOR;
-    float IOR_G = IOR * 0.998;
-    float IOR_B = IOR * 0.996;
-
-    // Fresnel with chromatic dispersion
-    float3 F = FresnelSchlickDispersion(CosTheta, IOR_R, IOR_G, IOR_B);
+    // Chromatic dispersion Fresnel
+    float3 F = FresnelSchlickDispersion(CosTheta, IOR);
 
     // Multi-layer refraction
     float Eta = AirIOR / IOR;
-    float3 Absorption = ComputeAbsorptionCoeff(Tint, ThicknessMM);
-    float3 InternalRefracted;
+    float3 RefractedEntry;
+    float3 RefractedExit;
     float InternalDist;
-    float3 Refracted = MultiLayerRefraction(-V, N, Eta, ThicknessMM, Absorption, InternalRefracted, InternalDist);
+    MultiLayerRefraction(-V, N, Eta, ThicknessMM, RefractedEntry, RefractedExit, InternalDist);
 
     // Sample scene color behind glass with refraction offset
     float2 UV = SvPos * View.BufferSizeAndInvSize.zw;
-    float2 RefractionOffset = Refracted.xy * ThicknessMM * 0.005;
+    float2 RefractionOffset = RefractedExit.xy * ThicknessMM * 0.005;
     float3 BehindColor = SceneTextureLookup(UV + RefractionOffset, 0, false).rgb;
 
     // Beer-Lambert absorption through full thickness
+    float3 Absorption = ComputeAbsorptionCoeff(Tint, ThicknessMM);
     float3 Transmitted = BeerLambertAbsorption(BehindColor, Absorption, InternalDist);
 
-    // Lumen GI contribution from refracted light
-    float3 RefractedGI = SampleLumenRefractedGI(WorldPos, Refracted, Roughness);
+    // Lumen GI from refracted light
+    float3 RefractedGI = SampleLumenRefractedGI(WorldPos, RefractedExit, Roughness);
     Transmitted += RefractedGI * 0.15;
 
-    // Edge darkening (angle-dependent, not thickness-based for realism)
+    // Edge darkening (angle-dependent)
     float EdgeFactor = 1.0 - pow(1.0 - NoV, 3.0) * 0.3;
 
-    // Reflection contribution
-    float3 F0 = FresnelF0FromIOR(IOR);
+    // Reflection
+    float3 F0 = FresnelF0FromIOR(IOR).xxx;
     float3 EnvRefl = EnvBRDFApprox(F0, Roughness, NoV);
 
-    // Specular highlight (physical light direction from deferred)
+    // Specular highlight
     float3 L = normalize(float3(0.3, 0.6, 0.2));
     float3 H = normalize(V + L);
     float D = GGX_Distribution(N, H, Roughness);
@@ -276,7 +319,7 @@ void SkyscraperGlassPixel(
     float3 Result = lerp(Transmitted, EnvRefl * BehindColor, F) * EdgeFactor;
     Result += Spec * 0.4;
 
-    // Dirt layer (angle-dependent, not blur)
+    // Dirt layer (angle-dependent, no blur)
     float Dirt = DirtAmount * (1.0 - NoV) * 0.3;
     Result = lerp(Result, Result * 0.6, Dirt);
 
@@ -285,8 +328,8 @@ void SkyscraperGlassPixel(
 }
 
 // ============================================================================
-// Material Type: VehicleGlass - Medium Precision Single-Layer
-// Optimized refraction, single IOR, reduced specular
+// Material Type 2: VehicleGlass
+// IOR=1.38, thickness=0.18, Fresnel 0°=0.08 90°=0.70
 // ============================================================================
 void VehicleGlassPixel(
     float3 V,
@@ -308,7 +351,7 @@ void VehicleGlassPixel(
     float CosTheta = NoV;
 
     // Fresnel - no dispersion for vehicle glass
-    float3 F0 = FresnelF0FromIOR(IOR);
+    float3 F0 = FresnelF0FromIOR(IOR).xxx;
     float3 F = FresnelSchlick(CosTheta, F0);
 
     // Single-layer refraction
@@ -354,8 +397,8 @@ void VehicleGlassPixel(
 }
 
 // ============================================================================
-// Material Type: UIGlass - Low Intensity Single-Refraction
-// Minimal refraction, low absorption, high transparency
+// Material Type 3: UIGlass
+// IOR=1.05, thickness=0.05, Fresnel edge=0.25, samples=4 all chips
 // ============================================================================
 void UIGlassPixel(
     float3 V,
@@ -376,7 +419,7 @@ void UIGlassPixel(
     float NoV = abs(dot(N, V)) + Epsilon;
     float CosTheta = NoV;
 
-    float3 F0 = FresnelF0FromIOR(IOR);
+    float3 F0 = FresnelF0FromIOR(IOR).xxx;
     float3 F = FresnelSchlick(CosTheta, F0);
 
     float Eta = AirIOR / IOR;
@@ -415,7 +458,7 @@ void UIGlassPixel(
 }
 
 // ============================================================================
-// Liquid Glass Entry Point
+// LiquidGlass Main Entry Point (GPU-only, no CPU)
 // ============================================================================
 void LiquidGlassMain(
     in float2 SvPosition,
@@ -472,8 +515,10 @@ void LiquidGlassMain(
 }
 
 // ============================================================================
-// CalcPixelMaterialInputs - UE5 Material Entry Point
+// CalcPixelMaterialInputs - UE5.9.2 Substrate Material Entry Point
 // Full Lumen GI compatibility: refracted light contributes to GI
+// CustomData0 = MaterialType (0/1/2)
+// All computation on GPU only, no CPU dispatch
 // ============================================================================
 void CalcPixelMaterialInputs(
     in out FPixelMaterialInputs PixelMaterialInputs,
@@ -500,6 +545,7 @@ void CalcPixelMaterialInputs(
         OutColor,
         OutOpacity);
 
+    // Substrate-compatible material output
     PixelMaterialInputs.EmissiveColor = 0;
     PixelMaterialInputs.Opacity = OutOpacity;
     PixelMaterialInputs.OpacityMask = 1.0;

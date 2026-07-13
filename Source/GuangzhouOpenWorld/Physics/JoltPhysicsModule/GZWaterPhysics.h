@@ -116,10 +116,13 @@ private:
 
 	FVector FlowDirection = FVector(0.0f, 1.0f, 0.0f);
 	float TidalPhase = 0.0f;
-	float TidalPeriod = 12.4f * 3600.0f;
+	float TidalPeriod = 1200.0f;
 	float TidalAmplitude = 1.5f;
 	float WaterBaseHeight = 0.0f;
 
 	static constexpr float Gravity = 9.81f;
 	static constexpr float WaterDensity = 1000.0f;
+	static constexpr int32 SPHParticleDensity = 128;
+	static constexpr float WaterFlowSpeed = 0.15f;
+	static constexpr float RippleIntensity = 0.3f;
 };

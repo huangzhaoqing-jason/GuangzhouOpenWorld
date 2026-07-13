@@ -25,16 +25,16 @@ struct FGZMaterialDestructionProps
 	float FractureToughness = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 FragmentCountMin = 4;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 FragmentCountMax = 16;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float FragmentSizeMin = 0.1f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float FragmentSizeMax = 0.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 FragmentCountMin = 4;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 FragmentCountMax = 16;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float ScatterVelocity = 500.0f;
@@ -61,7 +61,7 @@ struct FGZDebrisFragment
 	float Lifetime = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MaxLifetime = 5.0f;
+	float MaxLifetime = 120.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EGZDestructibleMaterial Material = EGZDestructibleMaterial::Wall;
@@ -113,6 +113,7 @@ private:
 	void GenerateVoronoiFragments(const FGZImpactData& Impact, const FGZMaterialDestructionProps& Props,
 		const FVector& BoundsMin, const FVector& BoundsMax, TArray<FGZDebrisFragment>& OutFragments);
 	void SimulateDebrisPhysics(float DeltaTime);
+	void RecycleExpiredDebris();
 	void CullExcessDebris();
 
 	UPROPERTY()
@@ -120,4 +121,5 @@ private:
 
 	int32 MaxDebrisLimit = 5000;
 	static constexpr float Gravity = 9.81f;
+	static constexpr float DebrisMaxLifetime = 120.0f;
 };

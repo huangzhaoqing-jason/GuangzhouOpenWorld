@@ -18,8 +18,17 @@ UENUM(BlueprintType)
 enum class EGZRoadSurface : uint8
 {
 	Concrete	UMETA(DisplayName = "Concrete"),
+	Asphalt		UMETA(DisplayName = "Asphalt"),
 	Grass		UMETA(DisplayName = "Grass"),
-	Wet			UMETA(DisplayName = "Wet"),
+	Water		UMETA(DisplayName = "Water"),
+};
+
+UENUM(BlueprintType)
+enum class EGZDeformationLevel : uint8
+{
+	None		UMETA(DisplayName = "No Damage (0-20 km/h)"),
+	Light		UMETA(DisplayName = "Light (20-50 km/h)"),
+	Heavy		UMETA(DisplayName = "Heavy (50+ km/h)"),
 };
 
 USTRUCT(BlueprintType)
@@ -55,16 +64,22 @@ struct FGZVehicleSpec
 	float TrackWidth = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float SuspensionStiffness = 0.0f;
+	float SuspensionStiffness = 22000.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float SuspensionDamping = 0.0f;
+	float SuspensionReboundDamping = 850.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float SuspensionTravel = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float TireFriction = 0.0f;
+	float FrontTireGrip = 0.78f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float RearTireGrip = 0.82f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float RainGripMultiplier = 0.45f;
 };
 
 USTRUCT(BlueprintType)
@@ -80,6 +95,9 @@ struct FGZVehicleDeformation
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float SuspensionDamage = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EGZDeformationLevel DeformationLevel = EGZDeformationLevel::None;
 };
 
 USTRUCT(BlueprintType)
@@ -151,7 +169,7 @@ public:
 	UGZVehiclePhysics();
 
 	void Initialize(EGZVehicleType Type);
-	void Simulate(float DeltaTime, float ThrottleInput, float BrakeInput, float SteerInput, EGZRoadSurface Surface);
+	void Simulate(float DeltaTime, float ThrottleInput, float BrakeInput, float SteerInput, EGZRoadSurface Surface, bool bIsRaining);
 	void ApplyDamage(const FVector& ImpactPoint, const FVector& ImpactVelocity, float ImpactMass);
 
 	UFUNCTION(BlueprintPure)
@@ -168,12 +186,13 @@ public:
 
 private:
 	void UpdateEngine(float DeltaTime, float ThrottleInput);
-	void UpdateWheels(float DeltaTime, float SteerInput, EGZRoadSurface Surface);
+	void UpdateWheels(float DeltaTime, float SteerInput, EGZRoadSurface Surface, bool bIsRaining);
 	void UpdateSuspension(float DeltaTime);
 	void UpdateAerodynamics(float DeltaTime);
 	void UpdateTireWear(float DeltaTime, EGZRoadSurface Surface);
 	void UpdateDeformationEffects(float DeltaTime);
 	float CalculateSlopeEffect() const;
+	EGZDeformationLevel CalculateDeformationLevel(float ImpactSpeedKmh) const;
 
 	UPROPERTY()
 	FGZVehicleState16DOF State;
@@ -184,6 +203,11 @@ private:
 	float LastFireTime = 0.0f;
 	static constexpr float PhysicsTickRate = 60.0f;
 	static constexpr float Gravity = 9.81f;
+	static constexpr float MaxEngineRPM = 7000.0f;
+	static constexpr float IdleRPM = 800.0f;
+	static constexpr float AirDensity = 1.225f;
+	static constexpr float FrontalArea = 2.2f;
+	static constexpr float WheelRadius = 0.35f;
 };
 
 UCLASS(BlueprintType)

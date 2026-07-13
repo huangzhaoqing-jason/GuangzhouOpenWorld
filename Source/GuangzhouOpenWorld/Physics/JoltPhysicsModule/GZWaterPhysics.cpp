@@ -1,4 +1,4 @@
-#include "Physics/GZWaterPhysics.h"
+#include "Physics/JoltPhysicsModule/GZWaterPhysics.h"
 #include "GuangzhouOpenWorld.h"
 #include "Math/UnrealMathUtility.h"
 
@@ -35,7 +35,7 @@ void UGZWaterPhysics::Initialize(int32 InGridSize, float InCellSize)
 	W1.Amplitude = 0.8f;
 	W1.Frequency = 0.5f;
 	W1.Direction = FVector2D(0.0f, 1.0f);
-	W1.Steepness = 0.3f;
+	W1.Steepness = RippleIntensity;
 	Waves.Add(W1);
 
 	FGZGerstnerWave W2;
@@ -59,8 +59,8 @@ void UGZWaterPhysics::Initialize(int32 InGridSize, float InCellSize)
 	W4.Steepness = 0.1f;
 	Waves.Add(W4);
 
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Water physics initialized: %dx%d grid, %.0fm x %.0fm, %d waves"),
-		GridSize, GridSize, TotalWidth, TotalWidth, Waves.Num());
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Water physics: %dx%d grid, %.0fm, SPH=%d, tide=%.0fs, speed=%.2f, ripple=%.1f, %d waves"),
+		GridSize, GridSize, TotalWidth, SPHParticleDensity, TidalPeriod, WaterFlowSpeed, RippleIntensity, Waves.Num());
 }
 
 void UGZWaterPhysics::Simulate(float DeltaTime)
@@ -137,7 +137,9 @@ FVector UGZWaterPhysics::CalculateBuoyancy(const FVector& ObjectPosition, float 
 	float BuoyancyForce = WaterDensity * Gravity * SubmergedVolume;
 	float Weight = ObjectMass * Gravity;
 
-	return FVector(0.0f, 0.0f, BuoyancyForce - Weight * 0.5f);
+	FVector FlowForce = FlowDirection * WaterFlowSpeed * SubmergedVolume * WaterDensity;
+
+	return FVector(FlowForce.X, FlowForce.Y, BuoyancyForce - Weight * 0.5f);
 }
 
 float UGZWaterPhysics::GetTidalOffset() const

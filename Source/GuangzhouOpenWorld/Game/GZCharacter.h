@@ -50,6 +50,9 @@ protected:
 	float IKInterpSpeed = 10.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "IK")
+	float IKPrecision = 0.01f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "IK")
 	FVector LeftFootIKOffset = FVector::ZeroVector;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "IK")

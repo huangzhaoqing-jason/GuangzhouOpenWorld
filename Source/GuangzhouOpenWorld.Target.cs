@@ -7,7 +7,7 @@ public class GuangzhouOpenWorldTarget : TargetRules
 	{
 		Type = TargetType.Game;
 		DefaultBuildSettings = BuildSettingsVersion.V5;
-		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_9;
 		CppStandard = CppStandardVersion.Cpp20;
 
 		ExtraModuleNames.Add("GuangzhouOpenWorld");
@@ -31,15 +31,15 @@ public class GuangzhouOpenWorldTarget : TargetRules
 
 		if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			OutEnv.Definitions.Add("METAL_4_0=1");
+			OutEnv.Definitions.Add("METAL_4_2=1");
 			OutEnv.Definitions.Add("APPLE_SILICON_UMA=1");
 			OutEnv.Definitions.Add("SOLOUD_ENABLED=1");
-			OutEnv.Definitions.Add("JOLT_PHYSICS=1");
+			OutEnv.Definitions.Add("JOLT_PHYSICS_V6=1");
 
-			OutEnv.AdditionalCompilerArguments += " -march=armv8.5-a+fp+simd+crypto+rcpc";
-			OutEnv.AdditionalCompilerArguments += " -mtune=apple-m1";
-			OutEnv.AdditionalCompilerArguments += " -fno-math-errno";
-			OutEnv.AdditionalCompilerArguments += " -ffast-math";
+			OutEnv.AdditionalCompilerArguments += " -march=armv8.6-a+fp+simd+crypto+rcpc+neon";
+			OutEnv.AdditionalCompilerArguments += " -O3";
+			OutEnv.AdditionalCompilerArguments += " -flto";
+			OutEnv.LinkerArguments += " -Wl,-dead_strip";
 		}
 	}
 }

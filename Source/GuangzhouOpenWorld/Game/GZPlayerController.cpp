@@ -313,7 +313,7 @@ void AGZPlayerController::UpdateWantedDecay(float DeltaSeconds)
 	WantedDecayTimer += DeltaSeconds;
 	if (WantedDecayTimer >= WantedDecayTime)
 	{
-		WantedLevel = FMath::Max(0, WantedLevel - 1);
+		WantedLevel = FMath::Max(0, FMath::RoundToInt(WantedLevel - WantedDecayRate));
 		WantedDecayTimer = 0.0f;
 		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Wanted level decayed to %d"), WantedLevel);
 	}

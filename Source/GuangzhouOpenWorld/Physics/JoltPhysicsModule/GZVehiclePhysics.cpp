@@ -1,4 +1,4 @@
-#include "Physics/GZVehiclePhysics.h"
+#include "Physics/JoltPhysicsModule/GZVehiclePhysics.h"
 #include "GuangzhouOpenWorld.h"
 #include "Math/UnrealMathUtility.h"
 
@@ -18,10 +18,12 @@ FGZVehicleSpec UGZVehiclePhysics::GetDefaultSpec(EGZVehicleType Type)
 		S.Drag = 0.28f;
 		S.WheelBase = 2.6f;
 		S.TrackWidth = 1.7f;
-		S.SuspensionStiffness = 35000.0f;
-		S.SuspensionDamping = 3500.0f;
+		S.SuspensionStiffness = 22000.0f;
+		S.SuspensionReboundDamping = 850.0f;
 		S.SuspensionTravel = 0.08f;
-		S.TireFriction = 1.05f;
+		S.FrontTireGrip = 0.78f;
+		S.RearTireGrip = 0.82f;
+		S.RainGripMultiplier = 0.45f;
 		break;
 
 	case EGZVehicleType::Sedan:
@@ -33,10 +35,12 @@ FGZVehicleSpec UGZVehiclePhysics::GetDefaultSpec(EGZVehicleType Type)
 		S.Drag = 0.32f;
 		S.WheelBase = 2.8f;
 		S.TrackWidth = 1.6f;
-		S.SuspensionStiffness = 28000.0f;
-		S.SuspensionDamping = 3000.0f;
+		S.SuspensionStiffness = 22000.0f;
+		S.SuspensionReboundDamping = 850.0f;
 		S.SuspensionTravel = 0.12f;
-		S.TireFriction = 1.0f;
+		S.FrontTireGrip = 0.78f;
+		S.RearTireGrip = 0.82f;
+		S.RainGripMultiplier = 0.45f;
 		break;
 
 	case EGZVehicleType::SUV:
@@ -48,10 +52,12 @@ FGZVehicleSpec UGZVehiclePhysics::GetDefaultSpec(EGZVehicleType Type)
 		S.Drag = 0.38f;
 		S.WheelBase = 3.0f;
 		S.TrackWidth = 1.75f;
-		S.SuspensionStiffness = 25000.0f;
-		S.SuspensionDamping = 2800.0f;
+		S.SuspensionStiffness = 22000.0f;
+		S.SuspensionReboundDamping = 850.0f;
 		S.SuspensionTravel = 0.15f;
-		S.TireFriction = 0.95f;
+		S.FrontTireGrip = 0.78f;
+		S.RearTireGrip = 0.82f;
+		S.RainGripMultiplier = 0.45f;
 		break;
 
 	case EGZVehicleType::Motorcycle:
@@ -63,10 +69,12 @@ FGZVehicleSpec UGZVehiclePhysics::GetDefaultSpec(EGZVehicleType Type)
 		S.Drag = 0.25f;
 		S.WheelBase = 1.5f;
 		S.TrackWidth = 0.3f;
-		S.SuspensionStiffness = 15000.0f;
-		S.SuspensionDamping = 2000.0f;
+		S.SuspensionStiffness = 22000.0f;
+		S.SuspensionReboundDamping = 850.0f;
 		S.SuspensionTravel = 0.10f;
-		S.TireFriction = 1.0f;
+		S.FrontTireGrip = 0.78f;
+		S.RearTireGrip = 0.82f;
+		S.RainGripMultiplier = 0.45f;
 		break;
 
 	case EGZVehicleType::Truck:
@@ -78,10 +86,12 @@ FGZVehicleSpec UGZVehiclePhysics::GetDefaultSpec(EGZVehicleType Type)
 		S.Drag = 0.55f;
 		S.WheelBase = 4.5f;
 		S.TrackWidth = 2.0f;
-		S.SuspensionStiffness = 50000.0f;
-		S.SuspensionDamping = 5000.0f;
+		S.SuspensionStiffness = 22000.0f;
+		S.SuspensionReboundDamping = 850.0f;
 		S.SuspensionTravel = 0.20f;
-		S.TireFriction = 0.90f;
+		S.FrontTireGrip = 0.78f;
+		S.RearTireGrip = 0.82f;
+		S.RainGripMultiplier = 0.45f;
 		break;
 	}
 
@@ -92,10 +102,11 @@ float UGZVehiclePhysics::GetSurfaceFriction(EGZRoadSurface Surface)
 {
 	switch (Surface)
 	{
-	case EGZRoadSurface::Concrete: return 1.0f;
-	case EGZRoadSurface::Grass:    return 0.6f;
-	case EGZRoadSurface::Wet:      return 0.4f;
-	default: return 1.0f;
+	case EGZRoadSurface::Concrete: return 0.85f;
+	case EGZRoadSurface::Asphalt:  return 0.79f;
+	case EGZRoadSurface::Grass:    return 0.62f;
+	case EGZRoadSurface::Water:    return 0.31f;
+	default: return 0.85f;
 	}
 }
 
@@ -116,10 +127,10 @@ void UGZVehiclePhysics::Initialize(EGZVehicleType Type)
 	State.WheelRL.Position = FVector(-HalfBase, -HalfTrack, 0.0f);
 	State.WheelRR.Position = FVector(-HalfBase, HalfTrack, 0.0f);
 
-	State.EngineRPM = 800.0f;
+	State.EngineRPM = IdleRPM;
 }
 
-void UGZVehiclePhysics::Simulate(float DeltaTime, float ThrottleInput, float BrakeInput, float SteerInput, EGZRoadSurface Surface)
+void UGZVehiclePhysics::Simulate(float DeltaTime, float ThrottleInput, float BrakeInput, float SteerInput, EGZRoadSurface Surface, bool bIsRaining)
 {
 	float SubStep = 1.0f / PhysicsTickRate;
 	int32 Steps = FMath::Max(1, FMath::RoundToInt(DeltaTime / SubStep));
@@ -128,7 +139,7 @@ void UGZVehiclePhysics::Simulate(float DeltaTime, float ThrottleInput, float Bra
 	for (int32 i = 0; i < Steps; ++i)
 	{
 		UpdateEngine(StepDT, ThrottleInput);
-		UpdateWheels(StepDT, SteerInput, Surface);
+		UpdateWheels(StepDT, SteerInput, Surface, bIsRaining);
 		UpdateSuspension(StepDT);
 		UpdateAerodynamics(StepDT);
 		UpdateTireWear(StepDT, Surface);
@@ -138,9 +149,14 @@ void UGZVehiclePhysics::Simulate(float DeltaTime, float ThrottleInput, float Bra
 		float SurfaceFriction = GetSurfaceFriction(Surface);
 		float EffectiveFriction = SurfaceFriction * State.TireWearOverall * (1.0f - State.Deformation.SuspensionDamage * 0.3f);
 
-		float DriveForce = ThrottleInput * Spec.Acceleration * Spec.Mass * (State.EngineRPM / 7000.0f);
+		if (bIsRaining)
+		{
+			EffectiveFriction *= Spec.RainGripMultiplier;
+		}
+
+		float DriveForce = ThrottleInput * Spec.Acceleration * Spec.Mass * (State.EngineRPM / MaxEngineRPM);
 		float BrakeForce = BrakeInput * Spec.Braking * Spec.Mass;
-		float DragForce = State.BodyVelocity * State.BodyVelocity * Spec.Drag * 0.5f * 1.225f * 2.2f;
+		float DragForce = State.BodyVelocity * State.BodyVelocity * Spec.Drag * 0.5f * AirDensity * FrontalArea;
 		float NetForce = DriveForce - BrakeForce - DragForce;
 		NetForce *= (1.0f - SlopeEffect * 0.5f);
 
@@ -161,28 +177,36 @@ void UGZVehiclePhysics::Simulate(float DeltaTime, float ThrottleInput, float Bra
 void UGZVehiclePhysics::ApplyDamage(const FVector& ImpactPoint, const FVector& ImpactVelocity, float ImpactMass)
 {
 	float ImpactSpeed = ImpactVelocity.Size();
+	float ImpactSpeedKmh = ImpactSpeed * 3.6f;
 	float ImpactEnergy = 0.5f * ImpactMass * ImpactSpeed * ImpactSpeed;
 	float DamageFactor = FMath::Clamp(ImpactEnergy / 500000.0f, 0.0f, 1.0f);
+
+	EGZDeformationLevel NewLevel = CalculateDeformationLevel(ImpactSpeedKmh);
+
+	if (NewLevel > State.Deformation.DeformationLevel)
+	{
+		State.Deformation.DeformationLevel = NewLevel;
+	}
 
 	State.Deformation.ChassisIntegrity = FMath::Max(0.0f, State.Deformation.ChassisIntegrity - DamageFactor * 0.3f);
 	State.Deformation.WheelAlignmentOffset = FMath::Min(1.0f, State.Deformation.WheelAlignmentOffset + DamageFactor * 0.4f);
 	State.Deformation.SuspensionDamage = FMath::Min(1.0f, State.Deformation.SuspensionDamage + DamageFactor * 0.5f);
 
-	UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("Vehicle damage: chassis=%.2f, alignment=%.2f, suspension=%.2f"),
-		State.Deformation.ChassisIntegrity, State.Deformation.WheelAlignmentOffset, State.Deformation.SuspensionDamage);
+	UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("Vehicle damage: speed=%.1f km/h, level=%d, chassis=%.2f, alignment=%.2f, suspension=%.2f"),
+		ImpactSpeedKmh, (int32)State.Deformation.DeformationLevel, State.Deformation.ChassisIntegrity,
+		State.Deformation.WheelAlignmentOffset, State.Deformation.SuspensionDamage);
 }
 
 void UGZVehiclePhysics::UpdateEngine(float DeltaTime, float ThrottleInput)
 {
-	float TargetRPM = 800.0f + ThrottleInput * 6200.0f;
+	float TargetRPM = IdleRPM + ThrottleInput * (MaxEngineRPM - IdleRPM);
 	State.EngineRPM = FMath::FInterpTo(State.EngineRPM, TargetRPM, DeltaTime, 3.0f);
-	State.EngineRPM = FMath::Clamp(State.EngineRPM, 800.0f, 7000.0f);
+	State.EngineRPM = FMath::Clamp(State.EngineRPM, IdleRPM, MaxEngineRPM);
 }
 
-void UGZVehiclePhysics::UpdateWheels(float DeltaTime, float SteerInput, EGZRoadSurface Surface)
+void UGZVehiclePhysics::UpdateWheels(float DeltaTime, float SteerInput, EGZRoadSurface Surface, bool bIsRaining)
 {
-	float SurfaceFric = GetSurfaceFriction(Surface);
-	float WheelRotationSpeed = State.BodyVelocity / 0.35f;
+	float WheelRotationSpeed = State.BodyVelocity / WheelRadius;
 	float WheelSlip = WheelRotationSpeed * 0.02f;
 
 	State.WheelFL.Velocity = WheelRotationSpeed;
@@ -199,7 +223,10 @@ void UGZVehiclePhysics::UpdateSuspension(float DeltaTime)
 	float RestLength = Spec.SuspensionTravel;
 	float Compression = FMath::Abs(State.BodyVelocity) * 0.001f;
 
-	State.WheelFL.SuspensionCompression = FMath::Clamp(Compression * Spec.SuspensionDamping / Spec.SuspensionStiffness, 0.0f, RestLength);
+	float SpringForce = Spec.SuspensionStiffness * Compression;
+	float DampingForce = Spec.SuspensionReboundDamping * Compression;
+
+	State.WheelFL.SuspensionCompression = FMath::Clamp(Compression * DampingForce / SpringForce, 0.0f, RestLength);
 	State.WheelFR.SuspensionCompression = State.WheelFL.SuspensionCompression;
 	State.WheelRL.SuspensionCompression = State.WheelFL.SuspensionCompression * 0.8f;
 	State.WheelRR.SuspensionCompression = State.WheelFL.SuspensionCompression * 0.8f;
@@ -207,7 +234,7 @@ void UGZVehiclePhysics::UpdateSuspension(float DeltaTime)
 
 void UGZVehiclePhysics::UpdateAerodynamics(float DeltaTime)
 {
-	float DragForce = State.BodyVelocity * State.BodyVelocity * Spec.Drag * 0.5f * 1.225f * 2.2f;
+	float DragForce = State.BodyVelocity * State.BodyVelocity * Spec.Drag * 0.5f * AirDensity * FrontalArea;
 	State.BodyVelocity -= (DragForce / Spec.Mass) * DeltaTime;
 	State.BodyVelocity = FMath::Max(0.0f, State.BodyVelocity);
 }
@@ -216,7 +243,7 @@ void UGZVehiclePhysics::UpdateTireWear(float DeltaTime, EGZRoadSurface Surface)
 {
 	float WearRate = 0.0001f;
 	if (Surface == EGZRoadSurface::Grass) WearRate = 0.0003f;
-	if (Surface == EGZRoadSurface::Wet) WearRate = 0.0005f;
+	if (Surface == EGZRoadSurface::Water) WearRate = 0.0005f;
 
 	float SpeedFactor = State.BodyVelocity / (Spec.MaxSpeed / 3.6f);
 	WearRate *= (1.0f + SpeedFactor * 2.0f);
@@ -243,6 +270,13 @@ float UGZVehiclePhysics::CalculateSlopeEffect() const
 	float Pitch = State.Rotation.Pitch;
 	float SlopeFactor = FMath::Sin(FMath::DegreesToRadians(Pitch));
 	return SlopeFactor;
+}
+
+EGZDeformationLevel UGZVehiclePhysics::CalculateDeformationLevel(float ImpactSpeedKmh) const
+{
+	if (ImpactSpeedKmh < 20.0f) return EGZDeformationLevel::None;
+	if (ImpactSpeedKmh < 50.0f) return EGZDeformationLevel::Light;
+	return EGZDeformationLevel::Heavy;
 }
 
 UGZVehicleManager::UGZVehicleManager()

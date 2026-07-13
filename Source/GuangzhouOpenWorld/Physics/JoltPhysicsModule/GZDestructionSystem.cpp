@@ -1,4 +1,4 @@
-#include "Physics/GZDestructionSystem.h"
+#include "Physics/JoltPhysicsModule/GZDestructionSystem.h"
 #include "GuangzhouOpenWorld.h"
 #include "Math/UnrealMathUtility.h"
 
@@ -11,37 +11,37 @@ FGZMaterialDestructionProps UGZDestructionSystem::GetMaterialProps(EGZDestructib
 	{
 	case EGZDestructibleMaterial::Glass:
 		Props.FractureToughness = 0.2f;
+		Props.FragmentSizeMin = 0.05f;
+		Props.FragmentSizeMax = 0.15f;
 		Props.FragmentCountMin = 8;
 		Props.FragmentCountMax = 32;
-		Props.FragmentSizeMin = 0.02f;
-		Props.FragmentSizeMax = 0.15f;
 		Props.ScatterVelocity = 300.0f;
 		break;
 
 	case EGZDestructibleMaterial::Wall:
 		Props.FractureToughness = 1.0f;
+		Props.FragmentSizeMin = 0.2f;
+		Props.FragmentSizeMax = 0.5f;
 		Props.FragmentCountMin = 4;
 		Props.FragmentCountMax = 20;
-		Props.FragmentSizeMin = 0.1f;
-		Props.FragmentSizeMax = 0.5f;
 		Props.ScatterVelocity = 500.0f;
 		break;
 
 	case EGZDestructibleMaterial::Metal:
 		Props.FractureToughness = 2.5f;
-		Props.FragmentCountMin = 2;
-		Props.FragmentCountMax = 10;
 		Props.FragmentSizeMin = 0.15f;
 		Props.FragmentSizeMax = 0.8f;
+		Props.FragmentCountMin = 2;
+		Props.FragmentCountMax = 10;
 		Props.ScatterVelocity = 400.0f;
 		break;
 
 	case EGZDestructibleMaterial::Wood:
 		Props.FractureToughness = 0.8f;
-		Props.FragmentCountMin = 4;
-		Props.FragmentCountMax = 16;
 		Props.FragmentSizeMin = 0.05f;
 		Props.FragmentSizeMax = 0.4f;
+		Props.FragmentCountMin = 4;
+		Props.FragmentCountMax = 16;
 		Props.ScatterVelocity = 450.0f;
 		break;
 	}
@@ -58,7 +58,7 @@ void UGZDestructionSystem::Initialize(int32 InMaxDebrisLimit)
 	MaxDebrisLimit = InMaxDebrisLimit;
 	ActiveDebris.Empty();
 	ActiveDebris.Reserve(MaxDebrisLimit);
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Destruction system initialized: max debris=%d"), MaxDebrisLimit);
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Destruction system: max debris=%d, lifetime=%.0fs"), MaxDebrisLimit, DebrisMaxLifetime);
 }
 
 void UGZDestructionSystem::ApplyDestruction(const FGZImpactData& Impact, EGZDestructibleMaterial Material,
@@ -94,6 +94,7 @@ void UGZDestructionSystem::ApplyDestruction(const FGZImpactData& Impact, EGZDest
 void UGZDestructionSystem::Tick(float DeltaTime)
 {
 	SimulateDebrisPhysics(DeltaTime);
+	RecycleExpiredDebris();
 }
 
 void UGZDestructionSystem::SetMaxDebrisLimit(int32 Limit)
@@ -160,7 +161,7 @@ void UGZDestructionSystem::GenerateVoronoiFragments(const FGZImpactData& Impact,
 		float FragSize = FMath::FRandRange(Props.FragmentSizeMin, Props.FragmentSizeMax);
 		Fragment.Scale = FVector(FragSize);
 		Fragment.Lifetime = 0.0f;
-		Fragment.MaxLifetime = FMath::FRandRange(3.0f, 8.0f);
+		Fragment.MaxLifetime = DebrisMaxLifetime;
 		Fragment.Material = Props.Material;
 
 		OutFragments.Add(Fragment);
@@ -180,7 +181,18 @@ void UGZDestructionSystem::SimulateDebrisPhysics(float DeltaTime)
 
 		Debris.Position += Debris.Velocity * DeltaTime;
 
-		if (Debris.Position.Z < -100.0f || Debris.Lifetime >= Debris.MaxLifetime)
+		if (Debris.Position.Z < -100.0f)
+		{
+			ActiveDebris.RemoveAtSwap(i);
+		}
+	}
+}
+
+void UGZDestructionSystem::RecycleExpiredDebris()
+{
+	for (int32 i = ActiveDebris.Num() - 1; i >= 0; --i)
+	{
+		if (ActiveDebris[i].Lifetime >= ActiveDebris[i].MaxLifetime)
 		{
 			ActiveDebris.RemoveAtSwap(i);
 		}

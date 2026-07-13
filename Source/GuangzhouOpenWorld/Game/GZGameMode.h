@@ -63,6 +63,18 @@ struct FDayNightCycleSettings
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DayNight")
 	FLinearColor SunriseColor = FLinearColor(0.9f, 0.6f, 0.3f, 1.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DayNight")
+	float SunriseStart = 5.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DayNight")
+	float SunriseEnd = 7.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DayNight")
+	float SunsetStart = 17.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DayNight")
+	float SunsetEnd = 19.0f;
 };
 
 USTRUCT(BlueprintType)
@@ -84,6 +96,51 @@ struct FAutoQualitySettings
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quality")
 	float BloomIntensity = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quality")
+	int32 TSRFrameCount = 8;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quality")
+	int32 NaniteQualityLevel = 4;
+};
+
+USTRUCT(BlueprintType)
+struct FLumenColorBleedSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lumen")
+	float WallBleed = 0.22f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lumen")
+	float GlassBleed = 0.08f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lumen")
+	float RoadBleed = 0.15f;
+};
+
+USTRUCT(BlueprintType)
+struct FAdaptiveResolutionSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdaptiveRes")
+	float CBDScreenPercentage = 100.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdaptiveRes")
+	float StreetScreenPercentage = 90.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdaptiveRes")
+	float FarScreenPercentage = 75.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdaptiveRes")
+	float VehicleHighSpeedScreenPercentage = 95.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdaptiveRes")
+	float VehicleHighSpeedThreshold = 60.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdaptiveRes")
+	float TransitionTime = 0.2f;
 };
 
 UCLASS()
@@ -104,7 +161,7 @@ public:
 	void ApplyChipSpecificSettings();
 
 	UFUNCTION(BlueprintCallable, Category = "Weather")
-	void SetWeather(EGZWeatherType NewWeather, float TransitionTime = 5.0f);
+	void SetWeather(EGZWeatherType NewWeather);
 
 	UFUNCTION(BlueprintPure, Category = "Weather")
 	EGZWeatherType GetCurrentWeather() const { return CurrentWeather; }
@@ -121,11 +178,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DayNight")
 	void SetTimeOfDay(float NewTime);
 
+	UFUNCTION(BlueprintCallable, Category = "Quality")
+	void UpdateAdaptiveResolution(float VehicleSpeedKmh, bool bIsInCBD, bool bIsInStreet, bool bIsFar);
+
 protected:
 	void UpdateDayNightCycle(float DeltaSeconds);
 	void UpdateWeatherTransition(float DeltaSeconds);
 	void UpdateLightingFromZone(EGZLightingZone Zone);
 	void ApplyAutoQualityPreset();
+	void ApplyLumenColorBleed();
+	float GetWeatherTransitionTime(EGZWeatherType From, EGZWeatherType To) const;
+	int32 GetLightingZoneSampleCount(EGZLightingZone Zone) const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DayNight")
 	FDayNightCycleSettings DayNight;
@@ -140,13 +203,19 @@ protected:
 	float WeatherTransitionProgress = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weather")
-	float WeatherTransitionSpeed = 0.0f;
+	float WeatherTransitionDuration = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lighting")
 	EGZLightingZone CurrentLightingZone = EGZLightingZone::OutdoorStreet;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quality")
 	FAutoQualitySettings QualitySettings;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lumen")
+	FLumenColorBleedSettings LumenColorBleed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdaptiveRes")
+	FAdaptiveResolutionSettings AdaptiveResolution;
 
 	UPROPERTY()
 	EAppleSiliconChip DetectedChip = EAppleSiliconChip::Unknown;
@@ -162,4 +231,9 @@ protected:
 
 	UPROPERTY()
 	class USkyLightComponent* SkyComponent = nullptr;
+
+	float CurrentAdaptiveScreenPercentage = 100.0f;
+	float AdaptiveTransitionTimer = 0.0f;
+	float AdaptiveTransitionTarget = 100.0f;
+	float AdaptiveTransitionFrom = 100.0f;
 };

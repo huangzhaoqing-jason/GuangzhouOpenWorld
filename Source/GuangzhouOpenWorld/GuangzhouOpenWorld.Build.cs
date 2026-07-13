@@ -76,21 +76,21 @@ public class GuangzhouOpenWorld : ModuleRules
 			PublicIncludePaths.AddRange(new string[]
 			{
 				"Source/GuangzhouOpenWorld/Game",
-				"Source/GuangzhouOpenWorld/Physics",
-				"Source/GuangzhouOpenWorld/AI",
-				"Source/GuangzhouOpenWorld/Scene",
-				"Source/GuangzhouOpenWorld/Audio",
-				"Source/GuangzhouOpenWorld/Network",
+				"Source/GuangzhouOpenWorld/Physics/JoltPhysicsModule",
+				"Source/GuangzhouOpenWorld/AI/RecastMassAI",
+				"Source/GuangzhouOpenWorld/Scene/RenderingSystem",
+				"Source/GuangzhouOpenWorld/Audio/SoLoudSystem",
+				"Source/GuangzhouOpenWorld/Network/EOSSystem",
 			});
 
 			PrivateIncludePaths.AddRange(new string[]
 			{
 				"Source/GuangzhouOpenWorld/Game",
-				"Source/GuangzhouOpenWorld/Physics",
-				"Source/GuangzhouOpenWorld/AI",
-				"Source/GuangzhouOpenWorld/Scene",
-				"Source/GuangzhouOpenWorld/Audio",
-				"Source/GuangzhouOpenWorld/Network",
+				"Source/GuangzhouOpenWorld/Physics/JoltPhysicsModule",
+				"Source/GuangzhouOpenWorld/AI/RecastMassAI",
+				"Source/GuangzhouOpenWorld/Scene/RenderingSystem",
+				"Source/GuangzhouOpenWorld/Audio/SoLoudSystem",
+				"Source/GuangzhouOpenWorld/Network/EOSSystem",
 			});
 
 			PublicFrameworks.AddRange(new string[]
@@ -103,10 +103,11 @@ public class GuangzhouOpenWorld : ModuleRules
 				"CoreHaptics",
 			});
 
-			PublicDefinitions.Add("METAL_4_0=1");
+			PublicDefinitions.Add("METAL_4_2=1");
 			PublicDefinitions.Add("APPLE_SILICON_UMA=1");
-			PublicDefinitions.Add("SOLOUD_ENABLED=1");
-			PublicDefinitions.Add("JOLT_PHYSICS=1");
+			PublicDefinitions.Add("SOLOUD_2_10_0=1");
+			PublicDefinitions.Add("JOLT_6_0_1=1");
+			PublicDefinitions.Add("UE5_9_2=1");
 		}
 
 		OptimizeCode = CodeOptimization.InShippingBuildsOnly;
