@@ -1,15 +1,16 @@
-// GuangzhouOpenWorld.h
-// 主模块头文件 — GTA-广州 3A开放世界
-
 #pragma once
+
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogGZWorld, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogGuangzhouOpenWorld, Log, All);
 
 class FGuangzhouOpenWorldModule : public IModuleInterface
 {
 public:
-    virtual void StartupModule() override;
-    virtual void ShutdownModule() override;
+	virtual void StartupModule() override;
+	virtual void ShutdownModule() override;
+
+private:
+	void DetectAppleSiliconAndLog();
 };

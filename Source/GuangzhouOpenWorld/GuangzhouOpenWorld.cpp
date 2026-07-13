@@ -1,25 +1,44 @@
-// GuangzhouOpenWorld.cpp
-// 主模块实现 — 初始化所有子系统
-
 #include "GuangzhouOpenWorld.h"
-#include "Game/GZGameMode.h"
-#include "Physics/GZVehiclePhysics.h"
-#include "AI/GZNavigationSystem.h"
-#include "Scene/GZWorldPartition.h"
-#include "Audio/GZAudioManager.h"
-#include "Network/GZNetworkManager.h"
+#include "HAL/PlatformMisc.h"
 
-DEFINE_LOG_CATEGORY(LogGZWorld);
+DEFINE_LOG_CATEGORY(LogGuangzhouOpenWorld);
 
 void FGuangzhouOpenWorldModule::StartupModule()
 {
-    UE_LOG(LogGZWorld, Log, TEXT("GTA-广州 GuangzhouOpenWorld Module Started"));
-    UE_LOG(LogGZWorld, Log, TEXT("Target: macOS Apple Silicon | Metal 4 | Nanite | Lumen | Jolt Physics"));
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("GuangzhouOpenWorld module starting up."));
+	DetectAppleSiliconAndLog();
 }
 
 void FGuangzhouOpenWorldModule::ShutdownModule()
 {
-    UE_LOG(LogGZWorld, Log, TEXT("GTA-广州 Module Shutdown"));
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("GuangzhouOpenWorld module shutting down."));
 }
 
-IMPLEMENT_PRIMARY_GAME_MODULE(FGuangzhouOpenWorldModule, GuangzhouOpenWorld, "GuangzhouOpenWorld");
+void FGuangzhouOpenWorldModule::DetectAppleSiliconAndLog()
+{
+#if PLATFORM_MAC
+	const FString CPUBrand = FPlatformMisc::GetCPUBrand();
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("CPU Brand: %s"), *CPUBrand);
+
+	if (CPUBrand.Contains(TEXT("M3")))
+	{
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Detected Apple Silicon: M3 series"));
+	}
+	else if (CPUBrand.Contains(TEXT("M2")))
+	{
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Detected Apple Silicon: M2 series"));
+	}
+	else if (CPUBrand.Contains(TEXT("M1")))
+	{
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Detected Apple Silicon: M1 series"));
+	}
+	else
+	{
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Apple Silicon variant: Unknown or non-Apple platform"));
+	}
+#else
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Not running on macOS. CPU: %s"), *FPlatformMisc::GetCPUBrand());
+#endif
+}
+
+IMPLEMENT_MODULE(FGuangzhouOpenWorldModule, GuangzhouOpenWorld);

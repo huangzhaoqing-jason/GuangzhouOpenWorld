@@ -1,79 +1,187 @@
-#include "GZWorldPartition.h"
-#include "Engine/World.h"
-#include "WorldPartition/WorldPartition.h"
+#include "Scene/GZWorldPartition.h"
+#include "GuangzhouOpenWorld.h"
+#include "Math/UnrealMathUtility.h"
 
-AGZWorldPartitionManager::AGZWorldPartitionManager()
+UGZWorldPartition::UGZWorldPartition()
 {
-    PrimaryActorTick.bCanEverTick = true;
-    PrimaryActorTick.TickInterval = 0.5f;
 }
 
-void AGZWorldPartitionManager::BeginPlay()
+void UGZWorldPartition::Initialize(float InCellSize)
 {
-    Super::BeginPlay();
-    UE_LOG(LogTemp, Log, TEXT("World Partition Manager: Grid=%.0fm, Preload=%d cells"), GridSize / 100.0f, PreloadCells);
-    if (bEnableOriginRebasing)
-    {
-        UE_LOG(LogTemp, Log, TEXT("Origin Rebasing: Enabled (threshold=%.0fm)"), OriginRebaseThreshold / 100.0f);
-    }
+	CellSize = InCellSize;
+	Cells.Empty();
+	CurrentOriginX = 0.0f;
+	CurrentOriginY = 0.0f;
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("World Partition initialized: cellSize=%.0fcm, rebaseDistance=%.0fcm"),
+		CellSize, OriginRebaseDistance);
 }
 
-void AGZWorldPartitionManager::Tick(float DeltaTime)
+void UGZWorldPartition::Tick(float DeltaTime, const FVector& PlayerPosition)
 {
-    Super::Tick(DeltaTime);
-    UpdateStreaming();
+	CheckOriginRebasing(PlayerPosition);
+	UpdateCellLODs(PlayerPosition);
+	PreloadNearbyCells(PlayerPosition);
+	UnloadDistantCells(PlayerPosition);
+
+	MemoryCheckTimer += DeltaTime;
+	if (MemoryCheckTimer >= 5.0f)
+	{
+		MemoryCheckTimer = 0.0f;
+		UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("World Partition: %d cells loaded"), GetLoadedCellCount());
+	}
 }
 
-void AGZWorldPartitionManager::UpdateStreaming()
+void UGZWorldPartition::SetOriginRebaseDistance(float Distance)
 {
-    if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-    {
-        if (APawn* Pawn = PC->GetPawn())
-        {
-            FVector Loc = Pawn->GetActorLocation();
-            FIntPoint NewCell(FMath::FloorToInt(Loc.X / GridSize), FMath::FloorToInt(Loc.Z / GridSize));
-            if (NewCell != CurrentCell)
-            {
-                CurrentCell = NewCell;
-                // Load cells in range
-                for (int32 x = -PreloadCells; x <= PreloadCells; x++)
-                {
-                    for (int32 y = -PreloadCells; y <= PreloadCells; y++)
-                    {
-                        FIntPoint Cell(CurrentCell.X + x, CurrentCell.Y + y);
-                        if (!LoadedCells.Contains(Cell)) LoadCell(Cell);
-                    }
-                }
-                // Unload distant cells
-                for (int32 i = LoadedCells.Num() - 1; i >= 0; i--)
-                {
-                    if (FMath::Abs(LoadedCells[i].X - CurrentCell.X) > PreloadCells + 2 ||
-                        FMath::Abs(LoadedCells[i].Y - CurrentCell.Y) > PreloadCells + 2)
-                        UnloadCell(LoadedCells[i]);
-                }
-                // Origin rebasing
-                if (bEnableOriginRebasing && Loc.Size() > OriginRebaseThreshold)
-                {
-                    FVector Offset = FVector(FMath::RoundToFloat(Loc.X / GridSize) * GridSize, 0,
-                        FMath::RoundToFloat(Loc.Z / GridSize) * GridSize);
-                    UE_LOG(LogTemp, Log, TEXT("Origin rebase to: %.0f, %.0f"), Offset.X, Offset.Z);
-                }
-            }
-        }
-    }
+	OriginRebaseDistance = FMath::Max(Distance, CellSize * 10.0f);
 }
 
-void AGZWorldPartitionManager::LoadCell(FIntPoint CellCoord)
+void UGZWorldPartition::ForceLoadCell(const FIntVector2& GridCoord)
 {
-    LoadedCells.AddUnique(CellCoord);
-    FVector CellCenter(CellCoord.X * GridSize + GridSize * 0.5f, 0, CellCoord.Y * GridSize + GridSize * 0.5f);
-    UE_LOG(LogTemp, Verbose, TEXT("Loading cell [%d,%d] at (%.0f, %.0f)"), CellCoord.X, CellCoord.Y, CellCenter.X, CellCenter.Z);
+	if (!Cells.Contains(GridCoord))
+	{
+		FGZWorldCell Cell;
+		Cell.GridCoord = GridCoord;
+		Cell.WorldCenter = GridToWorld(GridCoord);
+		Cells.Add(GridCoord, Cell);
+	}
+
+	FGZWorldCell& Cell = Cells[GridCoord];
+	Cell.bIsLoaded = true;
+	Cell.bRenderDataLoaded = true;
+	Cell.bPhysicsDataLoaded = true;
+	Cell.bNavMeshLoaded = true;
+	Cell.LastAccessTime = 0.0f;
 }
 
-void AGZWorldPartitionManager::UnloadCell(FIntPoint CellCoord)
+void UGZWorldPartition::UnloadCell(const FIntVector2& GridCoord)
 {
-    LoadedCells.Remove(CellCoord);
-    UE_LOG(LogTemp, Verbose, TEXT("Unloading cell [%d,%d]"), CellCoord.X, CellCoord.Y);
+	if (Cells.Contains(GridCoord))
+	{
+		FGZWorldCell& Cell = Cells[GridCoord];
+		Cell.bRenderDataLoaded = false;
+		Cell.bPhysicsDataLoaded = false;
+		Cell.bIsLoaded = false;
+	}
 }
 
-TArray<FIntPoint> AGZWorldPartitionManager::GetActiveCells() const { return LoadedCells; }
+int32 UGZWorldPartition::GetLoadedCellCount() const
+{
+	int32 Count = 0;
+	for (const auto& Pair : Cells)
+	{
+		if (Pair.Value.bIsLoaded) Count++;
+	}
+	return Count;
+}
+
+void UGZWorldPartition::UpdateCellLODs(const FVector& PlayerPosition)
+{
+	for (auto& Pair : Cells)
+	{
+		FGZWorldCell& Cell = Pair.Value;
+		Cell.DistanceFromPlayer = FVector::Dist2D(PlayerPosition, Cell.WorldCenter);
+
+		if (Cell.DistanceFromPlayer < CellSize)
+		{
+			Cell.LODLevel = 0;
+		}
+		else if (Cell.DistanceFromPlayer < CellSize * 3)
+		{
+			Cell.LODLevel = 1;
+		}
+		else if (Cell.DistanceFromPlayer < CellSize * 6)
+		{
+			Cell.LODLevel = 2;
+		}
+		else
+		{
+			Cell.LODLevel = 3;
+		}
+	}
+}
+
+void UGZWorldPartition::PreloadNearbyCells(const FVector& PlayerPosition)
+{
+	FIntVector2 PlayerCell = WorldToGrid(PlayerPosition);
+
+	for (int32 Y = -PreloadRadius; Y <= PreloadRadius; ++Y)
+	{
+		for (int32 X = -PreloadRadius; X <= PreloadRadius; ++X)
+		{
+			FIntVector2 Coord(PlayerCell.X + X, PlayerCell.Y + Y);
+
+			if (!Cells.Contains(Coord))
+			{
+				FGZWorldCell Cell;
+				Cell.GridCoord = Coord;
+				Cell.WorldCenter = GridToWorld(Coord);
+				Cell.LODLevel = FMath::Max(FMath::Abs(X), FMath::Abs(Y));
+				Cells.Add(Coord, Cell);
+			}
+
+			FGZWorldCell& Cell = Cells[Coord];
+			if (!Cell.bIsLoaded)
+			{
+				Cell.bIsLoaded = true;
+				Cell.bRenderDataLoaded = (Cell.LODLevel <= 1);
+				Cell.bPhysicsDataLoaded = (Cell.LODLevel <= 1);
+				Cell.bNavMeshLoaded = true;
+			}
+		}
+	}
+}
+
+void UGZWorldPartition::UnloadDistantCells(const FVector& PlayerPosition)
+{
+	float UnloadDistance = CellSize * (PreloadRadius + 2);
+
+	for (auto& Pair : Cells)
+	{
+		FGZWorldCell& Cell = Pair.Value;
+		float Dist = FVector::Dist2D(PlayerPosition, Cell.WorldCenter);
+
+		if (Dist > UnloadDistance && Cell.bIsLoaded)
+		{
+			Cell.bRenderDataLoaded = false;
+			Cell.bPhysicsDataLoaded = false;
+			Cell.bIsLoaded = false;
+		}
+	}
+}
+
+void UGZWorldPartition::CheckOriginRebasing(const FVector& PlayerPosition)
+{
+	float DistFromOrigin = FVector::Dist2D(PlayerPosition, FVector(CurrentOriginX, CurrentOriginY, 0.0f));
+
+	if (DistFromOrigin > OriginRebaseDistance)
+	{
+		CurrentOriginX = PlayerPosition.X;
+		CurrentOriginY = PlayerPosition.Y;
+
+		for (auto& Pair : Cells)
+		{
+			FGZWorldCell& Cell = Pair.Value;
+			Cell.WorldCenter = GridToWorld(Cell.GridCoord);
+		}
+
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Origin rebased to (%.0f, %.0f)"), CurrentOriginX, CurrentOriginY);
+	}
+}
+
+FIntVector2 UGZWorldPartition::WorldToGrid(const FVector& WorldPos) const
+{
+	float LocalX = WorldPos.X - CurrentOriginX;
+	float LocalY = WorldPos.Y - CurrentOriginY;
+	return FIntVector2(
+		FMath::FloorToInt(LocalX / CellSize),
+		FMath::FloorToInt(LocalY / CellSize));
+}
+
+FVector UGZWorldPartition::GridToWorld(const FIntVector2& GridCoord) const
+{
+	return FVector(
+		(GridCoord.X + 0.5f) * CellSize + CurrentOriginX,
+		(GridCoord.Y + 0.5f) * CellSize + CurrentOriginY,
+		0.0f);
+}

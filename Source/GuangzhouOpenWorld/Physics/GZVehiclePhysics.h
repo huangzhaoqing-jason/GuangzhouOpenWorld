@@ -1,80 +1,217 @@
-// GZVehiclePhysics.h - 16-DOF Vehicle Dynamics for Guangzhou Open World
 #pragma once
+
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
+#include "UObject/NoExportTypes.h"
 #include "GZVehiclePhysics.generated.h"
 
+UENUM(BlueprintType)
+enum class EGZVehicleType : uint8
+{
+	Sports		UMETA(DisplayName = "Sports"),
+	Sedan		UMETA(DisplayName = "Sedan"),
+	SUV			UMETA(DisplayName = "SUV"),
+	Motorcycle	UMETA(DisplayName = "Motorcycle"),
+	Truck		UMETA(DisplayName = "Truck"),
+};
+
+UENUM(BlueprintType)
+enum class EGZRoadSurface : uint8
+{
+	Concrete	UMETA(DisplayName = "Concrete"),
+	Grass		UMETA(DisplayName = "Grass"),
+	Wet			UMETA(DisplayName = "Wet"),
+};
+
 USTRUCT(BlueprintType)
-struct FVehicleConfig
+struct FGZVehicleSpec
 {
-    GENERATED_BODY()
-    UPROPERTY(EditAnywhere) FString Name = TEXT("Sedan");
-    UPROPERTY(EditAnywhere) float MaxSpeed = 2000.0f; // cm/s
-    UPROPERTY(EditAnywhere) float Acceleration = 500.0f;
-    UPROPERTY(EditAnywhere) float Braking = 800.0f;
-    UPROPERTY(EditAnywhere) float Handling = 0.035f;
-    UPROPERTY(EditAnywhere) float Mass = 1500.0f; // kg
-    UPROPERTY(EditAnywhere) float DragCoefficient = 0.3f;
-    UPROPERTY(EditAnywhere) float WheelBase = 280.0f; // cm
-    UPROPERTY(EditAnywhere) float TrackWidth = 160.0f;
-    UPROPERTY(EditAnywhere) float SuspensionStiffness = 30000.0f;
-    UPROPERTY(EditAnywhere) float SuspensionDamping = 3000.0f;
-    UPROPERTY(EditAnywhere) float SuspensionTravel = 15.0f;
-    UPROPERTY(EditAnywhere) float TireFriction = 1.0f;
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EGZVehicleType Type = EGZVehicleType::Sedan;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxSpeed = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Acceleration = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Braking = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Handling = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Mass = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Drag = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float WheelBase = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TrackWidth = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float SuspensionStiffness = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float SuspensionDamping = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float SuspensionTravel = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TireFriction = 0.0f;
 };
 
-UCLASS()
-class GUANGZHOUOPENWORLD_API AGZVehicle : public AActor
+USTRUCT(BlueprintType)
+struct FGZVehicleDeformation
 {
-    GENERATED_BODY()
-public:
-    AGZVehicle();
-    virtual void Tick(float DeltaTime) override;
-    virtual void BeginPlay() override;
+	GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite) FVehicleConfig VehicleConfig;
-    UPROPERTY(BlueprintReadOnly) float CurrentSpeed = 0.0f;
-    UPROPERTY(BlueprintReadOnly) float CurrentRPM = 0.0f;
-    UPROPERTY(BlueprintReadOnly) float Health = 100.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float ChassisIntegrity = 1.0f;
 
-    UFUNCTION(BlueprintCallable) void Accelerate(float Value);
-    UFUNCTION(BlueprintCallable) void Brake(float Value);
-    UFUNCTION(BlueprintCallable) void Steer(float Value);
-    UFUNCTION(BlueprintCallable) void ApplyDamage(float Damage);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float WheelAlignmentOffset = 0.0f;
 
-    // 16-DOF suspension state
-    UPROPERTY(BlueprintReadOnly) TArray<float> WheelTravel;
-    UPROPERTY(BlueprintReadOnly) TArray<float> WheelVelocity;
-
-private:
-    // 16 DOF state: x,y,z,roll,pitch,yaw + 4 wheel positions + 4 wheel velocities + body velocity + engine
-    FVector BodyVelocity;
-    FVector AngularVelocity;
-    float EngineRPM = 800.0f;
-    float ThrottleInput = 0.0f;
-    float BrakeInput = 0.0f;
-    float SteerInput = 0.0f;
-    void UpdateSuspension(float DeltaTime);
-    void UpdateAerodynamics(float DeltaTime);
-    void UpdateEngine(float DeltaTime);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float SuspensionDamage = 0.0f;
 };
 
-UCLASS()
-class GUANGZHOUOPENWORLD_API AGZVehicleManager : public AActor
+USTRUCT(BlueprintType)
+struct FGZWheelState
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector Position = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Velocity = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TireWear = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float SuspensionCompression = 0.0f;
+};
+
+USTRUCT(BlueprintType)
+struct FGZVehicleState16DOF
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector Position = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector Velocity = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FRotator Rotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector AngularVelocity = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGZWheelState WheelFL;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGZWheelState WheelFR;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGZWheelState WheelRL;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGZWheelState WheelRR;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float BodyVelocity = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float EngineRPM = 800.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGZVehicleDeformation Deformation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TireWearOverall = 1.0f;
+};
+
+UCLASS(BlueprintType)
+class GUANGZHOUOPENWORLD_API UGZVehiclePhysics : public UObject
+{
+	GENERATED_BODY()
+
 public:
-    AGZVehicleManager();
-    virtual void BeginPlay() override;
-    virtual void Tick(float DeltaTime) override;
+	UGZVehiclePhysics();
 
-    UPROPERTY(EditAnywhere) int32 MaxVehicles = 200;
-    UPROPERTY(EditAnywhere) TArray<FVehicleConfig> VehicleTypes;
+	void Initialize(EGZVehicleType Type);
+	void Simulate(float DeltaTime, float ThrottleInput, float BrakeInput, float SteerInput, EGZRoadSurface Surface);
+	void ApplyDamage(const FVector& ImpactPoint, const FVector& ImpactVelocity, float ImpactMass);
 
-    UFUNCTION(BlueprintCallable) void SpawnRandomVehicle(FVector Location);
-    UFUNCTION(BlueprintCallable) void SpawnTrafficVehicles();
+	UFUNCTION(BlueprintPure)
+	const FGZVehicleState16DOF& GetState() const { return State; }
+
+	UFUNCTION(BlueprintPure)
+	const FGZVehicleSpec& GetSpec() const { return Spec; }
+
+	UFUNCTION(BlueprintPure)
+	const FGZVehicleDeformation& GetDeformation() const { return State.Deformation; }
+
+	static FGZVehicleSpec GetDefaultSpec(EGZVehicleType Type);
+	static float GetSurfaceFriction(EGZRoadSurface Surface);
 
 private:
-    TArray<AGZVehicle*> ActiveVehicles;
-    float SpawnTimer = 0.0f;
+	void UpdateEngine(float DeltaTime, float ThrottleInput);
+	void UpdateWheels(float DeltaTime, float SteerInput, EGZRoadSurface Surface);
+	void UpdateSuspension(float DeltaTime);
+	void UpdateAerodynamics(float DeltaTime);
+	void UpdateTireWear(float DeltaTime, EGZRoadSurface Surface);
+	void UpdateDeformationEffects(float DeltaTime);
+	float CalculateSlopeEffect() const;
+
+	UPROPERTY()
+	FGZVehicleState16DOF State;
+
+	UPROPERTY()
+	FGZVehicleSpec Spec;
+
+	float LastFireTime = 0.0f;
+	static constexpr float PhysicsTickRate = 60.0f;
+	static constexpr float Gravity = 9.81f;
+};
+
+UCLASS(BlueprintType)
+class GUANGZHOUOPENWORLD_API UGZVehicleManager : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UGZVehicleManager();
+
+	void Initialize();
+	void Tick(float DeltaTime);
+	void SpawnTrafficVehicle(EGZVehicleType Type, const FVector& Location, const FRotator& Rotation);
+	void RemoveVehicle(int32 VehicleID);
+	void SetMaxVehicles(int32 Max);
+
+	UFUNCTION(BlueprintPure)
+	int32 GetActiveVehicleCount() const { return ActiveVehicles.Num(); }
+
+private:
+	UPROPERTY()
+	TMap<int32, UGZVehiclePhysics*> ActiveVehicles;
+
+	UPROPERTY()
+	TArray<FVector> TrafficSpawnPoints;
+
+	int32 MaxVehicles = 200;
+	int32 NextVehicleID = 0;
+	float TrafficSpawnTimer = 0.0f;
+	float TrafficSpawnInterval = 2.0f;
 };

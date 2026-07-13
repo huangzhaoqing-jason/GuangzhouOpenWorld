@@ -7,10 +7,11 @@
 UENUM(BlueprintType)
 enum class EAudioEnvironment : uint8
 {
-    Street = 0 UMETA(DisplayName="Street"),
-    Indoor = 1 UMETA(DisplayName="Indoor"),
-    Tunnel = 2 UMETA(DisplayName="Tunnel"),
-    River = 3 UMETA(DisplayName="River"),
+    Street = 0          UMETA(DisplayName="Open Street"),
+    QilouAlley = 1     UMETA(DisplayName="Qilou Alley"),
+    IndoorMall = 2     UMETA(DisplayName="Indoor Mall"),
+    UndergroundTunnel = 3 UMETA(DisplayName="Underground Tunnel"),
+    RiverSurface = 4   UMETA(DisplayName="River Surface"),
 };
 
 UCLASS()
@@ -35,9 +36,10 @@ public:
 
     // Environment-specific reverb parameters
     UPROPERTY(EditAnywhere) float StreetReverb = 0.3f;
-    UPROPERTY(EditAnywhere) float IndoorReverb = 0.6f;
-    UPROPERTY(EditAnywhere) float TunnelReverb = 0.8f;
-    UPROPERTY(EditAnywhere) float RiverReverb = 0.4f;
+    UPROPERTY(EditAnywhere) float QilouAlleyReverb = 0.5f;
+    UPROPERTY(EditAnywhere) float IndoorMallReverb = 0.6f;
+    UPROPERTY(EditAnywhere) float UndergroundTunnelReverb = 0.8f;
+    UPROPERTY(EditAnywhere) float RiverSurfaceReverb = 0.4f;
 
     // Environmental audio occlusion
     UPROPERTY(EditAnywhere) bool bEnableOcclusion = true;

@@ -1,71 +1,224 @@
-#include "GZWaterPhysics.h"
-#include "ProceduralMeshComponent.h"
+#include "Physics/GZWaterPhysics.h"
+#include "GuangzhouOpenWorld.h"
+#include "Math/UnrealMathUtility.h"
 
-AGZWaterBody::AGZWaterBody()
+UGZWaterPhysics::UGZWaterPhysics()
 {
-    PrimaryActorTick.bCanEverTick = true;
-    WaterMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("WaterMesh"));
-    RootComponent = WaterMesh;
-    // Create water plane
-    const int32 Segments = 200;
-    TArray<FVector> Vertices;
-    TArray<int32> Triangles;
-    TArray<FVector2D> UVs;
-    TArray<FVector> Normals;
-    for (int32 y = 0; y <= Segments; y++)
-    {
-        for (int32 x = 0; x <= Segments; x++)
-        {
-            float XF = (float)x / Segments * WaterExtent.X - WaterExtent.X * 0.5f;
-            float YF = (float)y / Segments * WaterExtent.Z - WaterExtent.Z * 0.5f;
-            Vertices.Add(FVector(XF, 0, YF));
-            UVs.Add(FVector2D((float)x / Segments, (float)y / Segments));
-            Normals.Add(FVector::UpVector);
-        }
-    }
-    for (int32 y = 0; y < Segments; y++)
-    {
-        for (int32 x = 0; x < Segments; x++)
-        {
-            int32 A = y * (Segments + 1) + x, B = A + Segments + 1;
-            Triangles.Add(A); Triangles.Add(B); Triangles.Add(A + 1);
-            Triangles.Add(B); Triangles.Add(B + 1); Triangles.Add(A + 1);
-        }
-    }
-    WaterMesh->CreateMeshSection(0, Vertices, Triangles, Normals, UVs, {}, {}, false);
 }
 
-void AGZWaterBody::Tick(float DeltaTime)
+void UGZWaterPhysics::Initialize(int32 InGridSize, float InCellSize)
 {
-    Super::Tick(DeltaTime);
-    Time += DeltaTime;
-    UpdateWaveAnimation(DeltaTime);
+	GridSize = InGridSize;
+	CellSize = InCellSize;
+	TotalWidth = GridSize * CellSize;
+
+	GridVertices.Empty();
+	GridVertices.Reserve(GridSize * GridSize);
+
+	float HalfWidth = TotalWidth * 0.5f;
+	for (int32 Y = 0; Y < GridSize; ++Y)
+	{
+		for (int32 X = 0; X < GridSize; ++X)
+		{
+			FGZWaterGridVertex V;
+			V.Position = FVector(X * CellSize - HalfWidth, Y * CellSize - HalfWidth, 0.0f);
+			V.Height = WaterBaseHeight;
+			V.Normal = FVector::UpVector;
+			V.Pressure = 0.0f;
+			V.Density = WaterDensity;
+			GridVertices.Add(V);
+		}
+	}
+
+	Waves.Empty();
+	FGZGerstnerWave W1;
+	W1.Amplitude = 0.8f;
+	W1.Frequency = 0.5f;
+	W1.Direction = FVector2D(0.0f, 1.0f);
+	W1.Steepness = 0.3f;
+	Waves.Add(W1);
+
+	FGZGerstnerWave W2;
+	W2.Amplitude = 0.4f;
+	W2.Frequency = 1.2f;
+	W2.Direction = FVector2D(0.3f, 0.8f);
+	W2.Steepness = 0.2f;
+	Waves.Add(W2);
+
+	FGZGerstnerWave W3;
+	W3.Amplitude = 0.2f;
+	W3.Frequency = 2.0f;
+	W3.Direction = FVector2D(-0.1f, 1.0f);
+	W3.Steepness = 0.15f;
+	Waves.Add(W3);
+
+	FGZGerstnerWave W4;
+	W4.Amplitude = 0.15f;
+	W4.Frequency = 3.5f;
+	W4.Direction = FVector2D(0.1f, 0.9f);
+	W4.Steepness = 0.1f;
+	Waves.Add(W4);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Water physics initialized: %dx%d grid, %.0fm x %.0fm, %d waves"),
+		GridSize, GridSize, TotalWidth, TotalWidth, Waves.Num());
 }
 
-float AGZWaterBody::GetWaveHeight(FVector WorldLocation) const
+void UGZWaterPhysics::Simulate(float DeltaTime)
 {
-    float W1 = FMath::Sin(WorldLocation.X * WaveFrequency + Time * 1.2f) * FMath::Cos(WorldLocation.Z * WaveFrequency * 1.5f + Time * 0.8f);
-    float W2 = FMath::Sin(WorldLocation.X * WaveFrequency * 2.5f + Time * 1.8f) * FMath::Cos(WorldLocation.Z * WaveFrequency * 1.8f - Time * 1.1f);
-    float W3 = FMath::Sin((WorldLocation.X + WorldLocation.Z) * WaveFrequency * 1.5f + Time * 0.6f);
-    return (W1 * 0.6f + W2 * 0.35f + W3 * 0.45f) * WaveAmplitude;
+	SimulationTime += DeltaTime;
+
+	UpdateGerstnerWaves(DeltaTime);
+	UpdateTidalCycle(DeltaTime);
+	UpdateRipples(DeltaTime);
+	UpdateSPHGrid(DeltaTime);
+	RecalculateNormals();
 }
 
-void AGZWaterBody::UpdateWaveAnimation(float DeltaTime)
+void UGZWaterPhysics::AddRipple(const FVector& ImpactPoint, float ImpactForce)
 {
-    // Update vertices for wave animation
-    const int32 Segments = 200;
-    const int32 VertCount = (Segments + 1) * (Segments + 1);
-    TArray<FVector> Vertices;
-    Vertices.SetNum(VertCount);
-    for (int32 y = 0; y <= Segments; y++)
-    {
-        for (int32 x = 0; x <= Segments; x++)
-        {
-            float XF = (float)x / Segments * WaterExtent.X - WaterExtent.X * 0.5f;
-            float YF = (float)y / Segments * WaterExtent.Z - WaterExtent.Z * 0.5f;
-            float H = GetWaveHeight(FVector(XF, 0, YF));
-            Vertices[y * (Segments + 1) + x] = FVector(XF, H, YF);
-        }
-    }
-    WaterMesh->UpdateMeshSection(0, Vertices, {}, {}, {}, {});
+	FGZRipple Ripple;
+	Ripple.Center = ImpactPoint;
+	Ripple.Amplitude = FMath::Clamp(ImpactForce * 0.001f, 0.1f, 3.0f);
+	Ripple.Radius = 1.0f;
+	Ripple.Lifetime = 0.0f;
+	Ripple.MaxLifetime = 2.0f;
+	Ripple.Speed = 2.0f + ImpactForce * 0.01f;
+	ActiveRipples.Add(Ripple);
+}
+
+float UGZWaterPhysics::GetWaterHeight(const FVector& WorldPosition) const
+{
+	float X = WorldPosition.X;
+	float Y = WorldPosition.Y;
+	float Height = WaterBaseHeight + GetTidalOffset();
+
+	for (const FGZGerstnerWave& Wave : Waves)
+	{
+		Height += EvaluateGerstnerWave(Wave, X, Y, SimulationTime);
+	}
+
+	for (const FGZRipple& Ripple : ActiveRipples)
+	{
+		float Dist = FVector::Dist2D(WorldPosition, Ripple.Center);
+		float RippleHeight = Ripple.Amplitude * FMath::Exp(-Dist / (Ripple.Radius + 1.0f))
+			* FMath::Cos(Dist * 0.5f - Ripple.Lifetime * 3.0f)
+			* (1.0f - Ripple.Lifetime / Ripple.MaxLifetime);
+		Height += RippleHeight;
+	}
+
+	return Height;
+}
+
+FVector UGZWaterPhysics::GetWaterNormal(const FVector& WorldPosition) const
+{
+	float HalfWidth = TotalWidth * 0.5f;
+	float X = WorldPosition.X;
+	float Y = WorldPosition.Y;
+
+	int32 IX = FMath::Clamp(FMath::RoundToInt((X + HalfWidth) / CellSize), 0, GridSize - 1);
+	int32 IY = FMath::Clamp(FMath::RoundToInt((Y + HalfWidth) / CellSize), 0, GridSize - 1);
+	int32 Idx = IY * GridSize + IX;
+
+	if (Idx >= 0 && Idx < GridVertices.Num())
+	{
+		return GridVertices[Idx].Normal;
+	}
+	return FVector::UpVector;
+}
+
+FVector UGZWaterPhysics::CalculateBuoyancy(const FVector& ObjectPosition, float ObjectRadius, float ObjectMass) const
+{
+	float WaterHeight = GetWaterHeight(ObjectPosition);
+	float SubmergedDepth = WaterHeight - ObjectPosition.Z;
+
+	if (SubmergedDepth <= 0.0f) return FVector::ZeroVector;
+
+	float SubmergedVolume = PI * ObjectRadius * ObjectRadius * FMath::Min(SubmergedDepth, ObjectRadius * 2.0f);
+	float BuoyancyForce = WaterDensity * Gravity * SubmergedVolume;
+	float Weight = ObjectMass * Gravity;
+
+	return FVector(0.0f, 0.0f, BuoyancyForce - Weight * 0.5f);
+}
+
+float UGZWaterPhysics::GetTidalOffset() const
+{
+	return TidalAmplitude * FMath::Sin(TidalPhase);
+}
+
+void UGZWaterPhysics::UpdateGerstnerWaves(float DeltaTime)
+{
+	float HalfWidth = TotalWidth * 0.5f;
+	for (int32 Y = 0; Y < GridSize; ++Y)
+	{
+		for (int32 X = 0; X < GridSize; ++X)
+		{
+			int32 Idx = Y * GridSize + X;
+			float WorldX = GridVertices[Idx].Position.X;
+			float WorldY = GridVertices[Idx].Position.Y;
+
+			float Height = WaterBaseHeight + GetTidalOffset();
+			for (const FGZGerstnerWave& Wave : Waves)
+			{
+				Height += EvaluateGerstnerWave(Wave, WorldX, WorldY, SimulationTime);
+			}
+			GridVertices[Idx].Height = Height;
+		}
+	}
+}
+
+void UGZWaterPhysics::UpdateTidalCycle(float DeltaTime)
+{
+	TidalPhase += (2.0f * PI / TidalPeriod) * DeltaTime;
+	if (TidalPhase > 2.0f * PI) TidalPhase -= 2.0f * PI;
+}
+
+void UGZWaterPhysics::UpdateRipples(float DeltaTime)
+{
+	for (int32 i = ActiveRipples.Num() - 1; i >= 0; --i)
+	{
+		ActiveRipples[i].Lifetime += DeltaTime;
+		ActiveRipples[i].Radius += ActiveRipples[i].Speed * DeltaTime;
+
+		if (ActiveRipples[i].Lifetime >= ActiveRipples[i].MaxLifetime)
+		{
+			ActiveRipples.RemoveAt(i);
+		}
+	}
+}
+
+void UGZWaterPhysics::UpdateSPHGrid(float DeltaTime)
+{
+	for (int32 i = 0; i < GridVertices.Num(); ++i)
+	{
+		GridVertices[i].Pressure = FMath::Max(0.0f, GridVertices[i].Height - WaterBaseHeight) * WaterDensity * Gravity;
+		GridVertices[i].Density = WaterDensity + GridVertices[i].Pressure * 0.0001f;
+	}
+}
+
+void UGZWaterPhysics::RecalculateNormals()
+{
+	for (int32 Y = 1; Y < GridSize - 1; ++Y)
+	{
+		for (int32 X = 1; X < GridSize - 1; ++X)
+		{
+			int32 Idx = Y * GridSize + X;
+			float HLeft = GridVertices[Y * GridSize + (X - 1)].Height;
+			float HRight = GridVertices[Y * GridSize + (X + 1)].Height;
+			float HUp = GridVertices[(Y - 1) * GridSize + X].Height;
+			float HDown = GridVertices[(Y + 1) * GridSize + X].Height;
+
+			FVector Normal = FVector((HLeft - HRight) / (2.0f * CellSize), (HDown - HUp) / (2.0f * CellSize), 1.0f);
+			Normal.Normalize();
+			GridVertices[Idx].Normal = Normal;
+		}
+	}
+}
+
+float UGZWaterPhysics::EvaluateGerstnerWave(const FGZGerstnerWave& Wave, float X, float Y, float Time) const
+{
+	float DirX = Wave.Direction.X;
+	float DirY = Wave.Direction.Y;
+	float Dot = DirX * X + DirY * Y;
+	float Phase = Wave.Phase + Wave.Frequency * Dot;
+	return Wave.Amplitude * FMath::Sin(Phase + Time * Wave.Frequency * 2.0f);
 }

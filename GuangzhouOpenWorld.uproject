@@ -1,36 +1,98 @@
 {
-  "FileVersion": 3,
-  "EngineAssociation": "5.8",
-  "Category": "",
-  "Description": "GTA-广州 AAA Open World - Guangzhou, China",
-  "Modules": [
-    {
-      "Name": "GuangzhouOpenWorld",
-      "Type": "Runtime",
-      "LoadingPhase": "Default"
-    }
-  ],
-  "Plugins": [
-    { "Name": "JoltPhysics", "Enabled": true },
-    { "Name": "ProceduralMeshComponent", "Enabled": true },
-    { "Name": "PCG", "Enabled": true },
-    { "Name": "MassAI", "Enabled": true },
-    { "Name": "MassCrowd", "Enabled": true },
-    { "Name": "MassTraffic", "Enabled": true },
-    { "Name": "MassGameplay", "Enabled": true },
-    { "Name": "WorldPartitionHLOD", "Enabled": true },
-    { "Name": "OpenStreetMap", "Enabled": true },
-    { "Name": "OnlineSubsystemEOS", "Enabled": true },
-    { "Name": "OnlineSubsystem", "Enabled": true },
-    { "Name": "Niagara", "Enabled": true },
-    { "Name": "NiagaraFluids", "Enabled": true },
-    { "Name": "Water", "Enabled": true },
-    { "Name": "Landmass", "Enabled": true },
-    { "Name": "Landscape", "Enabled": true },
-    { "Name": "AudioCapture", "Enabled": true },
-    { "Name": "Synthesis", "Enabled": true },
-    { "Name": "SoundFields", "Enabled": true },
-    { "Name": "SoLoud", "Enabled": true }
-  ],
-  "TargetPlatforms": ["Mac"]
+	"FileVersion": 3,
+	"EngineAssociation": "5.8",
+	"Category": "",
+	"Description": "Guangzhou 4A Open World - Beyond AAA Standards",
+	"Modules": [
+		{
+			"Name": "GuangzhouOpenWorld",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "JoltPhysics",
+			"Enabled": true
+		},
+		{
+			"Name": "ProceduralMeshComponent",
+			"Enabled": true
+		},
+		{
+			"Name": "PCG",
+			"Enabled": true
+		},
+		{
+			"Name": "MassAI",
+			"Enabled": true
+		},
+		{
+			"Name": "MassCrowd",
+			"Enabled": true
+		},
+		{
+			"Name": "MassTraffic",
+			"Enabled": true
+		},
+		{
+			"Name": "MassGameplay",
+			"Enabled": true
+		},
+		{
+			"Name": "WorldPartitionHLOD",
+			"Enabled": true
+		},
+		{
+			"Name": "OpenStreetMap",
+			"Enabled": true
+		},
+		{
+			"Name": "OnlineSubsystemEOS",
+			"Enabled": true
+		},
+		{
+			"Name": "OnlineSubsystem",
+			"Enabled": true
+		},
+		{
+			"Name": "Niagara",
+			"Enabled": true
+		},
+		{
+			"Name": "NiagaraFluids",
+			"Enabled": true
+		},
+		{
+			"Name": "Water",
+			"Enabled": true
+		},
+		{
+			"Name": "Landmass",
+			"Enabled": true
+		},
+		{
+			"Name": "Landscape",
+			"Enabled": true
+		},
+		{
+			"Name": "AudioCapture",
+			"Enabled": true
+		},
+		{
+			"Name": "Synthesis",
+			"Enabled": true
+		},
+		{
+			"Name": "SoundFields",
+			"Enabled": true
+		},
+		{
+			"Name": "SoLoud",
+			"Enabled": true
+		}
+	],
+	"TargetPlatforms": [
+		"Mac"
+	]
 }

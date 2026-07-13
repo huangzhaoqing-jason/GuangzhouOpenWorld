@@ -1,110 +1,305 @@
-#include "GZVehiclePhysics.h"
-#include "Engine/World.h"
-#include "Components/StaticMeshComponent.h"
-#include "UObject/ConstructorHelpers.h"
+#include "Physics/GZVehiclePhysics.h"
+#include "GuangzhouOpenWorld.h"
+#include "Math/UnrealMathUtility.h"
 
-AGZVehicle::AGZVehicle()
+FGZVehicleSpec UGZVehiclePhysics::GetDefaultSpec(EGZVehicleType Type)
 {
-    PrimaryActorTick.bCanEverTick = true;
-    PrimaryActorTick.TickInterval = 1.0f / 60.0f; // 60Hz physics
-    USceneComponent* Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
-    RootComponent = Root;
-    WheelTravel.Init(0.0f, 4);
-    WheelVelocity.Init(0.0f, 4);
+	FGZVehicleSpec S;
+	S.Type = Type;
+
+	switch (Type)
+	{
+	case EGZVehicleType::Sports:
+		S.MaxSpeed = 320.0f;
+		S.Acceleration = 12.0f;
+		S.Braking = 15.0f;
+		S.Handling = 0.95f;
+		S.Mass = 1400.0f;
+		S.Drag = 0.28f;
+		S.WheelBase = 2.6f;
+		S.TrackWidth = 1.7f;
+		S.SuspensionStiffness = 35000.0f;
+		S.SuspensionDamping = 3500.0f;
+		S.SuspensionTravel = 0.08f;
+		S.TireFriction = 1.05f;
+		break;
+
+	case EGZVehicleType::Sedan:
+		S.MaxSpeed = 220.0f;
+		S.Acceleration = 8.0f;
+		S.Braking = 10.0f;
+		S.Handling = 0.80f;
+		S.Mass = 1600.0f;
+		S.Drag = 0.32f;
+		S.WheelBase = 2.8f;
+		S.TrackWidth = 1.6f;
+		S.SuspensionStiffness = 28000.0f;
+		S.SuspensionDamping = 3000.0f;
+		S.SuspensionTravel = 0.12f;
+		S.TireFriction = 1.0f;
+		break;
+
+	case EGZVehicleType::SUV:
+		S.MaxSpeed = 200.0f;
+		S.Acceleration = 7.0f;
+		S.Braking = 9.0f;
+		S.Handling = 0.70f;
+		S.Mass = 2200.0f;
+		S.Drag = 0.38f;
+		S.WheelBase = 3.0f;
+		S.TrackWidth = 1.75f;
+		S.SuspensionStiffness = 25000.0f;
+		S.SuspensionDamping = 2800.0f;
+		S.SuspensionTravel = 0.15f;
+		S.TireFriction = 0.95f;
+		break;
+
+	case EGZVehicleType::Motorcycle:
+		S.MaxSpeed = 280.0f;
+		S.Acceleration = 14.0f;
+		S.Braking = 12.0f;
+		S.Handling = 0.98f;
+		S.Mass = 250.0f;
+		S.Drag = 0.25f;
+		S.WheelBase = 1.5f;
+		S.TrackWidth = 0.3f;
+		S.SuspensionStiffness = 15000.0f;
+		S.SuspensionDamping = 2000.0f;
+		S.SuspensionTravel = 0.10f;
+		S.TireFriction = 1.0f;
+		break;
+
+	case EGZVehicleType::Truck:
+		S.MaxSpeed = 140.0f;
+		S.Acceleration = 4.0f;
+		S.Braking = 7.0f;
+		S.Handling = 0.55f;
+		S.Mass = 8000.0f;
+		S.Drag = 0.55f;
+		S.WheelBase = 4.5f;
+		S.TrackWidth = 2.0f;
+		S.SuspensionStiffness = 50000.0f;
+		S.SuspensionDamping = 5000.0f;
+		S.SuspensionTravel = 0.20f;
+		S.TireFriction = 0.90f;
+		break;
+	}
+
+	return S;
 }
 
-void AGZVehicle::BeginPlay()
+float UGZVehiclePhysics::GetSurfaceFriction(EGZRoadSurface Surface)
 {
-    Super::BeginPlay();
-    UE_LOG(LogTemp, Log, TEXT("Vehicle spawned: %s"), *VehicleConfig.Name);
+	switch (Surface)
+	{
+	case EGZRoadSurface::Concrete: return 1.0f;
+	case EGZRoadSurface::Grass:    return 0.6f;
+	case EGZRoadSurface::Wet:      return 0.4f;
+	default: return 1.0f;
+	}
 }
 
-void AGZVehicle::Tick(float DeltaTime)
+UGZVehiclePhysics::UGZVehiclePhysics()
 {
-    Super::Tick(DeltaTime);
-    UpdateEngine(DeltaTime);
-    UpdateAerodynamics(DeltaTime);
-    UpdateSuspension(DeltaTime);
-    // Movement
-    float Force = CurrentRPM * VehicleConfig.Acceleration * ThrottleInput - VehicleConfig.Braking * BrakeInput;
-    CurrentSpeed += Force / VehicleConfig.Mass * DeltaTime;
-    CurrentSpeed = FMath::Clamp(CurrentSpeed, -VehicleConfig.MaxSpeed * 0.3f, VehicleConfig.MaxSpeed);
-    if (FMath::Abs(ThrottleInput) < 0.01f && FMath::Abs(BrakeInput) < 0.01f)
-        CurrentSpeed *= 0.99f;
-    // Steering
-    float Turn = SteerInput * VehicleConfig.Handling * (1.0f + FMath::Abs(CurrentSpeed) * 0.0005f);
-    FRotator Rot = GetActorRotation();
-    Rot.Yaw += Turn * CurrentSpeed * 0.01f * DeltaTime;
-    SetActorRotation(Rot);
-    // Move
-    FVector Forward = GetActorForwardVector();
-    AddActorWorldOffset(Forward * CurrentSpeed * DeltaTime);
 }
 
-void AGZVehicle::UpdateSuspension(float DeltaTime)
+void UGZVehiclePhysics::Initialize(EGZVehicleType Type)
 {
-    float Stiffness = VehicleConfig.SuspensionStiffness;
-    float Damping = VehicleConfig.SuspensionDamping;
-    for (int32 i = 0; i < 4; i++)
-    {
-        float Force = -Stiffness * WheelTravel[i] - Damping * WheelVelocity[i];
-        WheelVelocity[i] += Force / (VehicleConfig.Mass * 0.25f) * DeltaTime;
-        WheelTravel[i] += WheelVelocity[i] * DeltaTime;
-        WheelTravel[i] = FMath::Clamp(WheelTravel[i], -VehicleConfig.SuspensionTravel, VehicleConfig.SuspensionTravel);
-    }
+	Spec = GetDefaultSpec(Type);
+	State = FGZVehicleState16DOF();
+
+	float HalfBase = Spec.WheelBase * 0.5f;
+	float HalfTrack = Spec.TrackWidth * 0.5f;
+
+	State.WheelFL.Position = FVector(HalfBase, -HalfTrack, 0.0f);
+	State.WheelFR.Position = FVector(HalfBase, HalfTrack, 0.0f);
+	State.WheelRL.Position = FVector(-HalfBase, -HalfTrack, 0.0f);
+	State.WheelRR.Position = FVector(-HalfBase, HalfTrack, 0.0f);
+
+	State.EngineRPM = 800.0f;
 }
 
-void AGZVehicle::UpdateAerodynamics(float DeltaTime)
+void UGZVehiclePhysics::Simulate(float DeltaTime, float ThrottleInput, float BrakeInput, float SteerInput, EGZRoadSurface Surface)
 {
-    float DragForce = 0.5f * 1.225f * VehicleConfig.DragCoefficient * 2.5f * CurrentSpeed * CurrentSpeed;
-    CurrentSpeed -= DragForce / VehicleConfig.Mass * DeltaTime;
+	float SubStep = 1.0f / PhysicsTickRate;
+	int32 Steps = FMath::Max(1, FMath::RoundToInt(DeltaTime / SubStep));
+	float StepDT = DeltaTime / Steps;
+
+	for (int32 i = 0; i < Steps; ++i)
+	{
+		UpdateEngine(StepDT, ThrottleInput);
+		UpdateWheels(StepDT, SteerInput, Surface);
+		UpdateSuspension(StepDT);
+		UpdateAerodynamics(StepDT);
+		UpdateTireWear(StepDT, Surface);
+		UpdateDeformationEffects(StepDT);
+
+		float SlopeEffect = CalculateSlopeEffect();
+		float SurfaceFriction = GetSurfaceFriction(Surface);
+		float EffectiveFriction = SurfaceFriction * State.TireWearOverall * (1.0f - State.Deformation.SuspensionDamage * 0.3f);
+
+		float DriveForce = ThrottleInput * Spec.Acceleration * Spec.Mass * (State.EngineRPM / 7000.0f);
+		float BrakeForce = BrakeInput * Spec.Braking * Spec.Mass;
+		float DragForce = State.BodyVelocity * State.BodyVelocity * Spec.Drag * 0.5f * 1.225f * 2.2f;
+		float NetForce = DriveForce - BrakeForce - DragForce;
+		NetForce *= (1.0f - SlopeEffect * 0.5f);
+
+		float AccelerationMPS = NetForce / Spec.Mass;
+		State.BodyVelocity += AccelerationMPS * StepDT;
+		State.BodyVelocity = FMath::Clamp(State.BodyVelocity, 0.0f, Spec.MaxSpeed / 3.6f);
+
+		FVector Forward = State.Rotation.Vector();
+		State.Velocity = Forward * State.BodyVelocity;
+		State.Position += State.Velocity * StepDT;
+
+		float YawRate = SteerInput * Spec.Handling * State.BodyVelocity * 0.05f * EffectiveFriction;
+		YawRate *= (1.0f - State.Deformation.WheelAlignmentOffset * 0.5f);
+		State.Rotation.Yaw += YawRate * StepDT * 180.0f / PI;
+	}
 }
 
-void AGZVehicle::UpdateEngine(float DeltaTime)
+void UGZVehiclePhysics::ApplyDamage(const FVector& ImpactPoint, const FVector& ImpactVelocity, float ImpactMass)
 {
-    float TargetRPM = 800.0f + FMath::Abs(ThrottleInput) * 7000.0f;
-    EngineRPM = FMath::FInterpTo(EngineRPM, TargetRPM, DeltaTime, 3.0f);
-    CurrentRPM = EngineRPM + (FMath::Abs(CurrentSpeed) * 3.0f);
+	float ImpactSpeed = ImpactVelocity.Size();
+	float ImpactEnergy = 0.5f * ImpactMass * ImpactSpeed * ImpactSpeed;
+	float DamageFactor = FMath::Clamp(ImpactEnergy / 500000.0f, 0.0f, 1.0f);
+
+	State.Deformation.ChassisIntegrity = FMath::Max(0.0f, State.Deformation.ChassisIntegrity - DamageFactor * 0.3f);
+	State.Deformation.WheelAlignmentOffset = FMath::Min(1.0f, State.Deformation.WheelAlignmentOffset + DamageFactor * 0.4f);
+	State.Deformation.SuspensionDamage = FMath::Min(1.0f, State.Deformation.SuspensionDamage + DamageFactor * 0.5f);
+
+	UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("Vehicle damage: chassis=%.2f, alignment=%.2f, suspension=%.2f"),
+		State.Deformation.ChassisIntegrity, State.Deformation.WheelAlignmentOffset, State.Deformation.SuspensionDamage);
 }
 
-void AGZVehicle::Accelerate(float Value) { ThrottleInput = FMath::Clamp(Value, 0.0f, 1.0f); BrakeInput = 0.0f; }
-void AGZVehicle::Brake(float Value) { BrakeInput = FMath::Clamp(Value, 0.0f, 1.0f); ThrottleInput = 0.0f; }
-void AGZVehicle::Steer(float Value) { SteerInput = FMath::Clamp(Value, -1.0f, 1.0f); }
-void AGZVehicle::ApplyDamage(float Damage) { Health = FMath::Max(0.0f, Health - Damage); }
-
-AGZVehicleManager::AGZVehicleManager()
+void UGZVehiclePhysics::UpdateEngine(float DeltaTime, float ThrottleInput)
 {
-    PrimaryActorTick.bCanEverTick = true;
-    PrimaryActorTick.TickInterval = 1.0f;
-    VehicleTypes = {
-        {TEXT("Sports"), 2800, 700, 900, 0.045, 1400, 0.28, 260, 170, 35000, 3500, 12, 1.2},
-        {TEXT("Sedan"), 2000, 500, 700, 0.035, 1500, 0.32, 280, 160, 30000, 3000, 15, 1.0},
-        {TEXT("SUV"), 1800, 400, 600, 0.025, 2000, 0.38, 290, 170, 35000, 3500, 18, 0.9},
-        {TEXT("Motorcycle"), 3200, 900, 800, 0.055, 300, 0.25, 150, 80, 15000, 1500, 8, 1.1},
-        {TEXT("Truck"), 1400, 300, 500, 0.018, 5000, 0.55, 350, 200, 50000, 5000, 20, 0.7},
-    };
+	float TargetRPM = 800.0f + ThrottleInput * 6200.0f;
+	State.EngineRPM = FMath::FInterpTo(State.EngineRPM, TargetRPM, DeltaTime, 3.0f);
+	State.EngineRPM = FMath::Clamp(State.EngineRPM, 800.0f, 7000.0f);
 }
 
-void AGZVehicleManager::BeginPlay() { Super::BeginPlay(); SpawnTrafficVehicles(); }
-void AGZVehicleManager::Tick(float DeltaTime) { Super::Tick(DeltaTime); SpawnTimer -= DeltaTime; if (SpawnTimer <= 0.0f) { SpawnTimer = 5.0f; SpawnTrafficVehicles(); } }
-void AGZVehicleManager::SpawnRandomVehicle(FVector Location)
+void UGZVehiclePhysics::UpdateWheels(float DeltaTime, float SteerInput, EGZRoadSurface Surface)
 {
-    if (ActiveVehicles.Num() >= MaxVehicles) return;
-    FActorSpawnParameters Params;
-    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-    AGZVehicle* V = GetWorld()->SpawnActor<AGZVehicle>(AGZVehicle::StaticClass(), Location, FRotator::ZeroRotator, Params);
-    if (V)
-    {
-        V->VehicleConfig = VehicleTypes[FMath::RandRange(0, VehicleTypes.Num() - 1)];
-        ActiveVehicles.Add(V);
-    }
+	float SurfaceFric = GetSurfaceFriction(Surface);
+	float WheelRotationSpeed = State.BodyVelocity / 0.35f;
+	float WheelSlip = WheelRotationSpeed * 0.02f;
+
+	State.WheelFL.Velocity = WheelRotationSpeed;
+	State.WheelFR.Velocity = WheelRotationSpeed;
+	State.WheelRL.Velocity = WheelRotationSpeed;
+	State.WheelRR.Velocity = WheelRotationSpeed;
+
+	State.WheelFL.Position.Y = -Spec.TrackWidth * 0.5f + SteerInput * 0.02f;
+	State.WheelFR.Position.Y = Spec.TrackWidth * 0.5f + SteerInput * 0.02f;
 }
 
-void AGZVehicleManager::SpawnTrafficVehicles()
+void UGZVehiclePhysics::UpdateSuspension(float DeltaTime)
 {
-    for (int32 i = 0; i < 10; i++)
-    {
-        FVector Loc(FMath::RandRange(-5000, 5000), 0, FMath::RandRange(-5000, 5000));
-        SpawnRandomVehicle(Loc);
-    }
+	float RestLength = Spec.SuspensionTravel;
+	float Compression = FMath::Abs(State.BodyVelocity) * 0.001f;
+
+	State.WheelFL.SuspensionCompression = FMath::Clamp(Compression * Spec.SuspensionDamping / Spec.SuspensionStiffness, 0.0f, RestLength);
+	State.WheelFR.SuspensionCompression = State.WheelFL.SuspensionCompression;
+	State.WheelRL.SuspensionCompression = State.WheelFL.SuspensionCompression * 0.8f;
+	State.WheelRR.SuspensionCompression = State.WheelFL.SuspensionCompression * 0.8f;
+}
+
+void UGZVehiclePhysics::UpdateAerodynamics(float DeltaTime)
+{
+	float DragForce = State.BodyVelocity * State.BodyVelocity * Spec.Drag * 0.5f * 1.225f * 2.2f;
+	State.BodyVelocity -= (DragForce / Spec.Mass) * DeltaTime;
+	State.BodyVelocity = FMath::Max(0.0f, State.BodyVelocity);
+}
+
+void UGZVehiclePhysics::UpdateTireWear(float DeltaTime, EGZRoadSurface Surface)
+{
+	float WearRate = 0.0001f;
+	if (Surface == EGZRoadSurface::Grass) WearRate = 0.0003f;
+	if (Surface == EGZRoadSurface::Wet) WearRate = 0.0005f;
+
+	float SpeedFactor = State.BodyVelocity / (Spec.MaxSpeed / 3.6f);
+	WearRate *= (1.0f + SpeedFactor * 2.0f);
+
+	State.WheelFL.TireWear = FMath::Max(0.0f, State.WheelFL.TireWear - WearRate * DeltaTime);
+	State.WheelFR.TireWear = FMath::Max(0.0f, State.WheelFR.TireWear - WearRate * DeltaTime);
+	State.WheelRL.TireWear = FMath::Max(0.0f, State.WheelRL.TireWear - WearRate * DeltaTime);
+	State.WheelRR.TireWear = FMath::Max(0.0f, State.WheelRR.TireWear - WearRate * DeltaTime);
+
+	State.TireWearOverall = (State.WheelFL.TireWear + State.WheelFR.TireWear + State.WheelRL.TireWear + State.WheelRR.TireWear) * 0.25f;
+}
+
+void UGZVehiclePhysics::UpdateDeformationEffects(float DeltaTime)
+{
+	if (State.Deformation.ChassisIntegrity < 0.5f)
+	{
+		State.BodyVelocity *= (1.0f - 0.1f * DeltaTime);
+	}
+}
+
+float UGZVehiclePhysics::CalculateSlopeEffect() const
+{
+	FVector Forward = State.Rotation.Vector();
+	float Pitch = State.Rotation.Pitch;
+	float SlopeFactor = FMath::Sin(FMath::DegreesToRadians(Pitch));
+	return SlopeFactor;
+}
+
+UGZVehicleManager::UGZVehicleManager()
+{
+}
+
+void UGZVehicleManager::Initialize()
+{
+	ActiveVehicles.Empty();
+	NextVehicleID = 0;
+	TrafficSpawnTimer = 0.0f;
+}
+
+void UGZVehicleManager::Tick(float DeltaTime)
+{
+	TrafficSpawnTimer += DeltaTime;
+
+	if (TrafficSpawnTimer >= TrafficSpawnInterval && ActiveVehicles.Num() < MaxVehicles)
+	{
+		TrafficSpawnTimer = 0.0f;
+
+		if (TrafficSpawnPoints.Num() > 0)
+		{
+			FVector SpawnLoc = TrafficSpawnPoints[FMath::RandRange(0, TrafficSpawnPoints.Num() - 1)];
+			FRotator SpawnRot = FRotator(0.0f, FMath::FRandRange(0.0f, 360.0f), 0.0f);
+			EGZVehicleType RandType = static_cast<EGZVehicleType>(FMath::RandRange(0, 3));
+			SpawnTrafficVehicle(RandType, SpawnLoc, SpawnRot);
+		}
+	}
+}
+
+void UGZVehicleManager::SpawnTrafficVehicle(EGZVehicleType Type, const FVector& Location, const FRotator& Rotation)
+{
+	if (ActiveVehicles.Num() >= MaxVehicles) return;
+
+	UGZVehiclePhysics* Vehicle = NewObject<UGZVehiclePhysics>(this);
+	Vehicle->Initialize(Type);
+	FGZVehicleState16DOF State = Vehicle->GetState();
+	State.Position = Location;
+	State.Rotation = Rotation;
+
+	ActiveVehicles.Add(NextVehicleID, Vehicle);
+	NextVehicleID++;
+
+	UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("Spawned traffic vehicle ID=%d, type=%d, total=%d"),
+		NextVehicleID - 1, (int32)Type, ActiveVehicles.Num());
+}
+
+void UGZVehicleManager::RemoveVehicle(int32 VehicleID)
+{
+	if (ActiveVehicles.Contains(VehicleID))
+	{
+		ActiveVehicles.Remove(VehicleID);
+	}
+}
+
+void UGZVehicleManager::SetMaxVehicles(int32 Max)
+{
+	MaxVehicles = FMath::Clamp(Max, 0, 200);
 }

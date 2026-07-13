@@ -1,43 +1,151 @@
-// GZPCGGenerator.h - PCG Procedural City Generation for Guangzhou
 #pragma once
+
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
+#include "UObject/NoExportTypes.h"
 #include "GZPCGGenerator.generated.h"
 
-USTRUCT(BlueprintType)
-struct FBuildingTemplate
+UENUM(BlueprintType)
+enum class EGZDistrict : uint8
 {
-    GENERATED_BODY()
-    UPROPERTY(EditAnywhere) FVector Size = FVector(10, 30, 10); // Width, Height, Depth (meters)
-    UPROPERTY(EditAnywhere) FLinearColor Color = FLinearColor(0.5, 0.5, 0.6);
-    UPROPERTY(EditAnywhere) float GlassRatio = 0.3f;
-    UPROPERTY(EditAnywhere) bool bIsSkyscraper = false;
-    UPROPERTY(EditAnywhere) bool bIsInterior = false;
+	TianheCBD		UMETA(DisplayName = "Tianhe CBD"),
+	Yuexiu			UMETA(DisplayName = "Yuexiu"),
+	Liwan			UMETA(DisplayName = "Liwan"),
+	Haizhu			UMETA(DisplayName = "Haizhu"),
+	Baiyun			UMETA(DisplayName = "Baiyun"),
+	Pazhou			UMETA(DisplayName = "Pazhou"),
+	Nansha			UMETA(DisplayName = "Nansha"),
+	UniversityCity	UMETA(DisplayName = "University City"),
 };
 
-UCLASS()
-class GUANGZHOUOPENWORLD_API AGZPCGGenerator : public AActor
+UENUM(BlueprintType)
+enum class EGZBuildingType : uint8
 {
-    GENERATED_BODY()
+	Qilou				UMETA(DisplayName = "Qilou (Arcade)"),
+	CBDSkyscraper		UMETA(DisplayName = "CBD Skyscraper"),
+	ResidentialLowRise	UMETA(DisplayName = "Residential Low-rise"),
+};
+
+USTRUCT(BlueprintType)
+struct FGZDistrictConfig
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EGZDistrict District = EGZDistrict::TianheCBD;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector Center = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Radius = 5000.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EGZBuildingType PrimaryBuildingType = EGZBuildingType::CBDSkyscraper;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float BuildingDensity = 0.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 MinBuildingHeight = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 MaxBuildingHeight = 120;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float StreetWidth = 20.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float ClutterDensity = 0.3f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bGenerateInteriors = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsOldTown = false;
+};
+
+USTRUCT(BlueprintType)
+struct FGZBuildingInstance
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector Position = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FRotator Rotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector Scale = FVector::OneVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EGZBuildingType Type = EGZBuildingType::CBDSkyscraper;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 Floors = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 InteriorSeed = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EGZDistrict District = EGZDistrict::TianheCBD;
+};
+
+USTRUCT(BlueprintType)
+struct FGZVegetationInstance
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector Position = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 TypeIndex = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Scale = 1.0f;
+};
+
+UCLASS(BlueprintType)
+class GUANGZHOUOPENWORLD_API UGZPCGGenerator : public UObject
+{
+	GENERATED_BODY()
+
 public:
-    AGZPCGGenerator();
-    virtual void BeginPlay() override;
+	UGZPCGGenerator();
 
-    UPROPERTY(EditAnywhere) int32 MapSize = 8000; // meters
-    UPROPERTY(EditAnywhere) float CellSize = 12800.0f;
-    UPROPERTY(EditAnywhere) int32 BuildingSeed = 42;
-    UPROPERTY(EditAnywhere) TArray<FBuildingTemplate> BuildingTemplates;
-    UPROPERTY(EditAnywhere) float CBDCenterX = 0.0f;
-    UPROPERTY(EditAnywhere) float CBDCenterY = 0.0f;
-    UPROPERTY(EditAnywhere) float CBDRadius = 500.0f;
+	void Initialize();
+	void GenerateForCell(const FIntVector2& GridCoord, const FVector& WorldCenter, float CellSize);
+	void GenerateDistrict(EGZDistrict District);
+	void GenerateRoadNetwork();
+	void GenerateVegetation(const FVector& Center, float Radius);
+	void GenerateStreetClutter(const FVector& Center, float Radius, bool bIsOldTown);
 
-    UFUNCTION(BlueprintCallable) void GenerateCity();
-    UFUNCTION(BlueprintCallable) void GenerateDistrict(FString DistrictName, FVector Center, float Radius, int32 BuildingCount);
-    UFUNCTION(BlueprintCallable) void GenerateRoadNetwork();
-    UFUNCTION(BlueprintCallable) void GenerateParksAndTrees();
+	UFUNCTION(BlueprintPure)
+	const TArray<FGZBuildingInstance>& GetBuildings() const { return Buildings; }
+
+	UFUNCTION(BlueprintPure)
+	const TArray<FGZVegetationInstance>& GetVegetation() const { return Vegetation; }
+
+	UFUNCTION(BlueprintPure)
+	const FGZDistrictConfig& GetDistrictConfig(EGZDistrict District) const;
 
 private:
-    FRandomStream RNG;
-    void SpawnBuilding(FVector Location, const FBuildingTemplate& Template);
-    FVector GetPCGPosition(FVector Base, float Variance) const;
+	void GenerateBuildingsForDistrict(const FGZDistrictConfig& Config, const FVector& CellCenter, float CellSize);
+	void GenerateQilouBuilding(const FVector& Position, int32 Floors, EGZDistrict District);
+	void GenerateCBDSkyscraper(const FVector& Position, int32 Floors, EGZDistrict District);
+	void GenerateResidentialBuilding(const FVector& Position, int32 Floors, EGZDistrict District);
+	void GenerateInteriorLayout(int32 Seed, int32 Floors, EGZBuildingType Type);
+	void GenerateRoadHierarchy(const FVector& Center, float Radius, const FGZDistrictConfig& Config);
+
+	UPROPERTY()
+	TArray<FGZBuildingInstance> Buildings;
+
+	UPROPERTY()
+	TArray<FGZVegetationInstance> Vegetation;
+
+	UPROPERTY()
+	TMap<EGZDistrict, FGZDistrictConfig> DistrictConfigs;
+
+	int32 BuildingCounter = 0;
 };

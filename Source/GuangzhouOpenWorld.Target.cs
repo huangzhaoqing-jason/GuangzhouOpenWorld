@@ -1,30 +1,45 @@
-// GuangzhouOpenWorld.Target.cs
-// GTA-广州 — 3A开放世界构建目标
-
 using UnrealBuildTool;
 using System.Collections.Generic;
 
 public class GuangzhouOpenWorldTarget : TargetRules
 {
-    public GuangzhouOpenWorldTarget(TargetInfo Target) : base(Target)
-    {
-        Type = TargetType.Game;
-        DefaultBuildSettings = BuildSettingsVersion.V5;
-        IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;
-        ExtraModuleNames.Add("GuangzhouOpenWorld");
+	public GuangzhouOpenWorldTarget(TargetInfo Target) : base(Target)
+	{
+		Type = TargetType.Game;
+		DefaultBuildSettings = BuildSettingsVersion.V5;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;
+		CppStandard = CppStandardVersion.Cpp20;
 
-        // Apple Silicon Optimization
-        if (Target.Platform == UnrealTargetPlatform.Mac)
-        {
-            bOverrideBuildEnvironment = true;
-            // Multi-arch optimization for M1/M2/M3
-            AdditionalCompilerArguments += " -mtune=apple-m1 -mcpu=apple-m1 -march=armv8.5-a";
-            // Enable Metal 4 backend
-            GlobalDefinitions.Add("METAL_4_0=1");
-            // Unified Memory Architecture optimization
-            GlobalDefinitions.Add("APPLE_SILICON_UMA=1");
-            // Enable SoLoud audio backend
-            GlobalDefinitions.Add("SOLOUD_ENABLED=1");
-        }
-    }
+		ExtraModuleNames.Add("GuangzhouOpenWorld");
+
+		bUseLoggingInShipping = true;
+		bUseLauncherChecks = false;
+		bUseChecksInShipping = false;
+
+		if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			bCompileAgainstEngine = true;
+			bCompileWithPluginSupport = true;
+			bUseAppleOS = true;
+			bBuildDeveloperTools = true;
+		}
+	}
+
+	public override void ModifyBuildEnvironment(TargetInfo Target, BuildEnvironmentSettings OutEnv)
+	{
+		base.ModifyBuildEnvironment(Target, OutEnv);
+
+		if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			OutEnv.Definitions.Add("METAL_4_0=1");
+			OutEnv.Definitions.Add("APPLE_SILICON_UMA=1");
+			OutEnv.Definitions.Add("SOLOUD_ENABLED=1");
+			OutEnv.Definitions.Add("JOLT_PHYSICS=1");
+
+			OutEnv.AdditionalCompilerArguments += " -march=armv8.5-a+fp+simd+crypto+rcpc";
+			OutEnv.AdditionalCompilerArguments += " -mtune=apple-m1";
+			OutEnv.AdditionalCompilerArguments += " -fno-math-errno";
+			OutEnv.AdditionalCompilerArguments += " -ffast-math";
+		}
+	}
 }

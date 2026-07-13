@@ -1,70 +1,114 @@
-// GuangzhouOpenWorld.Build.cs
-// 3A开放世界 — 模块依赖配置
-
 using UnrealBuildTool;
 
 public class GuangzhouOpenWorld : ModuleRules
 {
-    public GuangzhouOpenWorld(ReadOnlyTargetRules Target) : base(Target)
-    {
-        PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-        CppStandard = CppStandardVersion.Cpp20;
+	public GuangzhouOpenWorld(ReadOnlyTargetRules Target) : base(Target)
+	{
+		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+		CppStandard = CppStandardVersion.Cpp20;
 
-        // Apple Silicon optimization flags
-        if (Target.Platform == UnrealTargetPlatform.Mac)
-        {
-            bUseRTTI = true;
-            bEnableExceptions = true;
-            OptimizeCode = CodeOptimization.InShippingBuildsOnly;
-        }
+		PublicDependencyModuleNames.AddRange(new string[]
+		{
+			"Core",
+			"CoreUObject",
+			"Engine",
+			"InputCore",
+			"EnhancedInput",
+			"NavigationSystem",
+			"Navmesh",
+			"AIModule",
+			"StateTreeModule",
+			"MassEntity",
+			"MassAI",
+			"MassCommon",
+			"MassCrowd",
+			"MassMovement",
+			"MassNavigation",
+			"MassTraffic",
+			"MassRepresentation",
+			"MassReplication",
+			"MassLOD",
+			"MassSimulation",
+			"MassSpawner",
+			"ZoneGraph",
+			"WorldPartitionHLOD",
+			"Water",
+			"Landscape",
+			"Foliage",
+			"PCG",
+			"GeoReferencing",
+			"ProceduralMeshComponent",
+			"OnlineSubsystem",
+			"OnlineSubsystemEOS",
+			"EOSSDK",
+			"AntiCheatCore",
+			"EasyAntiCheat",
+			"NetCore",
+			"RenderCore",
+			"Renderer",
+			"RHI",
+			"MetalRHI",
+			"AudioMixer",
+			"AudioMixerCore",
+			"SignalProcessing",
+			"Slate",
+			"SlateCore",
+			"UMG",
+			"GameplayAbilities",
+			"GameplayTags",
+			"GameplayTasks",
+			"Niagara",
+			"Chaos",
+			"PhysicsCore",
+			"AnimGraphRuntime",
+			"MoviePlayer",
+			"ApplicationCore",
+		});
 
-        PublicDependencyModuleNames.AddRange(new string[] {
-            // Core
-            "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput",
-            // Rendering
-            "RenderCore", "Renderer", "RHI",
-            // Physics
-            "PhysicsCore", "Chaos",
-            // AI & Navigation
-            "AIModule", "NavigationSystem", "MassEntity", "MassAI",
-            "MassCrowd", "MassTraffic", "MassGameplay",
-            // World
-            "WorldPartition", "Landscape", "Water",
-            // Audio
-            "AudioMixer", "AudioCapture", "SoLoud",
-            // Network
-            "OnlineSubsystem", "OnlineSubsystemUtils",
-            // UI
-            "UMG", "Slate", "SlateCore",
-            // Niagara VFX
-            "Niagara", "NiagaraCore",
-            // PCG
-            "PCG", "StructUtils",
-            // Procedural
-            "ProceduralMeshComponent",
-        });
+		PrivateDependencyModuleNames.AddRange(new string[]
+		{
+			"SoLoud",
+			"DeveloperSettings",
+		});
 
-        PrivateDependencyModuleNames.AddRange(new string[] {
-            "ApplicationCore",
-        });
+		if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			PublicIncludePaths.AddRange(new string[]
+			{
+				"Source/GuangzhouOpenWorld/Game",
+				"Source/GuangzhouOpenWorld/Physics",
+				"Source/GuangzhouOpenWorld/AI",
+				"Source/GuangzhouOpenWorld/Scene",
+				"Source/GuangzhouOpenWorld/Audio",
+				"Source/GuangzhouOpenWorld/Network",
+			});
 
-        // Mac-specific
-        if (Target.Platform == UnrealTargetPlatform.Mac)
-        {
-            PublicFrameworks.AddRange(new string[] {
-                "Metal", "MetalKit", "CoreAudio", "AudioToolbox",
-                "GameController", "CoreHaptics",
-            });
-        }
+			PrivateIncludePaths.AddRange(new string[]
+			{
+				"Source/GuangzhouOpenWorld/Game",
+				"Source/GuangzhouOpenWorld/Physics",
+				"Source/GuangzhouOpenWorld/AI",
+				"Source/GuangzhouOpenWorld/Scene",
+				"Source/GuangzhouOpenWorld/Audio",
+				"Source/GuangzhouOpenWorld/Network",
+			});
 
-        // Include paths
-        PublicIncludePaths.AddRange(new string[] {
-            "GuangzhouOpenWorld/Game",
-            "GuangzhouOpenWorld/Physics",
-            "GuangzhouOpenWorld/AI",
-            "GuangzhouOpenWorld/Scene",
-            "GuangzhouOpenWorld/Audio",
-            "GuangzhouOpenWorld/Network",
-        });
-    }
+			PublicFrameworks.AddRange(new string[]
+			{
+				"Metal",
+				"MetalKit",
+				"CoreAudio",
+				"AudioToolbox",
+				"GameController",
+				"CoreHaptics",
+			});
+
+			PublicDefinitions.Add("METAL_4_0=1");
+			PublicDefinitions.Add("APPLE_SILICON_UMA=1");
+			PublicDefinitions.Add("SOLOUD_ENABLED=1");
+			PublicDefinitions.Add("JOLT_PHYSICS=1");
+		}
+
+		OptimizeCode = CodeOptimization.InShippingBuildsOnly;
+	}
 }

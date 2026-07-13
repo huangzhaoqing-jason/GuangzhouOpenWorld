@@ -1,181 +1,253 @@
-#include "GZGameMode.h"
-#include "GZPlayerController.h"
-#include "GZCharacter.h"
+#include "Game/GZGameMode.h"
+#include "GuangzhouOpenWorld.h"
+#include "Engine/DirectionalLight.h"
+#include "Components/DirectionalLightComponent.h"
+#include "Engine/SkyLight.h"
+#include "Components/SkyLightComponent.h"
 #include "Engine/World.h"
-#include "EngineUtils.h"
-#include "HAL/IConsoleManager.h"
+#include "Kismet/GameplayStatics.h"
 #include "HAL/PlatformMisc.h"
+#include "Engine/PostProcessVolume.h"
+#include "Engine/ExponentialHeightFog.h"
+#include "Curves/CurveFloat.h"
 
 AGZGameMode::AGZGameMode()
 {
-    PrimaryActorTick.bCanEverTick = true;
-    PrimaryActorTick.TickInterval = 0.5f;
-    DefaultPawnClass = AGZCharacter::StaticClass();
-    PlayerControllerClass = AGZPlayerController::StaticClass();
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.TickInterval = 1.0f / 60.0f;
+	DayNight.TimeOfDay = 8.0f;
 }
 
 void AGZGameMode::BeginPlay()
 {
-    Super::BeginPlay();
-    // Detect Apple Silicon chip and apply chip-specific settings
-    DetectedChip = DetectAppleSiliconChip();
-    ApplyChipSpecificSettings();
-    UE_LOG(LogTemp, Log, TEXT("GTA-广州 GameMode BeginPlay - Guangzhou Open World | Chip: %d"), (int32)DetectedChip);
-    WeatherTimer = WeatherChangeInterval;
+	Super::BeginPlay();
+
+	DetectedChip = DetectAppleSiliconChip();
+	ApplyChipSpecificSettings();
+
+	SunLight = Cast<ADirectionalLight>(UGameplayStatics::GetActorOfClass(GetWorld(), ADirectionalLight::StaticClass()));
+	if (SunLight)
+	{
+		SunComponent = SunLight->GetComponent();
+	}
+
+	SkyLightActor = Cast<ASkyLight>(UGameplayStatics::GetActorOfClass(GetWorld(), ASkyLight::StaticClass()));
+	if (SkyLightActor)
+	{
+		SkyComponent = SkyLightActor->GetLightComponent();
+	}
+
+	ApplyAutoQualityPreset();
+	UpdateLightingFromZone(CurrentLightingZone);
 }
 
-EAppleSiliconChip AGZGameMode::DetectAppleSiliconChip()
+void AGZGameMode::Tick(float DeltaSeconds)
 {
-    // Detect Apple Silicon chip via sysctl or CPU info
-    FString CPUInfo = FPlatformMisc::GetCPUBrand();
-    if (CPUInfo.Contains(TEXT("M3"))) return EAppleSiliconChip::M3;
-    if (CPUInfo.Contains(TEXT("M2"))) return EAppleSiliconChip::M2;
-    if (CPUInfo.Contains(TEXT("M1"))) return EAppleSiliconChip::M1;
-    // Fallback: check performance core count
-    int32 CoreCount = FPlatformMisc::NumberOfCoresIncludingHyperthreads();
-    if (CoreCount >= 14) return EAppleSiliconChip::M3; // M3 Max/Ultra
-    if (CoreCount >= 8) return EAppleSiliconChip::M2;  // M2 family
-    return EAppleSiliconChip::M1; // M1 family
+	Super::Tick(DeltaSeconds);
+	UpdateDayNightCycle(DeltaSeconds);
+	UpdateWeatherTransition(DeltaSeconds);
+}
+
+EAppleSiliconChip AGZGameMode::DetectAppleSiliconChip() const
+{
+#if PLATFORM_MAC
+	const FString CPUBrand = FPlatformMisc::GetCPUBrand();
+	if (CPUBrand.Contains(TEXT("M3"))) return EAppleSiliconChip::M3;
+	if (CPUBrand.Contains(TEXT("M2"))) return EAppleSiliconChip::M2;
+	if (CPUBrand.Contains(TEXT("M1"))) return EAppleSiliconChip::M1;
+#endif
+	return EAppleSiliconChip::Unknown;
 }
 
 void AGZGameMode::ApplyChipSpecificSettings()
 {
-    bool bIsM2OrBetter = (DetectedChip == EAppleSiliconChip::M2 || DetectedChip == EAppleSiliconChip::M3);
-    bool bIsM1 = (DetectedChip == EAppleSiliconChip::M1);
+	switch (DetectedChip)
+	{
+	case EAppleSiliconChip::M1:
+		QualitySettings.ScreenPercentage = 75.0f;
+		QualitySettings.ShadowResolution = 1024;
+		QualitySettings.VolumetricFogGridSize = 96;
+		QualitySettings.SSRQuality = 2;
+		QualitySettings.BloomIntensity = 0.8f;
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Applied M1 quality profile: Screen%%=75, Shadow=1024, VolFog=96, SSR=2"));
+		break;
 
-    auto SetCVar = [](const TCHAR* Name, float Value) {
-        if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(Name))
-            CVar->Set(Value);
-    };
+	case EAppleSiliconChip::M2:
+		QualitySettings.ScreenPercentage = 90.0f;
+		QualitySettings.ShadowResolution = 1536;
+		QualitySettings.VolumetricFogGridSize = 112;
+		QualitySettings.SSRQuality = 3;
+		QualitySettings.BloomIntensity = 0.9f;
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Applied M2 quality profile: Screen%%=90, Shadow=1536, VolFog=112, SSR=3"));
+		break;
 
-    if (bIsM1)
-    {
-        // M1: Lumen software ray tracing, reduced sampling
-        SetCVar(TEXT("r.Lumen.ScreenProbeGather.NumAdaptiveProbes"), 16);
-        SetCVar(TEXT("r.Lumen.ScreenProbeGather.RadianceCache.NumProbesToTraceBudget"), 150);
-        SetCVar(TEXT("r.Lumen.ScreenProbeGather.MaxRayIntensity"), 20);
-        SetCVar(TEXT("r.Lumen.MaxBounces"), 3);
-        // M1: Nanite moderate precision
-        SetCVar(TEXT("r.Nanite.MaxPixelsPerEdge"), 2);
-        SetCVar(TEXT("r.Nanite.MaxNodes"), 1024);
-        SetCVar(TEXT("r.Nanite.MaxVisibleClusters"), 262144);
-        SetCVar(TEXT("r.Nanite.StreamingPool"), 1024);
-        // M1: VSM reduced
-        SetCVar(TEXT("r.Shadow.Virtual.Enable"), 0);
-        SetCVar(TEXT("r.Shadow.Virtual.SMRT.RayCountDirectional"), 8);
-        // M1: TSR quality mode
-        SetCVar(TEXT("r.TSR.History.ScreenPercentage"), 150);
-        SetCVar(TEXT("r.TSR.History.SampleCount"), 8);
-        // M1: Particle limits
-        SetCVar(TEXT("fx.Niagara.MaxGPUParticles"), 500000);
-        SetCVar(TEXT("fx.Niagara.MaxCPUParticles"), 50000);
-        SetCVar(TEXT("fx.Niagara.QualityLevel"), 3);
-        // M1: Reduced post-processing
-        SetCVar(TEXT("r.BloomQuality"), 4);
-        SetCVar(TEXT("r.RefractionQuality"), 2);
-        SetCVar(TEXT("r.SSR.Quality"), 3);
-        // M1: Reduced volumetric
-        SetCVar(TEXT("r.VolumetricFog.GridPixelSize"), 8);
-        SetCVar(TEXT("r.VolumetricFog.GridSizeZ"), 96);
-        // M1: Reduced streaming pool
-        SetCVar(TEXT("r.Streaming.PoolSize"), 2048);
-        UE_LOG(LogTemp, Log, TEXT("Apple Silicon M1 settings applied: Lumen SW, Nanite moderate, VSM off, particles limited"));
-    }
-    else if (bIsM2OrBetter)
-    {
-        // M2/M3: Full cinematic, max sampling
-        SetCVar(TEXT("r.Lumen.ScreenProbeGather.NumAdaptiveProbes"), 32);
-        SetCVar(TEXT("r.Lumen.ScreenProbeGather.RadianceCache.NumProbesToTraceBudget"), 300);
-        SetCVar(TEXT("r.Lumen.ScreenProbeGather.MaxRayIntensity"), 40);
-        SetCVar(TEXT("r.Lumen.MaxBounces"), 4);
-        // M2/M3: Nanite highest precision
-        SetCVar(TEXT("r.Nanite.MaxPixelsPerEdge"), 1);
-        SetCVar(TEXT("r.Nanite.MaxNodes"), 2048);
-        SetCVar(TEXT("r.Nanite.MaxVisibleClusters"), 524288);
-        SetCVar(TEXT("r.Nanite.StreamingPool"), 2048);
-        // M2/M3: VSM full quality
-        SetCVar(TEXT("r.Shadow.Virtual.Enable"), 1);
-        SetCVar(TEXT("r.Shadow.Virtual.SMRT.RayCountDirectional"), 16);
-        // M2/M3: TSR max quality
-        SetCVar(TEXT("r.TSR.History.ScreenPercentage"), 200);
-        SetCVar(TEXT("r.TSR.History.SampleCount"), 16);
-        // M2/M3: Unlimited particles
-        SetCVar(TEXT("fx.Niagara.MaxGPUParticles"), 5000000);
-        SetCVar(TEXT("fx.Niagara.MaxCPUParticles"), 500000);
-        SetCVar(TEXT("fx.Niagara.QualityLevel"), 4);
-        // M2/M3: Full post-processing
-        SetCVar(TEXT("r.BloomQuality"), 5);
-        SetCVar(TEXT("r.RefractionQuality"), 3);
-        SetCVar(TEXT("r.SSR.Quality"), 4);
-        // M2/M3: Full volumetric
-        SetCVar(TEXT("r.VolumetricFog.GridPixelSize"), 4);
-        SetCVar(TEXT("r.VolumetricFog.GridSizeZ"), 128);
-        // M2/M3: Full streaming pool
-        SetCVar(TEXT("r.Streaming.PoolSize"), 4096);
-        UE_LOG(LogTemp, Log, TEXT("Apple Silicon M2/M3 settings applied: Lumen cinematic, Nanite max, VSM full, particles unlimited"));
-    }
+	case EAppleSiliconChip::M3:
+		QualitySettings.ScreenPercentage = 100.0f;
+		QualitySettings.ShadowResolution = 2048;
+		QualitySettings.VolumetricFogGridSize = 128;
+		QualitySettings.SSRQuality = 4;
+		QualitySettings.BloomIntensity = 1.0f;
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Applied M3 quality profile: Screen%%=100, Shadow=2048, VolFog=128, SSR=4"));
+		break;
+
+	default:
+		QualitySettings.ScreenPercentage = 70.0f;
+		QualitySettings.ShadowResolution = 1024;
+		QualitySettings.VolumetricFogGridSize = 80;
+		QualitySettings.SSRQuality = 2;
+		QualitySettings.BloomIntensity = 0.7f;
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Applied default quality profile (Unknown chip)"));
+		break;
+	}
 }
 
-void AGZGameMode::Tick(float DeltaTime)
+void AGZGameMode::SetWeather(EGZWeatherType NewWeather, float TransitionTime)
 {
-    Super::Tick(DeltaTime);
-    // Day/night cycle
-    TimeOfDay += DayCycleSpeed * DeltaTime;
-    if (TimeOfDay > 1.0f) TimeOfDay -= 1.0f;
-    // Weather cycling
-    WeatherTimer -= DeltaTime;
-    if (WeatherTimer <= 0.0f) { CycleWeather(); WeatherTimer = WeatherChangeInterval; }
-    // Smooth weather blend
-    WeatherBlend = FMath::FInterpTo(WeatherBlend, CurrentWeather == 2 ? 1.0f : 0.0f, DeltaTime, 0.5f);
+	if (CurrentWeather == NewWeather && WeatherTransitionProgress >= 1.0f) return;
+
+	TargetWeather = NewWeather;
+	WeatherTransitionProgress = 0.0f;
+	WeatherTransitionSpeed = TransitionTime > 0.0f ? 1.0f / TransitionTime : 1.0f;
 }
 
-void AGZGameMode::CycleWeather()
+void AGZGameMode::SetLightingZone(EGZLightingZone NewZone)
 {
-    // Weighted random: mostly clear, occasional rain
-    float Rand = FMath::FRand();
-    if (Rand < 0.55f) CurrentWeather = 0; // Clear
-    else if (Rand < 0.75f) CurrentWeather = 1; // Cloudy
-    else if (Rand < 0.95f) CurrentWeather = 2; // Rain
-    else CurrentWeather = 3; // Fog
-    UE_LOG(LogTemp, Log, TEXT("Weather changed to: %d"), CurrentWeather);
+	if (CurrentLightingZone == NewZone) return;
+	CurrentLightingZone = NewZone;
+	UpdateLightingFromZone(NewZone);
 }
 
-void AGZGameMode::UpdateAutoQuality(float CurrentFPS)
+void AGZGameMode::SetTimeOfDay(float NewTime)
 {
-    FPSHistory.Add(CurrentFPS);
-    if (FPSHistory.Num() > 60) FPSHistory.RemoveAt(0);
-    if (FPSHistory.Num() < 30) return;
-    float AvgFPS = 0.0f;
-    for (float F : FPSHistory) AvgFPS += F;
-    AvgFPS /= FPSHistory.Num();
-    float MinRecent = FPSHistory[0];
-    for (int32 i = 1; i < FPSHistory.Num(); i++) MinRecent = FMath::Min(MinRecent, FPSHistory[i]);
-    if (MinRecent < MinFPS && CurrentQualityLevel < 4) { CurrentQualityLevel++; ApplyQualitySettings(CurrentQualityLevel); }
-    else if (AvgFPS > TargetFPS + 10 && CurrentQualityLevel > 0) { CurrentQualityLevel--; ApplyQualitySettings(CurrentQualityLevel); }
+	DayNight.TimeOfDay = FMath::Fmod(NewTime, 24.0f);
 }
 
-void AGZGameMode::ApplyQualitySettings(int32 Level)
+void AGZGameMode::UpdateDayNightCycle(float DeltaSeconds)
 {
-    static const TArray<TPair<FString, TArray<float>>> Settings = {
-        {TEXT("r.ScreenPercentage"), {100, 85, 70, 60, 50}},
-        {TEXT("r.Lumen.ScreenProbeGather.NumAdaptiveProbes"), {32, 24, 16, 12, 8}},
-        {TEXT("r.Shadow.Virtual.ResolutionLodBiasDirectional"), {-1, 0, 1, 2, 3}},
-        {TEXT("r.Nanite.MaxPixelsPerEdge"), {1, 2, 3, 4, 8}},
-        {TEXT("r.VolumetricFog.GridPixelSize"), {4, 8, 12, 16, 32}},
-        {TEXT("r.SSR.Quality"), {4, 3, 2, 1, 0}},
-        {TEXT("r.BloomQuality"), {5, 4, 3, 2, 0}},
-        {TEXT("r.DepthOfFieldQuality"), {3, 2, 1, 0, 0}},
-        {TEXT("r.MotionBlurQuality"), {4, 3, 2, 0, 0}},
-    };
-    UE_LOG(LogTemp, Log, TEXT("AutoQuality: Level %d applied"), Level);
-    for (const auto& S : Settings)
-    {
-        if (Level < S.Value.Num())
-        {
-            if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*S.Key))
-            {
-                CVar->Set(S.Value[Level]);
-            }
-        }
-    }
+	DayNight.TimeOfDay += DeltaSeconds * (24.0f / DayNight.DayLengthSeconds);
+	if (DayNight.TimeOfDay >= 24.0f) DayNight.TimeOfDay -= 24.0f;
+
+	const float Hour = DayNight.TimeOfDay;
+	float SunAngleDeg = (Hour - 6.0f) * 15.0f;
+	DayNight.SunAngle = SunAngleDeg;
+
+	float Intensity;
+	FLinearColor Color;
+	if (Hour >= 5.0f && Hour < 7.0f)
+	{
+		const float T = (Hour - 5.0f) / 2.0f;
+		Intensity = FMath::Lerp(DayNight.NightIntensity, DayNight.SunIntensity, T);
+		Color = FMath::Lerp(DayNight.SunriseColor, DayNight.DayColor, T);
+	}
+	else if (Hour >= 7.0f && Hour < 17.0f)
+	{
+		Intensity = DayNight.SunIntensity;
+		Color = DayNight.DayColor;
+	}
+	else if (Hour >= 17.0f && Hour < 19.0f)
+	{
+		const float T = (Hour - 17.0f) / 2.0f;
+		Intensity = FMath::Lerp(DayNight.SunIntensity, DayNight.NightIntensity, T);
+		Color = FMath::Lerp(DayNight.DayColor, DayNight.SunsetColor, T);
+	}
+	else
+	{
+		Intensity = DayNight.NightIntensity;
+		Color = DayNight.NightColor;
+	}
+
+	if (SunComponent)
+	{
+		SunComponent->SetIntensity(Intensity);
+		SunComponent->SetLightColor(Color);
+		FRotator SunRot(-SunAngleDeg + 90.0f, 0.0f, 0.0f);
+		SunLight->SetActorRotation(SunRot);
+	}
+
+	if (SkyComponent)
+	{
+		SkyComponent->SetIntensity(FMath::Lerp(0.5f, 2.0f, Intensity / DayNight.SunIntensity));
+		SkyComponent->SetLightColor(FMath::Lerp(DayNight.NightColor, DayNight.DayColor, Intensity / DayNight.SunIntensity));
+	}
+}
+
+void AGZGameMode::UpdateWeatherTransition(float DeltaSeconds)
+{
+	if (WeatherTransitionProgress >= 1.0f) return;
+
+	WeatherTransitionProgress += WeatherTransitionSpeed * DeltaSeconds;
+	if (WeatherTransitionProgress >= 1.0f)
+	{
+		WeatherTransitionProgress = 1.0f;
+		CurrentWeather = TargetWeather;
+	}
+
+	AExponentialHeightFog* FogActor = Cast<AExponentialHeightFog>(UGameplayStatics::GetActorOfClass(GetWorld(), AExponentialHeightFog::StaticClass()));
+	if (!FogActor) return;
+
+	switch (TargetWeather)
+	{
+	case EGZWeatherType::Clear:
+		FogActor->GetComponent()->SetFogDensity(FMath::Lerp(0.02f, 0.01f, WeatherTransitionProgress));
+		break;
+	case EGZWeatherType::Cloudy:
+		FogActor->GetComponent()->SetFogDensity(FMath::Lerp(0.02f, 0.03f, WeatherTransitionProgress));
+		break;
+	case EGZWeatherType::Rain:
+		FogActor->GetComponent()->SetFogDensity(FMath::Lerp(0.02f, 0.04f, WeatherTransitionProgress));
+		break;
+	case EGZWeatherType::Storm:
+		FogActor->GetComponent()->SetFogDensity(FMath::Lerp(0.02f, 0.06f, WeatherTransitionProgress));
+		break;
+	case EGZWeatherType::FogHaze:
+		FogActor->GetComponent()->SetFogDensity(FMath::Lerp(0.02f, 0.08f, WeatherTransitionProgress));
+		break;
+	}
+}
+
+void AGZGameMode::UpdateLightingFromZone(EGZLightingZone Zone)
+{
+	APostProcessVolume* PPV = Cast<APostProcessVolume>(UGameplayStatics::GetActorOfClass(GetWorld(), APostProcessVolume::StaticClass()));
+	if (!PPV) return;
+
+	switch (Zone)
+	{
+	case EGZLightingZone::OutdoorStreet:
+		PPV->Settings.bOverride_AutoExposureBias = true;
+		PPV->Settings.AutoExposureBias = 0.0f;
+		PPV->Settings.bOverride_ColorGradingIntensity = true;
+		PPV->Settings.ColorGradingIntensity = 1.0f;
+		break;
+
+	case EGZLightingZone::Indoor:
+		PPV->Settings.bOverride_AutoExposureBias = true;
+		PPV->Settings.AutoExposureBias = 1.5f;
+		PPV->Settings.bOverride_ColorGradingIntensity = true;
+		PPV->Settings.ColorGradingIntensity = 1.1f;
+		break;
+
+	case EGZLightingZone::Tunnel:
+		PPV->Settings.bOverride_AutoExposureBias = true;
+		PPV->Settings.AutoExposureBias = 2.0f;
+		PPV->Settings.bOverride_ColorGradingIntensity = true;
+		PPV->Settings.ColorGradingIntensity = 0.9f;
+		break;
+
+	case EGZLightingZone::RiverSurface:
+		PPV->Settings.bOverride_AutoExposureBias = true;
+		PPV->Settings.AutoExposureBias = -0.5f;
+		PPV->Settings.bOverride_ColorGradingIntensity = true;
+		PPV->Settings.ColorGradingIntensity = 1.2f;
+		break;
+	}
+}
+
+void AGZGameMode::ApplyAutoQualityPreset()
+{
+	if (const auto* RendererSettings = GetDefault<URendererSettings>())
+	{
+	}
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Auto quality preset applied: Screen%%=%.0f, Shadow=%d, VolFog=%d, SSR=%d, Bloom=%.1f"),
+		QualitySettings.ScreenPercentage, QualitySettings.ShadowResolution,
+		QualitySettings.VolumetricFogGridSize, QualitySettings.SSRQuality, QualitySettings.BloomIntensity);
 }

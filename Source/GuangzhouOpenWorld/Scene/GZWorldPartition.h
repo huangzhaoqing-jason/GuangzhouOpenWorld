@@ -1,30 +1,77 @@
-// GZWorldPartition.h - World Partition Configuration for Guangzhou Map
 #pragma once
+
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
+#include "UObject/NoExportTypes.h"
 #include "GZWorldPartition.generated.h"
 
-UCLASS()
-class GUANGZHOUOPENWORLD_API AGZWorldPartitionManager : public AActor
+USTRUCT(BlueprintType)
+struct FGZWorldCell
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FIntVector2 GridCoord = FIntVector2(0, 0);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector WorldCenter = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 LODLevel = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsLoaded = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bRenderDataLoaded = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bPhysicsDataLoaded = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bNavMeshLoaded = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float DistanceFromPlayer = FLT_MAX;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float LastAccessTime = 0.0f;
+};
+
+UCLASS(BlueprintType)
+class GUANGZHOUOPENWORLD_API UGZWorldPartition : public UObject
+{
+	GENERATED_BODY()
+
 public:
-    AGZWorldPartitionManager();
-    virtual void BeginPlay() override;
-    virtual void Tick(float DeltaTime) override;
+	UGZWorldPartition();
 
-    UPROPERTY(EditAnywhere) float GridSize = 12800.0f; // 128m cells
-    UPROPERTY(EditAnywhere) int32 PreloadCells = 3; // 3 cells ahead
-    UPROPERTY(EditAnywhere) float LoadingRange = 38400.0f; // 3 x 128m
-    UPROPERTY(EditAnywhere) bool bEnableOriginRebasing = true;
-    UPROPERTY(EditAnywhere) float OriginRebaseThreshold = 5000.0f;
+	void Initialize(float InCellSize);
+	void Tick(float DeltaTime, const FVector& PlayerPosition);
+	void SetOriginRebaseDistance(float Distance);
+	void ForceLoadCell(const FIntVector2& GridCoord);
+	void UnloadCell(const FIntVector2& GridCoord);
 
-    UFUNCTION(BlueprintCallable) void LoadCell(FIntPoint CellCoord);
-    UFUNCTION(BlueprintCallable) void UnloadCell(FIntPoint CellCoord);
-    UFUNCTION(BlueprintCallable) TArray<FIntPoint> GetActiveCells() const;
+	UFUNCTION(BlueprintPure)
+	int32 GetLoadedCellCount() const;
+
+	UFUNCTION(BlueprintPure)
+	const TMap<FIntVector2, FGZWorldCell>& GetCells() const { return Cells; }
 
 private:
-    TArray<FIntPoint> LoadedCells;
-    FIntPoint CurrentCell;
-    void UpdateStreaming();
+	void UpdateCellLODs(const FVector& PlayerPosition);
+	void PreloadNearbyCells(const FVector& PlayerPosition);
+	void UnloadDistantCells(const FVector& PlayerPosition);
+	void CheckOriginRebasing(const FVector& PlayerPosition);
+	FIntVector2 WorldToGrid(const FVector& WorldPos) const;
+	FVector GridToWorld(const FIntVector2& GridCoord) const;
+
+	UPROPERTY()
+	TMap<FIntVector2, FGZWorldCell> Cells;
+
+	float CellSize = 12800.0f;
+	float OriginRebaseDistance = 500000.0f;
+	int32 PreloadRadius = 3;
+	float CurrentOriginX = 0.0f;
+	float CurrentOriginY = 0.0f;
+	float MemoryCheckTimer = 0.0f;
 };

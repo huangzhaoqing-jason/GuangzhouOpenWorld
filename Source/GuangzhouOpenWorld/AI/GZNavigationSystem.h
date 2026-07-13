@@ -1,35 +1,117 @@
-// GZNavigationSystem.h - Recast Navigation + OSM Guangzhou Road Network
 #pragma once
+
 #include "CoreMinimal.h"
-#include "NavigationSystem.h"
+#include "UObject/NoExportTypes.h"
 #include "GZNavigationSystem.generated.h"
 
-UCLASS()
-class GUANGZHOUOPENWORLD_API UGZNavigationConfig : public UNavigationSystemModuleConfig
+UENUM(BlueprintType)
+enum class EGZNavLayer : uint8
 {
-    GENERATED_BODY()
-public:
-    UGZNavigationConfig();
+	Highway		UMETA(DisplayName = "Highway - Coarse"),
+	Street		UMETA(DisplayName = "Street - Fine"),
+	Alley		UMETA(DisplayName = "Alley/Interior - Micro"),
 };
 
-UCLASS()
-class GUANGZHOUOPENWORLD_API AGZNavigationManager : public AActor
+USTRUCT(BlueprintType)
+struct FGZNavPathQuery
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector StartLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector EndLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EGZNavLayer PreferredLayer = EGZNavLayer::Street;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bEmergencyVehicle = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bAvoidObstacles = true;
+};
+
+USTRUCT(BlueprintType)
+struct FGZNavPathResult
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FVector> Waypoints;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float PathLength = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bSuccess = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EGZNavLayer UsedLayer = EGZNavLayer::Street;
+};
+
+USTRUCT(BlueprintType)
+struct FGZDynamicObstacle
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector Location = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Radius = 50.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Duration = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float ElapsedTime = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsRoadblock = false;
+};
+
+UCLASS(BlueprintType)
+class GUANGZHOUOPENWORLD_API UGZNavigationSystem : public UObject
+{
+	GENERATED_BODY()
+
 public:
-    AGZNavigationManager();
-    virtual void BeginPlay() override;
-    virtual void Tick(float DeltaTime) override;
+	UGZNavigationSystem();
 
-    UPROPERTY(EditAnywhere) float NavUpdateInterval = 1.0f / 30.0f; // 30Hz
-    UPROPERTY(EditAnywhere) float NavCellSize = 50.0f; // 50cm precision
-    UPROPERTY(EditAnywhere) float NavTileSize = 12800.0f; // 128m tiles
-    UPROPERTY(EditAnywhere) int32 NavLayers = 3; // 3-level hierarchy (highway, street, alley)
+	void Initialize();
+	void Tick(float DeltaTime);
+	FGZNavPathResult FindPath(const FGZNavPathQuery& Query);
+	void AddDynamicObstacle(const FVector& Location, float Radius, bool bIsRoadblock);
+	void RefreshNavMesh();
 
-    UFUNCTION(BlueprintCallable) bool FindPath(FVector From, FVector To, TArray<FVector>& OutPath);
-    UFUNCTION(BlueprintCallable) void RebuildNavigationInRadius(FVector Center, float Radius);
+	UFUNCTION(BlueprintPure)
+	int32 GetDynamicObstacleCount() const { return DynamicObstacles.Num(); }
+
+	UFUNCTION(BlueprintPure)
+	const TArray<FGZDynamicObstacle>& GetDynamicObstacles() const { return DynamicObstacles; }
 
 private:
-    float UpdateTimer = 0.0f;
-    UNavigationSystemV1* NavSys;
+	FGZNavPathResult FindPathOnLayer(const FGZNavPathQuery& Query, EGZNavLayer Layer);
+	FGZNavPathResult CombineMultiLayerPath(const FGZNavPathQuery& Query);
+	void UpdateDynamicObstacles(float DeltaTime);
+	void UpdateNavMeshRefresh(float DeltaTime);
+	void UpdateOSMRoadData();
+
+	UPROPERTY()
+	TArray<FGZDynamicObstacle> DynamicObstacles;
+
+	UPROPERTY()
+	TArray<FVector> OSMHighwayNodes;
+
+	UPROPERTY()
+	TArray<FVector> OSMStreetNodes;
+
+	UPROPERTY()
+	TArray<FVector> OSMAlleyNodes;
+
+	float NavMeshRefreshTimer = 0.0f;
+	float NavMeshRefreshInterval = 1.0f / 30.0f;
+	int32 NavMeshVersion = 0;
 };

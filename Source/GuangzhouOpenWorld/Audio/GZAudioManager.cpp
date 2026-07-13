@@ -13,7 +13,7 @@ AGZAudioManager::AGZAudioManager()
 void AGZAudioManager::BeginPlay()
 {
     Super::BeginPlay();
-    UE_LOG(LogTemp, Log, TEXT("GZ Audio Manager: Core Audio | 3D Spatial | 4 Environments"));
+    UE_LOG(LogTemp, Log, TEXT("GZ Audio Manager: Core Audio | 3D Spatial | 5 Environments"));
 }
 
 void AGZAudioManager::Tick(float DeltaTime)
@@ -52,9 +52,10 @@ float AGZAudioManager::GetEnvironmentReverb(EAudioEnvironment Env) const
     switch (Env)
     {
         case EAudioEnvironment::Street: return StreetReverb;
-        case EAudioEnvironment::Indoor: return IndoorReverb;
-        case EAudioEnvironment::Tunnel: return TunnelReverb;
-        case EAudioEnvironment::River: return RiverReverb;
+        case EAudioEnvironment::QilouAlley: return QilouAlleyReverb;
+        case EAudioEnvironment::IndoorMall: return IndoorMallReverb;
+        case EAudioEnvironment::UndergroundTunnel: return UndergroundTunnelReverb;
+        case EAudioEnvironment::RiverSurface: return RiverSurfaceReverb;
         default: return 0.3f;
     }
 }
