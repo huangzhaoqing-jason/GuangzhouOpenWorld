@@ -1,0 +1,27 @@
+{
+	"FileVersion": 3,
+	"Version": 601,
+	"VersionName": "6.0.1",
+	"FriendlyName": "Jolt Physics",
+	"Description": "Jolt Physics v6.0.1 integration for UE5.8 Apple Silicon",
+	"Category": "Physics",
+	"CreatedBy": "GuangzhouOpenWorld",
+	"CreatedByURL": "https://github.com/huangzhaoqing-jason/guangzhouopenworld",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "JoltPhysics",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"PlatformAllowList": [
+				"Mac"
+			]
+		}
+	]
+}

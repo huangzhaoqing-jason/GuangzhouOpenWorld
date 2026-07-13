@@ -1,0 +1,27 @@
+{
+	"FileVersion": 3,
+	"Version": 2026,
+	"VersionName": "2026",
+	"FriendlyName": "SoLoud 2026",
+	"Description": "SoLoud 2026 audio engine integration for UE5.8 Apple Silicon",
+	"Category": "Audio",
+	"CreatedBy": "GuangzhouOpenWorld",
+	"CreatedByURL": "https://github.com/huangzhaoqing-jason/guangzhouopenworld",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "SoLoud",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"PlatformAllowList": [
+				"Mac"
+			]
+		}
+	]
+}
