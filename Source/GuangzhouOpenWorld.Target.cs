@@ -17,11 +17,14 @@ public class GuangzhouOpenWorldTarget : TargetRules
         if (Target.Platform == UnrealTargetPlatform.Mac)
         {
             bOverrideBuildEnvironment = true;
-            AdditionalCompilerArguments += " -mtune=apple-m1 -mcpu=apple-m1";
+            // Multi-arch optimization for M1/M2/M3
+            AdditionalCompilerArguments += " -mtune=apple-m1 -mcpu=apple-m1 -march=armv8.5-a";
             // Enable Metal 4 backend
             GlobalDefinitions.Add("METAL_4_0=1");
             // Unified Memory Architecture optimization
             GlobalDefinitions.Add("APPLE_SILICON_UMA=1");
+            // Enable SoLoud audio backend
+            GlobalDefinitions.Add("SOLOUD_ENABLED=1");
         }
     }
 }

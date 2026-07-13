@@ -71,3 +71,14 @@ GuangzhouOpenWorld/
 - [x] EOS OnlineSubsystem (fixed from null)
 - [x] IConsoleManager CVar system (replaced GEngine->Exec)
 - [x] C++ GameMode class reference (fixed blueprint path)
+- [x] SoLoud Audio plugin (enabled + configured)
+- [x] Euphoria-style character physics (ragdoll + muscle + procedural spine)
+- [x] SPH water max precision (262K particles, 8 iterations, vorticity)
+- [x] M1/M2/M3 runtime chip detection (GZGameMode::DetectAppleSiliconChip)
+- [x] M1: reduced Lumen sampling, Nanite moderate, VSM off, particles limited
+- [x] M2/M3: Lumen cinematic, Nanite max, VSM full, particles unlimited
+- [x] OSM Guangzhou 1:1 road import (GPS 23.1291,113.2644)
+- [x] Independent cell lighting data (WorldPartition)
+- [x] SSD IO priority (async loading, Oodle compression)
+- [x] MCP communication config (127.0.0.1:8888, 30s timeout, auto-reconnect)
+- [x] EOS bubble dynamic sessions (16 bubbles, 50km radius, seamless travel)

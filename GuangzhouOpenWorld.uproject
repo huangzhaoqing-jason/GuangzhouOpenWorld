@@ -28,7 +28,9 @@
     { "Name": "Landmass", "Enabled": true },
     { "Name": "Landscape", "Enabled": true },
     { "Name": "AudioCapture", "Enabled": true },
-    { "Name": "Synthesis", "Enabled": true }
+    { "Name": "Synthesis", "Enabled": true },
+    { "Name": "SoundFields", "Enabled": true },
+    { "Name": "SoLoud", "Enabled": true }
   ],
   "TargetPlatforms": ["Mac"]
 }

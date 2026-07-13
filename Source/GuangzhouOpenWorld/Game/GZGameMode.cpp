@@ -4,6 +4,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/PlatformMisc.h"
 
 AGZGameMode::AGZGameMode()
 {
@@ -16,8 +17,103 @@ AGZGameMode::AGZGameMode()
 void AGZGameMode::BeginPlay()
 {
     Super::BeginPlay();
-    UE_LOG(LogTemp, Log, TEXT("GTA-广州 GameMode BeginPlay - Guangzhou Open World"));
+    // Detect Apple Silicon chip and apply chip-specific settings
+    DetectedChip = DetectAppleSiliconChip();
+    ApplyChipSpecificSettings();
+    UE_LOG(LogTemp, Log, TEXT("GTA-广州 GameMode BeginPlay - Guangzhou Open World | Chip: %d"), (int32)DetectedChip);
     WeatherTimer = WeatherChangeInterval;
+}
+
+EAppleSiliconChip AGZGameMode::DetectAppleSiliconChip()
+{
+    // Detect Apple Silicon chip via sysctl or CPU info
+    FString CPUInfo = FPlatformMisc::GetCPUBrand();
+    if (CPUInfo.Contains(TEXT("M3"))) return EAppleSiliconChip::M3;
+    if (CPUInfo.Contains(TEXT("M2"))) return EAppleSiliconChip::M2;
+    if (CPUInfo.Contains(TEXT("M1"))) return EAppleSiliconChip::M1;
+    // Fallback: check performance core count
+    int32 CoreCount = FPlatformMisc::NumberOfCoresIncludingHyperthreads();
+    if (CoreCount >= 14) return EAppleSiliconChip::M3; // M3 Max/Ultra
+    if (CoreCount >= 8) return EAppleSiliconChip::M2;  // M2 family
+    return EAppleSiliconChip::M1; // M1 family
+}
+
+void AGZGameMode::ApplyChipSpecificSettings()
+{
+    bool bIsM2OrBetter = (DetectedChip == EAppleSiliconChip::M2 || DetectedChip == EAppleSiliconChip::M3);
+    bool bIsM1 = (DetectedChip == EAppleSiliconChip::M1);
+
+    auto SetCVar = [](const TCHAR* Name, float Value) {
+        if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(Name))
+            CVar->Set(Value);
+    };
+
+    if (bIsM1)
+    {
+        // M1: Lumen software ray tracing, reduced sampling
+        SetCVar(TEXT("r.Lumen.ScreenProbeGather.NumAdaptiveProbes"), 16);
+        SetCVar(TEXT("r.Lumen.ScreenProbeGather.RadianceCache.NumProbesToTraceBudget"), 150);
+        SetCVar(TEXT("r.Lumen.ScreenProbeGather.MaxRayIntensity"), 20);
+        SetCVar(TEXT("r.Lumen.MaxBounces"), 3);
+        // M1: Nanite moderate precision
+        SetCVar(TEXT("r.Nanite.MaxPixelsPerEdge"), 2);
+        SetCVar(TEXT("r.Nanite.MaxNodes"), 1024);
+        SetCVar(TEXT("r.Nanite.MaxVisibleClusters"), 262144);
+        SetCVar(TEXT("r.Nanite.StreamingPool"), 1024);
+        // M1: VSM reduced
+        SetCVar(TEXT("r.Shadow.Virtual.Enable"), 0);
+        SetCVar(TEXT("r.Shadow.Virtual.SMRT.RayCountDirectional"), 8);
+        // M1: TSR quality mode
+        SetCVar(TEXT("r.TSR.History.ScreenPercentage"), 150);
+        SetCVar(TEXT("r.TSR.History.SampleCount"), 8);
+        // M1: Particle limits
+        SetCVar(TEXT("fx.Niagara.MaxGPUParticles"), 500000);
+        SetCVar(TEXT("fx.Niagara.MaxCPUParticles"), 50000);
+        SetCVar(TEXT("fx.Niagara.QualityLevel"), 3);
+        // M1: Reduced post-processing
+        SetCVar(TEXT("r.BloomQuality"), 4);
+        SetCVar(TEXT("r.RefractionQuality"), 2);
+        SetCVar(TEXT("r.SSR.Quality"), 3);
+        // M1: Reduced volumetric
+        SetCVar(TEXT("r.VolumetricFog.GridPixelSize"), 8);
+        SetCVar(TEXT("r.VolumetricFog.GridSizeZ"), 96);
+        // M1: Reduced streaming pool
+        SetCVar(TEXT("r.Streaming.PoolSize"), 2048);
+        UE_LOG(LogTemp, Log, TEXT("Apple Silicon M1 settings applied: Lumen SW, Nanite moderate, VSM off, particles limited"));
+    }
+    else if (bIsM2OrBetter)
+    {
+        // M2/M3: Full cinematic, max sampling
+        SetCVar(TEXT("r.Lumen.ScreenProbeGather.NumAdaptiveProbes"), 32);
+        SetCVar(TEXT("r.Lumen.ScreenProbeGather.RadianceCache.NumProbesToTraceBudget"), 300);
+        SetCVar(TEXT("r.Lumen.ScreenProbeGather.MaxRayIntensity"), 40);
+        SetCVar(TEXT("r.Lumen.MaxBounces"), 4);
+        // M2/M3: Nanite highest precision
+        SetCVar(TEXT("r.Nanite.MaxPixelsPerEdge"), 1);
+        SetCVar(TEXT("r.Nanite.MaxNodes"), 2048);
+        SetCVar(TEXT("r.Nanite.MaxVisibleClusters"), 524288);
+        SetCVar(TEXT("r.Nanite.StreamingPool"), 2048);
+        // M2/M3: VSM full quality
+        SetCVar(TEXT("r.Shadow.Virtual.Enable"), 1);
+        SetCVar(TEXT("r.Shadow.Virtual.SMRT.RayCountDirectional"), 16);
+        // M2/M3: TSR max quality
+        SetCVar(TEXT("r.TSR.History.ScreenPercentage"), 200);
+        SetCVar(TEXT("r.TSR.History.SampleCount"), 16);
+        // M2/M3: Unlimited particles
+        SetCVar(TEXT("fx.Niagara.MaxGPUParticles"), 5000000);
+        SetCVar(TEXT("fx.Niagara.MaxCPUParticles"), 500000);
+        SetCVar(TEXT("fx.Niagara.QualityLevel"), 4);
+        // M2/M3: Full post-processing
+        SetCVar(TEXT("r.BloomQuality"), 5);
+        SetCVar(TEXT("r.RefractionQuality"), 3);
+        SetCVar(TEXT("r.SSR.Quality"), 4);
+        // M2/M3: Full volumetric
+        SetCVar(TEXT("r.VolumetricFog.GridPixelSize"), 4);
+        SetCVar(TEXT("r.VolumetricFog.GridSizeZ"), 128);
+        // M2/M3: Full streaming pool
+        SetCVar(TEXT("r.Streaming.PoolSize"), 4096);
+        UE_LOG(LogTemp, Log, TEXT("Apple Silicon M2/M3 settings applied: Lumen cinematic, Nanite max, VSM full, particles unlimited"));
+    }
 }
 
 void AGZGameMode::Tick(float DeltaTime)

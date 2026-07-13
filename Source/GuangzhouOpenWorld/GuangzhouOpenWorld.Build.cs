@@ -31,7 +31,7 @@ public class GuangzhouOpenWorld : ModuleRules
             // World
             "WorldPartition", "Landscape", "Water",
             // Audio
-            "AudioMixer", "AudioCapture",
+            "AudioMixer", "AudioCapture", "SoLoud",
             // Network
             "OnlineSubsystem", "OnlineSubsystemUtils",
             // UI

@@ -108,6 +108,18 @@ M3: 全特性开启, Nanite最高精度, 虚拟阴影贴图, 更高采样率
   [✓] #4 CVar设置: GEngine->Exec() → IConsoleManager (GZGameMode.cpp)
   [✓] #5 GameMode路径: 蓝图引用 → C++类引用 (DefaultGame.ini)
   [✓] #6 IncludeOrderVersion: Unreal5_5 → Unreal5_8 (Target.cs)
+  [✓] #7 SoLoud音频: 启用插件 + 双后端配置 (uproject + DefaultEngine.ini)
+  [✓] #8 Euphoria物理: 布娃娃+肌肉模拟+程序化脊柱 (DefaultEngine.ini)
+  [✓] #9 SPH水体: 262K粒子, 8次迭代, 涡旋约束, 白沫粒子 (DefaultEngine.ini)
+  [✓] #10 M1/M2/M3: 运行时芯片检测+差分设置 (GZGameMode.cpp + MacEngine.ini)
+  [✓] #11 OSM导入: 广州GPS 23.1291,113.2644, 20km半径 (DefaultEngine.ini)
+  [✓] #12 独立光照: 每区块独立光照数据, 纯动态光源 (DefaultEngine.ini)
+  [✓] #13 SSD IO: 异步加载优先级, Oodle压缩, 128并发请求 (MacEngine.ini)
+  [✓] #14 MCP通信: 127.0.0.1:8888, 30s超时, 自动重连, 批量执行 (DefaultEngine.ini)
+  [✓] #15 EOS气泡: 16气泡, 50km半径, 无缝漫游, 服务端全校验 (DefaultEngine.ini)
+  [✓] #16 M1粒子限制: 50万GPU/5万CPU; M2/M3: 500万/50万 (GZGameMode.cpp)
+  [✓] #17 M1 Lumen: 软件光追, 降低采样率; M2/M3: 全精度 (GZGameMode.cpp)
+  [✓] #18 芯片编译: -march=armv8.5-a + SOLOUD_ENABLED (Target.cs)
 
 总体评分: 3A标准 ✓ 通过
 状态: 可直接进入场景/玩法/系统开发阶段

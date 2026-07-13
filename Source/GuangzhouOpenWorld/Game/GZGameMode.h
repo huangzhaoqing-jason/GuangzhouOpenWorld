@@ -5,6 +5,15 @@
 #include "GameFramework/GameModeBase.h"
 #include "GZGameMode.generated.h"
 
+UENUM(BlueprintType)
+enum class EAppleSiliconChip : uint8
+{
+    Unknown = 0 UMETA(DisplayName="Unknown"),
+    M1 = 1 UMETA(DisplayName="M1"),
+    M2 = 2 UMETA(DisplayName="M2"),
+    M3 = 3 UMETA(DisplayName="M3"),
+};
+
 UCLASS()
 class GUANGZHOUOPENWORLD_API AGZGameMode : public AGameModeBase
 {
@@ -27,10 +36,15 @@ public:
     UPROPERTY(EditDefaultsOnly) int32 MinFPS = 25;
     void UpdateAutoQuality(float CurrentFPS);
 
+    // Apple Silicon chip detection
+    UPROPERTY(BlueprintReadOnly) EAppleSiliconChip DetectedChip = EAppleSiliconChip::Unknown;
+
 private:
     float WeatherTimer = 0.0f;
     TArray<float> FPSHistory;
     int32 CurrentQualityLevel = 3; // 0=Ultra, 1=High, 2=Medium, 3=Low
     void CycleWeather();
     void ApplyQualitySettings(int32 Level);
+    EAppleSiliconChip DetectAppleSiliconChip();
+    void ApplyChipSpecificSettings();
 };
