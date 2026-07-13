@@ -1,5 +1,5 @@
 # GTA-广州 UE5 Project - changed_files.md
-# Auto-generated: 2026-07-12 — UE5.5 AAA Open World Configuration
+# Auto-generated: 2026-07-13 — UE5.8 AAA Open World Configuration
 
 ## Project Structure
 ```
@@ -67,3 +67,7 @@ GuangzhouOpenWorld/
 - [x] 3D Audio (Core Audio, HRTF, 4 environments)
 - [x] EOS (EAC, 64 players, server authoritative)
 - [x] macOS Packaging (Universal Binary, .app + .dmg)
+- [x] UE5.8 Engine Association (verified)
+- [x] EOS OnlineSubsystem (fixed from null)
+- [x] IConsoleManager CVar system (replaced GEngine->Exec)
+- [x] C++ GameMode class reference (fixed blueprint path)

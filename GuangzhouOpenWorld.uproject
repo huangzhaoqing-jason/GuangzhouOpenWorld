@@ -1,6 +1,6 @@
 {
   "FileVersion": 3,
-  "EngineAssociation": "5.5",
+  "EngineAssociation": "5.8",
   "Category": "",
   "Description": "GTA-广州 AAA Open World - Guangzhou, China",
   "Modules": [
@@ -27,7 +27,6 @@
     { "Name": "Water", "Enabled": true },
     { "Name": "Landmass", "Enabled": true },
     { "Name": "Landscape", "Enabled": true },
-    { "Name": "ProceduralMeshComponent", "Enabled": true },
     { "Name": "AudioCapture", "Enabled": true },
     { "Name": "Synthesis", "Enabled": true }
   ],

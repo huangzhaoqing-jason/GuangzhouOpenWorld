@@ -10,7 +10,7 @@ public class GuangzhouOpenWorldTarget : TargetRules
     {
         Type = TargetType.Game;
         DefaultBuildSettings = BuildSettingsVersion.V5;
-        IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_5;
+        IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;
         ExtraModuleNames.Add("GuangzhouOpenWorld");
 
         // Apple Silicon Optimization

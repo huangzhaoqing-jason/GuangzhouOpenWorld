@@ -5,7 +5,7 @@ set -e
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECT_FILE="$PROJECT_DIR/GuangzhouOpenWorld.uproject"
-UE_PATH="/Users/Shared/Epic Games/UE_5.5"
+UE_PATH="/Users/Shared/Epic Games/UE_5.8"
 
 echo "=== GTA-广州 Build Script ==="
 echo "Project: $PROJECT_DIR"

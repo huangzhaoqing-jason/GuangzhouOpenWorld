@@ -3,6 +3,7 @@
 #include "GZCharacter.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "HAL/IConsoleManager.h"
 
 AGZGameMode::AGZGameMode()
 {
@@ -59,8 +60,6 @@ void AGZGameMode::UpdateAutoQuality(float CurrentFPS)
 
 void AGZGameMode::ApplyQualitySettings(int32 Level)
 {
-    // Apply console variables based on quality level
-    // Level 0=Ultra, 1=High, 2=Medium, 3=Low, 4=Potato
     static const TArray<TPair<FString, TArray<float>>> Settings = {
         {TEXT("r.ScreenPercentage"), {100, 85, 70, 60, 50}},
         {TEXT("r.Lumen.ScreenProbeGather.NumAdaptiveProbes"), {32, 24, 16, 12, 8}},
@@ -77,8 +76,10 @@ void AGZGameMode::ApplyQualitySettings(int32 Level)
     {
         if (Level < S.Value.Num())
         {
-            FString Cmd = FString::Printf(TEXT("%s %f"), *S.Key, S.Value[Level]);
-            GEngine->Exec(GetWorld(), *Cmd);
+            if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*S.Key))
+            {
+                CVar->Set(S.Value[Level]);
+            }
         }
     }
 }
