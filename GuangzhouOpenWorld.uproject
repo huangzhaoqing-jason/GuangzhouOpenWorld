@@ -1,8 +1,8 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "5.9.2",
-	"Category": "Guangzhou 4A+ Open World UE5.9.2",
-	"Description": "Guangzhou 4A+ Open World - Beyond AAA Standards - UE5.9.2 + Metal 4.2",
+	"EngineAssociation": "5.8",
+	"Category": "Guangzhou 4A+ Open World UE5.8",
+	"Description": "Guangzhou 4A+ Open World - Beyond AAA Standards - UE5.8 + Metal 4.3",
 	"Modules": [
 		{
 			"Name": "GuangzhouOpenWorld",
@@ -13,15 +13,15 @@
 	"Plugins": [
 		{"Name": "JoltPhysics", "Enabled": true, "Version": "6.0.1"},
 		{"Name": "ProceduralMeshComponent", "Enabled": true},
-		{"Name": "PCG", "Enabled": true, "Version": "5.9.2-2.3"},
-		{"Name": "PCGAdvanced", "Enabled": true, "Version": "5.9.2-2.3"},
+		{"Name": "PCG", "Enabled": true, "Version": "5.8-2.3"},
+		{"Name": "PCGAdvanced", "Enabled": true, "Version": "5.8-2.3"},
 		{"Name": "MassAI", "Enabled": true},
 		{"Name": "MassCrowd", "Enabled": true},
 		{"Name": "MassTraffic", "Enabled": true},
 		{"Name": "MassGameplay", "Enabled": true},
 		{"Name": "WorldPartitionHLOD", "Enabled": true},
 		{"Name": "OpenStreetMap", "Enabled": true, "Version": "4.2.0"},
-		{"Name": "OnlineSubsystemEOS", "Enabled": true, "Version": "1.16.2"},
+		{"Name": "OnlineSubsystemEOS", "Enabled": true, "Version": "1.19.0.7"},
 		{"Name": "OnlineSubsystem", "Enabled": true},
 		{"Name": "Niagara", "Enabled": true},
 		{"Name": "NiagaraFluids", "Enabled": true},
@@ -31,13 +31,13 @@
 		{"Name": "AudioCapture", "Enabled": true},
 		{"Name": "Synthesis", "Enabled": true},
 		{"Name": "SoundFields", "Enabled": true},
-		{"Name": "SoLoud", "Enabled": true, "Version": "2.10.0"},
-		{"Name": "RecastNavigation", "Enabled": true, "Version": "5.9.2-1.8"}
+		{"Name": "SoLoud", "Enabled": true, "Version": "2026"},
+		{"Name": "RecastNavigation", "Enabled": true, "Version": "5.8-1.8"}
 	],
 	"TargetPlatforms": [
 		"MacArm64"
 	],
-	"RenderingBackend": "Metal4.2",
+	"RenderingBackend": "Metal4.3",
 	"FeatureFlags": {
 		"Lumen": true,
 		"Nanite": true,

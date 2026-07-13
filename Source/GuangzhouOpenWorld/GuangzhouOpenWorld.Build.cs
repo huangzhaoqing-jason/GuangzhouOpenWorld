@@ -111,11 +111,11 @@ public class GuangzhouOpenWorld : ModuleRules
 				"CoreHaptics",
 			});
 
-			PublicDefinitions.Add("METAL_4_2=1");
+			PublicDefinitions.Add("METAL_4_3=1");
 			PublicDefinitions.Add("APPLE_SILICON_UMA=1");
-			PublicDefinitions.Add("SOLOUD_2_10_0=1");
+			PublicDefinitions.Add("SOLOUD_2026=1");
 			PublicDefinitions.Add("JOLT_6_0_1=1");
-			PublicDefinitions.Add("UE5_9_2=1");
+			PublicDefinitions.Add("UE5_8=1");
 		}
 
 		OptimizeCode = CodeOptimization.InShippingBuildsOnly;

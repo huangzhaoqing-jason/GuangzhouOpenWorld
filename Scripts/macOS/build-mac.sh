@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
-# GuangzhouOpenWorld - UE5.9.2 macOS Build Script
-# 4A+ Standard | Apple Silicon Native arm64 | Metal 4.2 Shaders | Zstd v1.5.7 Level 22
+# GuangzhouOpenWorld - UE5.8 macOS Build Script
+# 4A+ Standard | Apple Silicon Native arm64 | Metal 4.3 Shaders | Zstd v1.5.7 Level 22
 # Xcode 16.x | Shipping Configuration | arm64 only
 # =============================================================================
 set -euo pipefail
@@ -99,23 +99,19 @@ info "Jobs:        $PARALLEL_JOBS"
 
 # ── Build Flags ────────────────────────────────────────────────────────────
 COMPILER_FLAGS="-mcpu=$MCPU_FLAG -mtune=$MTUNE_FLAG -march=$MARCH_FLAG -O3 -flto"
-METAL_DEFINES="METAL_4_2=1 APPLE_SILICON_UMA=1 SOLOUD_ENABLED=1 SUBSTRATE_ENABLED=1"
+METAL_DEFINES="METAL_4_3=1 APPLE_SILICON_UMA=1 SOLOUD_ENABLED=1 SUBSTRATE_ENABLED=1"
 LINKER_FLAGS="-Wl,-dead_strip -Wl,-S"
 
 # =============================================================================
-# STEP 1: UE5.9.2 Path Auto-Discovery
+# STEP 1: UE5.8 Path Auto-Discovery
 # =============================================================================
-header "[1/8] UE5.9.2 Path Discovery"
+header "[1/8] UE5.8 Path Discovery"
 
 UE_PATHS=(
-    "/Users/Shared/Epic Games/UE_5.9"
-    "/Users/Shared/Epic Games/UE_5.9.2"
-    "/Users/Shared/UnrealEngine/UE_5.9"
-    "/Users/Shared/UnrealEngine/UE_5.9.2"
-    "$HOME/UE_5.9"
-    "$HOME/UE_5.9.2"
-    "/Applications/UnrealEngine/UE_5.9"
-    "/Applications/UnrealEngine/UE_5.9.2"
+    "/Users/Shared/Epic Games/UE_5.8"
+    "/Users/Shared/UnrealEngine/UE_5.8"
+    "$HOME/UE_5.8"
+    "/Applications/UnrealEngine/UE_5.8"
 )
 
 UE_PATH=""
@@ -129,7 +125,7 @@ done
 if [ -z "$UE_PATH" ]; then
     error "UE 5.9.x not found. Searched: ${UE_PATHS[*]}"
 fi
-log "UE5.9.2 path: $UE_PATH"
+log "UE5.8 path: $UE_PATH"
 
 # Verify UE version
 if [ -f "$UE_PATH/Engine/Build/Build.version" ]; then
@@ -222,9 +218,9 @@ fi
 log "Editor build complete"
 
 # =============================================================================
-# STEP 4: Cook Content with Metal 4.2 Shader Compilation
+# STEP 4: Cook Content with Metal 4.3 Shader Compilation
 # =============================================================================
-header "[4/8] Cooking Content (Metal 4.2 Shaders)"
+header "[4/8] Cooking Content (Metal 4.3 Shaders)"
 
 LOG_COOK="$LOG_DIR/cook_${TIMESTAMP}.log"
 "$UE_PATH/Engine/Binaries/Mac/UnrealEditor-Cmd" "$PROJECT_FILE" \
@@ -237,7 +233,7 @@ LOG_COOK="$LOG_DIR/cook_${TIMESTAMP}.log"
     -pak \
     -SkipCookingEditorContent \
     -ShaderCompiler=1 \
-    -MetalShaderVersion=4.2 \
+    -MetalShaderVersion=4.3 \
     -ForceMetalShaders \
     -NoShaderInlining=0 \
     -AllowCommandletRendering \
@@ -246,7 +242,7 @@ LOG_COOK="$LOG_DIR/cook_${TIMESTAMP}.log"
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
     warn "Cook had warnings/errors. Check $LOG_COOK"
 fi
-log "Content cooked with Metal 4.2 shaders"
+log "Content cooked with Metal 4.3 shaders"
 
 # =============================================================================
 # STEP 5: Package .app Bundle
@@ -274,7 +270,7 @@ LOG_PACKAGE="$LOG_DIR/package_${TIMESTAMP}.log"
     -compressed \
     -distribution \
     -arch="$ARCH_TARGET" \
-    -MetalShaderVersion=4.2 \
+    -MetalShaderVersion=4.3 \
     -build \
     2>&1 | tee -a "$LOG_PACKAGE"
 
@@ -433,7 +429,7 @@ generate_size_report() {
         echo " GuangzhouOpenWorld Build Size Report"
         echo " Date: $(date)"
         echo " Chip: $CHIP_TYPE"
-        echo " UE Version: 5.9.2"
+        echo " UE Version: 5.8"
         echo "============================================"
         echo ""
         if [ -d "$OUTPUT_DIR" ]; then
@@ -466,11 +462,11 @@ generate_size_report
 header "Build Complete"
 echo ""
 echo -e "  ${BOLD}Project:${NC}      $PROJECT_NAME"
-echo -e "  ${BOLD}Engine:${NC}       UE 5.9.2"
+echo -e "  ${BOLD}Engine:${NC}       UE 5.8"
 echo -e "  ${BOLD}Chip:${NC}         $CHIP_TYPE ($CHIP_FAMILY)"
 echo -e "  ${BOLD}Arch:${NC}         $ARCH_TARGET ($MARCH_FLAG)"
 echo -e "  ${BOLD}Config:${NC}       Shipping"
-echo -e "  ${BOLD}Shaders:${NC}      Metal 4.2"
+echo -e "  ${BOLD}Shaders:${NC}      Metal 4.3"
 echo -e "  ${BOLD}Compression:${NC}   Zstd v1.5.7 Level 22"
 echo -e "  ${BOLD}DMG:${NC}          UDZO zlib level 9"
 echo -e "  ${BOLD}Log:${NC}          $LOG_FILE"

@@ -7,7 +7,7 @@ public class GuangzhouOpenWorldTarget : TargetRules
 	{
 		Type = TargetType.Game;
 		DefaultBuildSettings = BuildSettingsVersion.V5;
-		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_9;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;
 		CppStandard = CppStandardVersion.Cpp20;
 
 		ExtraModuleNames.Add("GuangzhouOpenWorld");
@@ -31,7 +31,7 @@ public class GuangzhouOpenWorldTarget : TargetRules
 
 		if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			OutEnv.Definitions.Add("METAL_4_2=1");
+			OutEnv.Definitions.Add("METAL_4_3=1");
 			OutEnv.Definitions.Add("APPLE_SILICON_UMA=1");
 			OutEnv.Definitions.Add("SOLOUD_ENABLED=1");
 			OutEnv.Definitions.Add("JOLT_PHYSICS_V6=1");

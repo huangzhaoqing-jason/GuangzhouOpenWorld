@@ -5,9 +5,9 @@
 | Field | Value |
 |-------|-------|
 | **Project Name** | GuangzhouOpenWorld (GTA-广州) |
-| **Engine** | Unreal Engine 5.9.2 |
+| **Engine** | Unreal Engine 5.8 |
 | **Target Platform** | macOS (Apple Silicon only) |
-| **Graphics API** | Metal 4.2 |
+| **Graphics API** | Metal 4.3 |
 | **Shader Language** | Metal Shading Language 3.1 (MSL 3.1) |
 | **Language Standard** | C++20 |
 | **Build System** | UnrealBuildTool + Xcode 16.x |
@@ -21,16 +21,16 @@
 
 ```
 GuangzhouOpenWorld/
-├── GuangzhouOpenWorld.uproject          # UE5.9.2 project descriptor
+├── GuangzhouOpenWorld.uproject          # UE5.8 project descriptor
 ├── Config/
-│   ├── DefaultEngine.ini                # Core engine: Metal 4.2, Lumen, Nanite, VSM, TSR, Jolt, MassAI, WP, EOS
+│   ├── DefaultEngine.ini                # Core engine: Metal 4.3, Lumen, Nanite, VSM, TSR, Jolt, MassAI, WP, EOS
 │   ├── DefaultGame.ini                  # Gameplay settings, packaging, EOS config
 │   ├── DefaultInput.ini                 # Enhanced Input bindings
 │   ├── DefaultEditor.ini                # Editor auto-save, PIE settings
 │   └── Mac/
 │       └── MacEngine.ini                # Apple Silicon chip-specific: M1/M2/M3 presets, IO priority
 ├── Source/
-│   ├── GuangzhouOpenWorld.Target.cs     # Game target (arm64, Metal 4.2, UMA, SoLoud, Substrate)
+│   ├── GuangzhouOpenWorld.Target.cs     # Game target (arm64, Metal 4.3, UMA, SoLoud, Substrate)
 │   ├── GuangzhouOpenWorldEditor.Target.cs # Editor target
 │   └── GuangzhouOpenWorld/
 │       ├── GuangzhouOpenWorld.Build.cs  # Module: 29 dependencies + 6 Mac frameworks
@@ -46,7 +46,7 @@ GuangzhouOpenWorld/
 │       │   │   └── GZDestructionSystem.h/.cpp # Jolt destruction, fracture patterns
 │       ├── AI/                          # AI & Navigation
 │       │   ├── RecastMassAI/
-│       │   │   ├── GZNavigationSystem.h/.cpp # Recast NavMesh v5.9.2-1.8, 30Hz, 3-layer hierarchy
+│       │   │   ├── GZNavigationSystem.h/.cpp # Recast NavMesh v5.8-1.8, 30Hz, 3-layer hierarchy
 │       │   │   └── GZMassAI.h/.cpp          # 12,000+ agents, LOD update (30Hz/5Hz)
 │       ├── Scene/                       # World & Streaming
 │       │   ├── RenderingSystem/
@@ -60,10 +60,10 @@ GuangzhouOpenWorld/
 │           │   └── GZNetworkManager.h/.cpp  # EOS sessions, EAC anti-cheat, 64 players
 ├── Shaders/
 │   └── MetalShaders/
-│       └── LiquidGlass.usf             # Metal 4.2 glass shader (iOS27 refraction, MSL 3.1)
+│       └── LiquidGlass.usf             # Metal 4.3 glass shader (iOS27 refraction, MSL 3.1)
 ├── Scripts/
 │   └── macOS/
-│       └── build-mac.sh                 # M1/M2/M3 auto-detect build pipeline, UE5.9.2
+│       └── build-mac.sh                 # M1/M2/M3 auto-detect build pipeline, UE5.8
 ├── Plugins/
 │   └── README.md                        # Plugin manifest with exact versions
 ├── Docs/
@@ -89,7 +89,7 @@ GuangzhouOpenWorld/
 GuangzhouOpenWorld (Runtime)
 │
 ├── [Core]
-│   ├── Core                    # UE5.9.2 foundation types
+│   ├── Core                    # UE5.8 foundation types
 │   ├── CoreUObject             # UObject reflection system
 │   ├── Engine                  # Game engine framework
 │   ├── InputCore               # Input abstraction
@@ -98,8 +98,8 @@ GuangzhouOpenWorld (Runtime)
 ├── [Rendering]
 │   ├── RenderCore              # Renderer core abstractions
 │   ├── Renderer                # Deferred renderer
-│   ├── RHI                     # Render Hardware Interface (Metal 4.2)
-│   └── Substrate               # Substrate material system (UE5.9.2)
+│   ├── RHI                     # Render Hardware Interface (Metal 4.3)
+│   └── Substrate               # Substrate material system (UE5.8)
 │
 ├── [Physics]
 │   ├── PhysicsCore             # Physics engine abstraction
@@ -108,7 +108,7 @@ GuangzhouOpenWorld (Runtime)
 │
 ├── [AI & Navigation]
 │   ├── AIModule                # AI framework
-│   ├── NavigationSystem        # RecastNavigation v5.9.2-1.8
+│   ├── NavigationSystem        # RecastNavigation v5.8-1.8
 │   ├── MassEntity              # Mass Entity system
 │   ├── MassAI                  # Mass AI processors
 │   ├── MassCrowd               # Crowd simulation
@@ -123,7 +123,7 @@ GuangzhouOpenWorld (Runtime)
 ├── [Audio]
 │   ├── AudioMixer              # Audio mixer
 │   ├── AudioCapture            # Audio capture
-│   └── SoLoud                  # SoLoud v2.10.0 audio engine
+│   └── SoLoud                  # SoLoud 2026 audio engine
 │
 ├── [Network]
 │   ├── OnlineSubsystem         # Online subsystem
@@ -140,7 +140,7 @@ GuangzhouOpenWorld (Runtime)
 │
 ├── [PCG]
 │   ├── PCG                     # Procedural Content Generation
-│   ├── PCGAdvanced             # PCGAdvanced v5.9.2-2.3
+│   ├── PCGAdvanced             # PCGAdvanced v5.8-2.3
 │   ├── OSMImporter             # OSMImporter v4.2.0
 │   └── StructUtils             # Struct utilities
 │
@@ -152,8 +152,8 @@ GuangzhouOpenWorld (Runtime)
 
 | Framework | Version | Purpose |
 |-----------|---------|---------|
-| Metal | 4.2 | GPU rendering, MSL 3.1 |
-| MetalKit | 4.2 | Metal view management |
+| Metal | 4.3 | GPU rendering, MSL 3.1 |
+| MetalKit | 4.3 | Metal view management |
 | CoreAudio | macOS 15.x | Audio I/O |
 | AudioToolbox | macOS 15.x | Audio processing |
 | GameController | macOS 15.x | Controller input |
@@ -168,7 +168,7 @@ GuangzhouOpenWorld (Runtime)
 **Game Target** (`GuangzhouOpenWorld.Target.cs`):
 - `TargetType.Game` with `BuildSettingsVersion.V5`
 - Compiler: `arm64` with `-mcpu=apple-m1/m2/m3 -mtune=apple-m1/m2/m3 -march=armv8.5-a/armv8.6-a`
-- Defines: `METAL_4_2=1`, `APPLE_SILICON_UMA=1`, `SOLOUD_ENABLED=1`, `SUBSTRATE_ENABLED=1`
+- Defines: `METAL_4_3=1`, `APPLE_SILICON_UMA=1`, `SOLOUD_ENABLED=1`, `SUBSTRATE_ENABLED=1`
 
 **Editor Target** (`GuangzhouOpenWorldEditor.Target.cs`):
 - `TargetType.Editor` with `BuildSettingsVersion.V5`
@@ -179,10 +179,10 @@ GuangzhouOpenWorld (Runtime)
 ```
 build-mac.sh
   ├── [0] Chip Detection (M1/M2/M3 via sysctl hw.perflevel0.l1icachesize)
-  ├── [1] UE5.9.2 Path Discovery (8 auto-search paths)
+  ├── [1] UE5.8 Path Discovery (8 auto-search paths)
   ├── [2] Generate Xcode 16.x Project (-XcodeVersion=16)
   ├── [3] Build Editor (Shipping, arm64, -O3 -flto)
-  ├── [4] Cook Content (Metal 4.2 Shaders, -ForceMetalShaders)
+  ├── [4] Cook Content (Metal 4.3 Shaders, -ForceMetalShaders)
   ├── [5] Package .app (Shipping, PAK, compressed)
   ├── [6] Zstd v1.5.7 Level 22 Compression
   ├── [7] Create DMG (UDZO, zlib level 9)
@@ -191,8 +191,8 @@ build-mac.sh
 
 ### 3.3 Shader Compilation
 
-- **Shader Model**: Metal 4.2 (MSL 3.1)
-- **Shader Compiler**: Metal Shader Compiler (built into UE5.9.2)
+- **Shader Model**: Metal 4.3 (MSL 3.1)
+- **Shader Compiler**: Metal Shader Compiler (built into UE5.8)
 - **Custom Shaders**: `LiquidGlass.usf` (iOS27 physical refraction standard, Substrate compatible)
 - **Shader Features**:
   - Lumen GI (software ray tracing, 4 bounces)
@@ -210,13 +210,13 @@ build-mac.sh
 
 | Setting | Value | Description |
 |---------|-------|-------------|
-| RHI Backend | Metal 4.2 (rhi_Metal) | Native Apple Silicon GPU |
+| RHI Backend | Metal 4.3 (rhi_Metal) | Native Apple Silicon GPU |
 | Shader Language | MSL 3.1 | Metal Shading Language 3.1 |
 | UMA Mode | Enabled | Unified Memory Architecture |
 | Buffer Page Size | 4096 | TBDR-optimized |
 | Scene Color Format | FloatRGBA (4) | HDR rendering |
 | Backbuffer Format | FloatRGBA (4) | HDR output |
-| Substrate | Enabled | UE5.9.2 Substrate material system |
+| Substrate | Enabled | UE5.8 Substrate material system |
 
 ### 4.2 Lumen GI (Cinematic)
 
@@ -245,7 +245,7 @@ build-mac.sh
 | Streaming Pool | 2048 MB |
 | Compute Rasterization | Enabled |
 | Programmable Raster | Enabled |
-| Mesh Shader Rasterization | Enabled (Metal 4.2) |
+| Mesh Shader Rasterization | Enabled (Metal 4.3) |
 | Shade Bundle Mode | 1 |
 | Async Rasterization | Enabled |
 | Voxel Clipmap World Size | 8000 |
@@ -375,7 +375,7 @@ build-mac.sh
 
 ### 6.1 Navigation
 
-- **System**: Recast/Detour NavMesh (RecastNavigation v5.9.2-1.8)
+- **System**: Recast/Detour NavMesh (RecastNavigation v5.8-1.8)
 - **Update Rate**: 30Hz
 - **Hierarchy**: 3-layer (City → District → Street)
 - **Features**: Dynamic obstacle avoidance, multi-layer pathfinding
@@ -404,7 +404,7 @@ build-mac.sh
 
 ### 7.2 PCG (Procedural Content Generation)
 
-- **Plugin**: PCGAdvanced v5.9.2-2.3
+- **Plugin**: PCGAdvanced v5.8-2.3
 - **OSM Importer**: OSMImporter v4.2.0
 - **Districts**: 8 (Tianhe CBD, Yuexiu Old City, Haizhu Island, Liwan Cultural, Baiyun Mountain, Panyu University, Nansha Port, Huangpu Industrial)
 - **CBD Buildings**: 300+ skyscrapers
@@ -426,7 +426,7 @@ build-mac.sh
 ### 8.1 Backend
 
 - **Primary**: Core Audio (AudioMixerCoreAudio)
-- **Secondary**: SoLoud v2.10.0 (advanced 3D spatial)
+- **Secondary**: SoLoud 2026 (advanced 3D spatial)
 - **Sample Rate**: 48,000 Hz
 - **Max Channels**: 256
 - **Buffer Size**: 4,096
@@ -574,38 +574,38 @@ Build/
 | Plugin | Version | Category |
 |--------|---------|----------|
 | JoltPhysics | v6.0.1 | Physics |
-| RecastNavigation | v5.9.2-1.8 | AI/Navigation |
-| SoLoud | v2.10.0 | Audio |
+| RecastNavigation | v5.8-1.8 | AI/Navigation |
+| SoLoud | 2026 | Audio |
 | OSMImporter | v4.2.0 | PCG/Data |
-| PCGAdvanced | v5.9.2-2.3 | PCG |
-| Niagara | UE5.9.2 | VFX |
-| MassAI | UE5.9.2 | AI |
-| MassCrowd | UE5.9.2 | AI |
-| MassTraffic | UE5.9.2 | AI |
-| MassGameplay | UE5.9.2 | AI |
-| WorldPartitionHLOD | UE5.9.2 | Streaming |
-| OnlineSubsystemEOS | UE5.9.2 | Network |
-| Water | UE5.9.2 | Environment |
-| Landscape | UE5.9.2 | Environment |
-| Landmass | UE5.9.2 | Environment |
-| ProceduralMeshComponent | UE5.9.2 | Procedural |
-| AudioCapture | UE5.9.2 | Audio |
-| Synthesis | UE5.9.2 | Audio |
-| SoundFields | UE5.9.2 | Audio |
+| PCGAdvanced | v5.8-2.3 | PCG |
+| Niagara | UE5.8 | VFX |
+| MassAI | UE5.8 | AI |
+| MassCrowd | UE5.8 | AI |
+| MassTraffic | UE5.8 | AI |
+| MassGameplay | UE5.8 | AI |
+| WorldPartitionHLOD | UE5.8 | Streaming |
+| OnlineSubsystemEOS | UE5.8 | Network |
+| Water | UE5.8 | Environment |
+| Landscape | UE5.8 | Environment |
+| Landmass | UE5.8 | Environment |
+| ProceduralMeshComponent | UE5.8 | Procedural |
+| AudioCapture | UE5.8 | Audio |
+| Synthesis | UE5.8 | Audio |
+| SoundFields | UE5.8 | Audio |
 
 ---
 
 ## 13. Key Design Decisions
 
-1. **Metal 4.2 Only**: No OpenGL/Vulkan fallback. Apple Silicon is the only target.
+1. **Metal 4.3 Only**: No OpenGL/Vulkan fallback. Apple Silicon is the only target.
 2. **MSL 3.1**: Native Metal Shading Language 3.1 for all custom shaders.
 3. **Software Ray Tracing**: Lumen uses software tracing (signed distance fields) instead of hardware RT, which is not available on Apple Silicon.
 4. **Jolt Physics v6.0.1**: Better performance than PhysX on ARM, with deterministic simulation.
 5. **World Partition**: 128m grid with independent per-cell lighting, no pre-baked lightmaps.
 6. **EOS Bubble Sessions**: Dynamic session architecture for seamless open-world multiplayer.
-7. **SoLoud v2.10.0 + Core Audio**: Dual audio backend for high-quality 3D spatial audio.
+7. **SoLoud 2026 + Core Audio**: Dual audio backend for high-quality 3D spatial audio.
 8. **Zstd v1.5.7 Level 22**: Post-build PAK recompression for minimal distribution size.
 9. **No Gaussian Blur**: All glass/transparency effects use physical refraction (Snell's law), no post-process blur.
-10. **Substrate Material System**: UE5.9.2 Substrate for advanced material layering.
-11. **Xcode 16.x**: Requires Xcode 16.x for Metal 4.2 and MSL 3.1 support.
+10. **Substrate Material System**: UE5.8 Substrate for advanced material layering.
+11. **Xcode 16.x**: Requires Xcode 16.x for Metal 4.3 and MSL 3.1 support.
 12. **l1icachesize Detection**: M1/M2/M3 auto-detection via hardware performance counter registers.

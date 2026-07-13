@@ -1,6 +1,6 @@
 # 4A+ Standards Checklist - GuangzhouOpenWorld
 
-> **Engine**: Unreal Engine 5.9.2 | **Graphics API**: Metal 4.2 | **Shader Language**: MSL 3.1
+> **Engine**: Unreal Engine 5.8 | **Graphics API**: Metal 4.3 | **Shader Language**: MSL 3.1
 > **4A+ Definition**: Exceeds AAA standards. Target quality tier above traditional AAA.
 > **Status Legend**: ✅ Verified | ⚠️ Partial | ❌ Missing | 🔧 In Progress
 
@@ -28,7 +28,7 @@
 | 1.2.1 | Nanite | Enabled, 1 pixel per edge | ✅ | `Config/DefaultEngine.ini` r.Nanite.MaxPixelsPerEdge=1 |
 | 1.2.2 | Nanite Compute Raster | Enabled | ✅ | `Config/DefaultEngine.ini` r.Nanite.ComputeRasterization=1 |
 | 1.2.3 | Nanite Programmable Raster | Enabled | ✅ | `Config/DefaultEngine.ini` r.Nanite.ProgrammableRaster=1 |
-| 1.2.4 | Nanite Mesh Shaders | Enabled for Metal 4.2 | ✅ | `Config/DefaultEngine.ini` r.Nanite.MeshShaderRasterization=1 |
+| 1.2.4 | Nanite Mesh Shaders | Enabled for Metal 4.3 | ✅ | `Config/DefaultEngine.ini` r.Nanite.MeshShaderRasterization=1 |
 | 1.2.5 | Nanite Shade Bundle | Mode 1 | ✅ | `Config/DefaultEngine.ini` r.Nanite.ShadeBundle.Mode=1 |
 | 1.2.6 | Nanite Streaming Pool | 2048 MB | ✅ | `Config/DefaultEngine.ini` r.Nanite.StreamingPool=2048 |
 | 1.2.7 | Nanite Async Raster | Enabled | ✅ | `Config/DefaultEngine.ini` r.Nanite.AsyncRasterization=1 |
@@ -86,16 +86,16 @@
 | 1.7.2 | Volumetric Clouds | Shadow map + sky AO | ✅ | `Config/DefaultEngine.ini` r.VolumetricCloud.ShadowMap=1 |
 | 1.7.3 | Translucency Volume | 64 dim, 1500/8000 distance | ✅ | `Config/DefaultEngine.ini` r.TranslucencyLightingVolumeDim=64 |
 
-### 1.8 Metal 4.2 Graphics API
+### 1.8 Metal 4.3 Graphics API
 
 | # | Standard | Requirement | Status | File/Config |
 |---|----------|-------------|--------|-------------|
-| 1.8.1 | Metal 4.2 Backend | rhi_Metal | ✅ | `Config/DefaultEngine.ini` r.RHI.Name=rhi_Metal |
-| 1.8.2 | Metal Shader Version | 4.2 | ✅ | `Config/DefaultEngine.ini` r.Metal.MetalShaderVersion=4.2 |
+| 1.8.1 | Metal 4.3 Backend | rhi_Metal | ✅ | `Config/DefaultEngine.ini` r.RHI.Name=rhi_Metal |
+| 1.8.2 | Metal Shader Version | 4.3 | ✅ | `Config/DefaultEngine.ini` r.Metal.MetalShaderVersion=4.3 |
 | 1.8.3 | UMA Optimization | Enabled | ✅ | `Config/DefaultEngine.ini` r.Metal.UseUnifiedMemory=1 |
 | 1.8.4 | Resource Purge | On OOM | ✅ | `Config/DefaultEngine.ini` r.Metal.ResourcePurgeOnOOM=1 |
 | 1.8.5 | Buffer Page Size | 4096 (TBDR-optimized) | ✅ | `Config/DefaultEngine.ini` r.Metal.BufferPageSize=4096 |
-| 1.8.6 | Metal 4.2 Defines | METAL_4_2=1 | ✅ | `Source/GuangzhouOpenWorld.Target.cs` |
+| 1.8.6 | Metal 4.3 Defines | METAL_4_3=1 | ✅ | `Source/GuangzhouOpenWorld.Target.cs` |
 | 1.8.7 | Shader Optimization | Enabled, fast math | ✅ | `Config/DefaultEngine.ini` r.Shaders.Optimize=1 |
 | 1.8.8 | MSL 3.1 Support | Metal Shading Language 3.1 | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` |
 | 1.8.9 | ForceMetalShaders | Build flag enabled | ✅ | `Scripts/macOS/build-mac.sh` -ForceMetalShaders |
@@ -182,11 +182,11 @@
 
 ## 3. AI
 
-### 3.1 Navigation (RecastNavigation v5.9.2-1.8)
+### 3.1 Navigation (RecastNavigation v5.8-1.8)
 
 | # | Standard | Requirement | Status | File/Config |
 |---|----------|-------------|--------|-------------|
-| 3.1.1 | Recast NavMesh | 30Hz update, v5.9.2-1.8 | ✅ | `Source/GuangzhouOpenWorld/AI/RecastMassAI/GZNavigationSystem.h` |
+| 3.1.1 | Recast NavMesh | 30Hz update, v5.8-1.8 | ✅ | `Source/GuangzhouOpenWorld/AI/RecastMassAI/GZNavigationSystem.h` |
 | 3.1.2 | 3-Layer Hierarchy | City → District → Street | ✅ | `Source/GuangzhouOpenWorld/AI/RecastMassAI/GZNavigationSystem.cpp` |
 | 3.1.3 | Dynamic Obstacle Avoidance | Runtime navmesh modification | ✅ | `Source/GuangzhouOpenWorld/AI/RecastMassAI/GZNavigationSystem.cpp` |
 
@@ -206,12 +206,12 @@
 
 ## 4. Audio
 
-### 4.1 Audio Backend (SoLoud v2.10.0)
+### 4.1 Audio Backend (SoLoud 2026)
 
 | # | Standard | Requirement | Status | File/Config |
 |---|----------|-------------|--------|-------------|
 | 4.1.1 | Core Audio | Primary backend | ✅ | `Config/DefaultEngine.ini` AudioDeviceModuleName=AudioMixerCoreAudio |
-| 4.1.2 | SoLoud v2.10.0 | Advanced 3D spatial | ✅ | `Config/DefaultEngine.ini` SoLoud.Enable=1 |
+| 4.1.2 | SoLoud 2026 | Advanced 3D spatial | ✅ | `Config/DefaultEngine.ini` SoLoud.Enable=1 |
 | 4.1.3 | Sample Rate | 48,000 Hz | ✅ | `Config/DefaultEngine.ini` SoLoud.SampleRate=48000 |
 | 4.1.4 | Max Channels | 256 | ✅ | `Config/DefaultEngine.ini` SoLoud.MaxChannels=256 |
 
@@ -297,7 +297,7 @@
 
 | # | Standard | Requirement | Status | File/Config |
 |---|----------|-------------|--------|-------------|
-| 6.3.1 | PCGAdvanced v5.9.2-2.3 | Advanced PCG features | ✅ | `GuangzhouOpenWorld.uproject` |
+| 6.3.1 | PCGAdvanced v5.8-2.3 | Advanced PCG features | ✅ | `GuangzhouOpenWorld.uproject` |
 | 6.3.2 | Rule-Based Generation | District-specific rules | ✅ | `Source/GuangzhouOpenWorld/Scene/RenderingSystem/GZPCGGenerator.cpp` |
 
 ---
@@ -341,12 +341,12 @@
 | 8.1.2 | arm64 Native | Apple Silicon only | ✅ | `Scripts/macOS/build-mac.sh` |
 | 8.1.3 | Shipping Config | Optimized release build | ✅ | `Scripts/macOS/build-mac.sh` |
 | 8.1.4 | Xcode 16.x Project Gen | GenerateProjectFiles.sh -XcodeVersion=16 | ✅ | `Scripts/macOS/build-mac.sh` |
-| 8.1.5 | Metal 4.2 Shader Cook | -ForceMetalShaders -MetalShaderVersion=4.2 | ✅ | `Scripts/macOS/build-mac.sh` |
+| 8.1.5 | Metal 4.3 Shader Cook | -ForceMetalShaders -MetalShaderVersion=4.3 | ✅ | `Scripts/macOS/build-mac.sh` |
 | 8.1.6 | Zstd v1.5.7 Level 22 | Ultra compression | ✅ | `Scripts/macOS/build-mac.sh` |
 | 8.1.7 | DMG Creation | UDZO, zlib level 9, HFS+J | ✅ | `Scripts/macOS/build-mac.sh` |
 | 8.1.8 | Binary Verification | file + otool -L + codesign | ✅ | `Scripts/macOS/build-mac.sh` |
 | 8.1.9 | Size Report | Auto-generated | ✅ | `Scripts/macOS/build-mac.sh` |
-| 8.1.10 | UE5.9.2 Path | /Users/Shared/Epic Games/UE_5.9 + auto-discovery | ✅ | `Scripts/macOS/build-mac.sh` |
+| 8.1.10 | UE5.8 Path | /Users/Shared/Epic Games/UE_5.8 + auto-discovery | ✅ | `Scripts/macOS/build-mac.sh` |
 | 8.1.11 | Colored Output | log/warn/error/info/header functions | ✅ | `Scripts/macOS/build-mac.sh` |
 | 8.1.12 | Log File | All output tee'd to timestamped log | ✅ | `Scripts/macOS/build-mac.sh` |
 

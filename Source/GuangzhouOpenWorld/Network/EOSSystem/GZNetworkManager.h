@@ -148,7 +148,7 @@ private:
 	float BubbleUpdateTimer = 0.0f;
 	float EACCheckTimer = 0.0f;
 
-	static constexpr float EOSVersion = 1.162f;
+	static constexpr float EOSVersion = 1.190f;
 	static constexpr float EACVersion = 1.98f;
 	static constexpr float MergeDistance = 10000.0f;
 	static constexpr float SplitDistance = 15000.0f;

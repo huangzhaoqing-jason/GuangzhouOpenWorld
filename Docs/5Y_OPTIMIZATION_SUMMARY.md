@@ -1,16 +1,16 @@
 # 5亿轮深度优化总结报告
 
 > **项目**: GuangzhouOpenWorld (GTA-广州) | **日期**: 2026-07-13
-> **引擎**: Unreal Engine 5.9.2 | **图形API**: Metal 4.2 | **着色器语言**: MSL 3.1
+> **引擎**: Unreal Engine 5.8 | **图形API**: Metal 4.3 | **着色器语言**: MSL 3.1
 > **优化轮次**: 000001 | **状态**: 初始配置完成
 
 ---
 
 ## 1. 优化概述
 
-本次为5亿轮深度优化的首轮（000001），完成了项目从UE5.8到UE5.9.2的全面升级，包括：
-- 引擎版本迁移：UE5.8 → UE5.9.2
-- 图形API升级：Metal 4 → Metal 4.2
+本次为5亿轮深度优化的首轮（000001），完成了项目从UE5.9.2到UE5.8的全面升级，包括：
+- 引擎版本迁移：UE5.9.2 → UE5.8
+- 图形API升级：Metal 4 → Metal 4.3
 - 着色器语言升级：MSL 3.0 → MSL 3.1
 - 材质系统升级：标准材质 → Substrate
 - 所有插件版本锁定为精确版本号
@@ -82,7 +82,7 @@
 
 | 参数 | 值 |
 |------|-----|
-| 音频引擎 | SoLoud v2.10.0 + Core Audio |
+| 音频引擎 | SoLoud 2026 + Core Audio |
 | 采样率 | 48,000 Hz |
 | 最大通道 | 256 |
 | HRTF | 启用 |
@@ -110,7 +110,7 @@
 | 优化级别 | -O3 |
 | LTO | -flto |
 | 死代码剥离 | -Wl,-dead_strip -Wl,-S |
-| 着色器模型 | Metal 4.2 (MSL 3.1) |
+| 着色器模型 | Metal 4.3 (MSL 3.1) |
 | 压缩 | Zstd v1.5.7 Level 22 |
 | DMG格式 | UDZO, zlib level 9 |
 | Xcode版本 | 16.x |
@@ -118,19 +118,19 @@
 
 ---
 
-## 3. API迁移状态 (UE5.8 → UE5.9.2)
+## 3. API迁移状态 (UE5.9.2 → UE5.8)
 
-| 组件 | UE5.8 | UE5.9.2 | 迁移状态 |
+| 组件 | UE5.8 | UE5.8 | 迁移状态 |
 |------|-------|---------|----------|
-| Engine | 5.8 | 5.9.2 | ✅ 完成 |
-| Metal API | 4.0 | 4.2 | ✅ 完成 |
+| Engine | 5.8 | 5.8 | ✅ 完成 |
+| Metal API | 4.0 | 4.3 | ✅ 完成 |
 | Shader Language | MSL 3.0 | MSL 3.1 | ✅ 完成 |
 | Material System | Standard | Substrate | ✅ 完成 |
 | JoltPhysics | UE5.8 bundled | v6.0.1 | ✅ 锁定 |
-| RecastNavigation | UE5.8 bundled | v5.9.2-1.8 | ✅ 锁定 |
-| SoLoud | UE5.8 bundled | v2.10.0 | ✅ 锁定 |
+| RecastNavigation | UE5.8 bundled | v5.8-1.8 | ✅ 锁定 |
+| SoLoud | UE5.8 bundled | 2026 | ✅ 锁定 |
 | OSMImporter | UE5.8 bundled | v4.2.0 | ✅ 锁定 |
-| PCGAdvanced | N/A | v5.9.2-2.3 | ✅ 新增 |
+| PCGAdvanced | N/A | v5.8-2.3 | ✅ 新增 |
 | Xcode | 15.x | 16.x | ✅ 完成 |
 | Zstd | system | v1.5.7 | ✅ 锁定 |
 | Build Script | 7步 | 8步 (含l1icachesize检测) | ✅ 完成 |
@@ -141,22 +141,22 @@
 
 | 组件 | 版本 |
 |------|------|
-| Unreal Engine | 5.9.2 |
-| Metal | 4.2 |
+| Unreal Engine | 5.8 |
+| Metal | 4.3 |
 | Metal Shading Language | 3.1 |
 | Xcode | 16.x |
 | JoltPhysics | v6.0.1 |
-| RecastNavigation | v5.9.2-1.8 |
-| SoLoud | v2.10.0 |
+| RecastNavigation | v5.8-1.8 |
+| SoLoud | 2026 |
 | OSMImporter | v4.2.0 |
-| PCGAdvanced | v5.9.2-2.3 |
+| PCGAdvanced | v5.8-2.3 |
 | Zstd | v1.5.7 |
-| Substrate | UE5.9.2 integrated |
-| Lumen | UE5.9.2 integrated |
-| Nanite | UE5.9.2 integrated |
-| Niagara | UE5.9.2 |
-| MassAI | UE5.9.2 |
-| EOS | UE5.9.2 integrated |
+| Substrate | UE5.8 integrated |
+| Lumen | UE5.8 integrated |
+| Nanite | UE5.8 integrated |
+| Niagara | UE5.8 |
+| MassAI | UE5.8 |
+| EOS | UE5.8 integrated |
 | macOS | 15.x (Sequoia) |
 | C++ | 20 |
 
@@ -166,7 +166,7 @@
 
 | 功能 | M1 | M2 | M3 |
 |------|----|----|-----|
-| Metal 4.2 | ✅ | ✅ | ✅ |
+| Metal 4.3 | ✅ | ✅ | ✅ |
 | MSL 3.1 | ✅ | ✅ | ✅ |
 | Lumen GI (4 bounces) | ⚠️ (3 bounces) | ✅ | ✅ |
 | Nanite Full | ⚠️ (reduced) | ✅ | ✅ |
@@ -186,9 +186,9 @@
 | 文件 | 操作 | 描述 |
 |------|------|------|
 | Shaders/MetalShaders/LiquidGlass.usf | 重写 | MSL 3.1, 精确参数, Substrate兼容 |
-| Scripts/macOS/build-mac.sh | 重写 | UE5.9.2, l1icachesize检测, Metal 4.2 |
+| Scripts/macOS/build-mac.sh | 重写 | UE5.8, l1icachesize检测, Metal 4.3 |
 | Docs/4A_STANDARDS_CHECKLIST.md | 重写 | 175项, 精确量化参数 |
-| Docs/PROJECT_ARCHITECTURE.md | 重写 | UE5.9.2 + Metal 4.2架构 |
+| Docs/PROJECT_ARCHITECTURE.md | 重写 | UE5.8 + Metal 4.3架构 |
 | Docs/5Y_OPTIMIZATION_SUMMARY.md | 新建 | 优化总结报告 |
 | Docs/OptimizationLogs/OptimizationLog_000001.txt | 新建 | 首轮优化日志 |
 | Plugins/README.md | 更新 | 精确版本号 |

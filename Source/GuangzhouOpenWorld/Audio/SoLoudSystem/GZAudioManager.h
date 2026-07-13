@@ -129,7 +129,7 @@ private:
 	FVector ListenerPosition = FVector::ZeroVector;
 	FVector ListenerVelocity = FVector::ZeroVector;
 
-	static constexpr float SoLoudVersion = 2.10f;
+	static constexpr float SoLoudVersion = 2026.0f;
 	static constexpr float CoreAudioVersion = 14.3f;
 	static constexpr float AudioLatency = 0.016f;
 	static constexpr float SampleRate = 48000.0f;

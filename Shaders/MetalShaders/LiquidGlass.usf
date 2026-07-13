@@ -1,4 +1,4 @@
-// LiquidGlass.usf - UE5.9.2 Metal 4.2 Liquid Glass Shader
+// LiquidGlass.usf - UE5.8 Metal 4.3 Liquid Glass Shader
 // iOS27 Physical Refraction Standard | 4A+ Guangzhou Open World
 // Metal Shading Language 3.1 native, Apple Silicon GPU-only
 // v5.0 Refined: Multi-layer refraction, refined Fresnel, color-neutral
@@ -712,7 +712,7 @@ void LiquidGlassMain(
 }
 
 // ============================================================================
-// CalcPixelMaterialInputs - UE5.9.2 Substrate Material Entry Point
+// CalcPixelMaterialInputs - UE5.8 Substrate Material Entry Point
 // Full Lumen GI compatibility: refracted light contributes to GI
 // Weather causality: glass brightness changes with weather conditions
 // Behind-glass attenuation applied to all transmitted light

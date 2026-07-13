@@ -397,7 +397,7 @@ void UGZMCPSelfCheck::CheckPluginCompatibility()
 {
 	FGZCheckItem Item;
 	Item.RuleName = TEXT("Plugin_Compatibility");
-	Item.Description = TEXT("Verify EOS SDK 1.16.2, Jolt Physics v6.0.1, SoLoud v2.10.0, Metal 4.2");
+	Item.Description = TEXT("Verify EOS SDK 1.19.0.7, Jolt Physics v6.0.1, SoLoud 2026, Metal 4.3");
 	Item.Phase = EGZCheckPhase::APICompliance;
 	Item.Result = EGZCheckResult::Pending;
 	Item.RetryCount = 0;
@@ -424,17 +424,17 @@ void UGZMCPSelfCheck::CheckPluginCompatibility()
 		}
 
 		// Check SoLoud
-		if (!BuildCsContent.Contains(TEXT("SoLoud")) && !BuildCsContent.Contains(TEXT("SOLOUD_2_10_0=1")))
+		if (!BuildCsContent.Contains(TEXT("SoLoud")) && !BuildCsContent.Contains(TEXT("SOLOUD_2026=1")))
 		{
 			bAllValid = false;
-			Errors += TEXT("SoLoud v2.10.0 references missing; ");
+			Errors += TEXT("SoLoud 2026 references missing; ");
 		}
 
-		// Check Metal 4.2
-		if (!BuildCsContent.Contains(TEXT("Metal")) || !BuildCsContent.Contains(TEXT("METAL_4_2=1")))
+		// Check Metal 4.3
+		if (!BuildCsContent.Contains(TEXT("Metal")) || !BuildCsContent.Contains(TEXT("METAL_4_3=1")))
 		{
 			bAllValid = false;
-			Errors += TEXT("Metal 4.2 shader platform references missing; ");
+			Errors += TEXT("Metal 4.3 shader platform references missing; ");
 		}
 
 		// Check for Mac-specific framework references
@@ -444,11 +444,11 @@ void UGZMCPSelfCheck::CheckPluginCompatibility()
 			Errors += TEXT("Metal RHI/MetalKit framework references missing; ");
 		}
 
-		// Check UE5.9.2
-		if (!BuildCsContent.Contains(TEXT("UE5_9_2=1")))
+		// Check UE5.8
+		if (!BuildCsContent.Contains(TEXT("UE5_8=1")))
 		{
 			bAllValid = false;
-			Errors += TEXT("UE5.9.2 version definition missing; ");
+			Errors += TEXT("UE5.8 version definition missing; ");
 		}
 
 		// Check Apple Silicon UMA
@@ -1077,7 +1077,7 @@ void UGZMCPSelfCheck::CheckShaderSyntax()
 	}
 
 	// Check for Metal shader compatibility
-	// All .usf files should be compatible with Metal 4.2
+	// All .usf files should be compatible with Metal 4.3
 	for (const FString& ShaderFile : ShaderFiles)
 	{
 		FString Content;
