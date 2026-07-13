@@ -1,4 +1,5 @@
 #include "AI/RecastMassAI/GZMassAI.h"
+#include "AI/RecastMassAI/GZNavigationSystem.h"
 #include "GuangzhouOpenWorld.h"
 #include "Math/UnrealMathUtility.h"
 
@@ -101,11 +102,14 @@ void UGZMassAI::Initialize()
 {
 	Agents.Empty();
 	AgentLODs.Empty();
+	AgentWeatherStates.Empty();
 	PolicePositions.Empty();
 	AccidentLocations.Empty();
 	NextAgentID = 0;
+	CurrentWeather = EGZWeatherType::Clear;
+	CurrentHourOfDay = 12.0f;
 
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Mass AI: max agents=%d, LOD zones: <100m=%.0fHz, 100-200m=%.0fHz, >200m=%.0fHz, driver ratio %.0f:%.0f:%.0f"),
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Mass AI: max agents=%d, LOD zones: <100m=%.0fHz, 100-200m=%.0fHz, >200m=%.0fHz, driver ratio %.0f:%.0f:%.0f, weather response active"),
 		MaxAgents, NearTickRate, MediumTickRate, FarTickRate, DriverRatioAggressive, DriverRatioCautious, DriverRatioLawful);
 }
 
@@ -123,7 +127,15 @@ void UGZMassAI::Tick(float DeltaTime, const FVector& PlayerLocation)
 	{
 		ScheduleUpdateTimer = 0.0f;
 		float Hour = FMath::Fmod(DeltaTime * 0.1f, 24.0f);
+		CurrentHourOfDay = Hour;
 		UpdateAgentSchedules(DeltaTime, Hour);
+	}
+
+	WeatherUpdateTimer += DeltaTime;
+	if (WeatherUpdateTimer >= WeatherUpdateInterval)
+	{
+		WeatherUpdateTimer = 0.0f;
+		UpdateAgentWeatherStates(DeltaTime);
 	}
 
 	PoliceUpdateTimer += DeltaTime;
@@ -142,12 +154,20 @@ void UGZMassAI::RegisterAgent(int32 AgentID, const FGZAgentIdentity& Identity)
 
 	Agents.Add(AgentID, Identity);
 	AgentLODs.Add(AgentID, EGZAgentLOD::Far);
+
+	FAgentWeatherState DefaultWeatherState;
+	DefaultWeatherState.CurrentResponse = ENPCWeatherResponse::Normal;
+	DefaultWeatherState.SpeedMultiplier = 1.0f;
+	DefaultWeatherState.bHasReachedShelter = false;
+	DefaultWeatherState.WeatherResponseTimer = 0.0f;
+	AgentWeatherStates.Add(AgentID, DefaultWeatherState);
 }
 
 void UGZMassAI::UnregisterAgent(int32 AgentID)
 {
 	Agents.Remove(AgentID);
 	AgentLODs.Remove(AgentID);
+	AgentWeatherStates.Remove(AgentID);
 }
 
 void UGZMassAI::UpdateAgentLOD(const FVector& AgentLocation, const FVector& PlayerLocation, int32 AgentID)
@@ -171,6 +191,11 @@ void UGZMassAI::UpdateAgentLOD(const FVector& AgentLocation, const FVector& Play
 	if (AgentLODs.Contains(AgentID))
 	{
 		AgentLODs[AgentID] = NewLOD;
+	}
+
+	if (Agents.Contains(AgentID))
+	{
+		Agents[AgentID].CurrentLocation = AgentLocation;
 	}
 }
 
@@ -212,14 +237,181 @@ EGZAgentLOD UGZMassAI::GetAgentLOD(int32 AgentID) const
 	return EGZAgentLOD::Far;
 }
 
+ENPCWeatherResponse UGZMassAI::GetAgentWeatherResponse(int32 AgentID) const
+{
+	if (const FAgentWeatherState* State = AgentWeatherStates.Find(AgentID))
+	{
+		return State->CurrentResponse;
+	}
+	return ENPCWeatherResponse::Normal;
+}
+
+void UGZMassAI::UpdateWeatherResponse(EGZWeatherType Weather, float HourOfDay)
+{
+	CurrentWeather = Weather;
+	CurrentHourOfDay = HourOfDay;
+
+	switch (Weather)
+	{
+	case EGZWeatherType::Rain:
+		ApplyRainShelter();
+		break;
+	case EGZWeatherType::FogHaze:
+		ApplyFogSlowdown();
+		break;
+	case EGZWeatherType::Storm:
+		ApplyStormResponse();
+		break;
+	case EGZWeatherType::Clear:
+	case EGZWeatherType::Cloudy:
+	default:
+		for (auto& Pair : AgentWeatherStates)
+		{
+			FAgentWeatherState& State = Pair.Value;
+			State.CurrentResponse = ENPCWeatherResponse::Normal;
+			State.SpeedMultiplier = 1.0f;
+			State.bHasReachedShelter = false;
+			State.ShelterLocation = FVector::ZeroVector;
+		}
+		break;
+	}
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Weather response updated: weather=%d, hour=%.1f, agents=%d"),
+		(int32)Weather, HourOfDay, AgentWeatherStates.Num());
+}
+
+void UGZMassAI::ApplyRainShelter()
+{
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Rain shelter: NPCs seeking covered areas within %.0fm, speed=%.1fx"),
+		ShelterSearchRadius * 0.01f, RainShelterSpeedMultiplier);
+
+	for (auto& Pair : Agents)
+	{
+		int32 AgentID = Pair.Key;
+		FGZAgentIdentity& Agent = Pair.Value;
+
+		if (Agent.bIsIndoor)
+		{
+			if (AgentWeatherStates.Contains(AgentID))
+			{
+				AgentWeatherStates[AgentID].CurrentResponse = ENPCWeatherResponse::Normal;
+				AgentWeatherStates[AgentID].SpeedMultiplier = 1.0f;
+				AgentWeatherStates[AgentID].bHasReachedShelter = true;
+			}
+			continue;
+		}
+
+		if (!AgentWeatherStates.Contains(AgentID))
+		{
+			continue;
+		}
+
+		FAgentWeatherState& WeatherState = AgentWeatherStates[AgentID];
+		WeatherState.CurrentResponse = ENPCWeatherResponse::SeekShelter;
+		WeatherState.SpeedMultiplier = RainShelterSpeedMultiplier;
+		WeatherState.bHasReachedShelter = false;
+
+		WeatherState.ShelterLocation = Agent.WorkLocation;
+		if (Agent.WorkLocation.IsNearlyZero())
+		{
+			WeatherState.ShelterLocation = Agent.HomeLocation;
+		}
+	}
+}
+
+void UGZMassAI::ApplyFogSlowdown()
+{
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Fog slowdown: outdoor NPC speed *= %.1f, indoor NPCs unaffected"),
+		FogSlowdownMultiplier);
+
+	for (auto& Pair : Agents)
+	{
+		int32 AgentID = Pair.Key;
+		FGZAgentIdentity& Agent = Pair.Value;
+
+		if (Agent.bIsIndoor)
+		{
+			if (AgentWeatherStates.Contains(AgentID))
+			{
+				AgentWeatherStates[AgentID].CurrentResponse = ENPCWeatherResponse::Normal;
+				AgentWeatherStates[AgentID].SpeedMultiplier = 1.0f;
+			}
+			continue;
+		}
+
+		if (!AgentWeatherStates.Contains(AgentID))
+		{
+			continue;
+		}
+
+		FAgentWeatherState& WeatherState = AgentWeatherStates[AgentID];
+		WeatherState.CurrentResponse = ENPCWeatherResponse::SlowDown;
+		WeatherState.SpeedMultiplier = FogSlowdownMultiplier;
+	}
+}
+
+void UGZMassAI::ApplyStormResponse()
+{
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Storm response: outdoor NPCs reduced to %.0f%%, all seek indoor shelter"),
+		StormOutdoorFraction * 100.0f);
+
+	ReduceOutdoorDensity(StormOutdoorFraction);
+
+	for (auto& Pair : Agents)
+	{
+		int32 AgentID = Pair.Key;
+		FGZAgentIdentity& Agent = Pair.Value;
+
+		if (Agent.bIsIndoor)
+		{
+			if (AgentWeatherStates.Contains(AgentID))
+			{
+				AgentWeatherStates[AgentID].CurrentResponse = ENPCWeatherResponse::StayIndoor;
+				AgentWeatherStates[AgentID].SpeedMultiplier = 1.0f;
+				AgentWeatherStates[AgentID].bHasReachedShelter = true;
+			}
+			continue;
+		}
+
+		if (!AgentWeatherStates.Contains(AgentID))
+		{
+			continue;
+		}
+
+		FAgentWeatherState& WeatherState = AgentWeatherStates[AgentID];
+		WeatherState.CurrentResponse = ENPCWeatherResponse::StayIndoor;
+		WeatherState.SpeedMultiplier = RainShelterSpeedMultiplier;
+		WeatherState.bHasReachedShelter = false;
+
+		WeatherState.ShelterLocation = Agent.HomeLocation;
+		if (Agent.HomeLocation.IsNearlyZero())
+		{
+			WeatherState.ShelterLocation = Agent.WorkLocation;
+		}
+	}
+}
+
 void UGZMassAI::UpdateAgentSchedules(float DeltaTime, float HourOfDay)
 {
 	FGZNPCSchedule Schedule = GetScheduleForHour(HourOfDay);
+
+	bool bBadWeather = (CurrentWeather == EGZWeatherType::Rain ||
+		CurrentWeather == EGZWeatherType::Storm ||
+		CurrentWeather == EGZWeatherType::FogHaze);
 
 	for (auto& Pair : Agents)
 	{
 		FGZAgentIdentity& Agent = Pair.Value;
 		Agent.ScheduleTime = HourOfDay;
+
+		if (bBadWeather && !Agent.bIsIndoor)
+		{
+			Schedule.CommuteProbability *= 0.3f;
+			Schedule.WorkProbability *= 0.5f;
+			Schedule.ShopProbability *= 0.2f;
+			Schedule.RestProbability = FMath::Clamp(1.0f - Schedule.CommuteProbability -
+				Schedule.WorkProbability - Schedule.ShopProbability, 0.0f, 1.0f);
+		}
 
 		float Rand = FMath::FRand();
 		if (Rand < Schedule.CommuteProbability)
@@ -235,6 +427,106 @@ void UGZMassAI::UpdateAgentSchedules(float DeltaTime, float HourOfDay)
 			Agent.EmotionalState = Agent.EmotionalState == EGZEmotionalState::Anxious ? EGZEmotionalState::Happy : EGZEmotionalState::Neutral;
 		}
 	}
+}
+
+void UGZMassAI::UpdateAgentWeatherStates(float DeltaTime)
+{
+	for (auto& Pair : AgentWeatherStates)
+	{
+		int32 AgentID = Pair.Key;
+		FAgentWeatherState& WeatherState = Pair.Value;
+
+		if (WeatherState.CurrentResponse == ENPCWeatherResponse::Normal)
+		{
+			continue;
+		}
+
+		WeatherState.WeatherResponseTimer += DeltaTime;
+
+		if (WeatherState.CurrentResponse == ENPCWeatherResponse::SeekShelter)
+		{
+			if (!Agents.Contains(AgentID))
+			{
+				continue;
+			}
+
+			FGZAgentIdentity& Agent = Agents[AgentID];
+			if (Agent.bIsIndoor)
+			{
+				WeatherState.bHasReachedShelter = true;
+				WeatherState.CurrentResponse = ENPCWeatherResponse::Normal;
+				WeatherState.SpeedMultiplier = 1.0f;
+				continue;
+			}
+
+			float DistToShelter = FVector::Dist(Agent.CurrentLocation, WeatherState.ShelterLocation);
+			if (DistToShelter < 200.0f)
+			{
+				WeatherState.bHasReachedShelter = true;
+				WeatherState.CurrentResponse = ENPCWeatherResponse::Normal;
+				WeatherState.SpeedMultiplier = 1.0f;
+				Agent.bIsIndoor = true;
+			}
+		}
+		else if (WeatherState.CurrentResponse == ENPCWeatherResponse::StayIndoor)
+		{
+			if (!Agents.Contains(AgentID))
+			{
+				continue;
+			}
+
+			FGZAgentIdentity& Agent = Agents[AgentID];
+			if (Agent.bIsIndoor)
+			{
+				WeatherState.bHasReachedShelter = true;
+				continue;
+			}
+
+			float DistToShelter = FVector::Dist(Agent.CurrentLocation, WeatherState.ShelterLocation);
+			if (DistToShelter < 200.0f)
+			{
+				WeatherState.bHasReachedShelter = true;
+				Agent.bIsIndoor = true;
+			}
+		}
+	}
+}
+
+void UGZMassAI::ReduceOutdoorDensity(float OutdoorFraction)
+{
+	TArray<int32> OutdoorAgents;
+	for (auto& Pair : Agents)
+	{
+		if (!Pair.Value.bIsIndoor)
+		{
+			OutdoorAgents.Add(Pair.Key);
+		}
+	}
+
+	int32 KeepCount = FMath::Max(1, FMath::RoundToInt(OutdoorAgents.Num() * OutdoorFraction));
+	int32 RemoveCount = OutdoorAgents.Num() - KeepCount;
+
+	for (int32 i = 0; i < RemoveCount; ++i)
+	{
+		int32 Idx = FMath::RandRange(0, OutdoorAgents.Num() - 1);
+		int32 AgentID = OutdoorAgents[Idx];
+
+		if (Agents.Contains(AgentID))
+		{
+			Agents[AgentID].bIsIndoor = true;
+		}
+
+		if (AgentWeatherStates.Contains(AgentID))
+		{
+			AgentWeatherStates[AgentID].CurrentResponse = ENPCWeatherResponse::StayIndoor;
+			AgentWeatherStates[AgentID].bHasReachedShelter = true;
+		}
+
+		OutdoorAgents.RemoveAt(Idx);
+	}
+
+	UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("Storm: kept %d outdoor agents, moved %d indoors"),
+		KeepCount, RemoveCount);
 }
 
 void UGZMassAI::UpdateDriverBehavior(float DeltaTime)
@@ -256,6 +548,11 @@ void UGZMassAI::UpdateDriverBehavior(float DeltaTime)
 		case EGZDriverType::Lawful:
 			SpeedMult = LawfulSpeedMultiplier;
 			break;
+		}
+
+		if (AgentWeatherStates.Contains(Pair.Key))
+		{
+			SpeedMult *= AgentWeatherStates[Pair.Key].SpeedMultiplier;
 		}
 	}
 }
@@ -301,7 +598,7 @@ void UGZMassAI::AssignAgentLODs(const FVector& PlayerLocation)
 {
 	for (auto& Pair : Agents)
 	{
-		FVector AgentPos = FVector::ZeroVector;
+		FVector AgentPos = Pair.Value.CurrentLocation;
 		UpdateAgentLOD(AgentPos, PlayerLocation, Pair.Key);
 	}
 }

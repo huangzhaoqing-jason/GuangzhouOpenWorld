@@ -143,6 +143,75 @@ struct FAdaptiveResolutionSettings
 	float TransitionTime = 0.2f;
 };
 
+USTRUCT(BlueprintType)
+struct FDayNightCausalityEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Causality")
+	float HourStart = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Causality")
+	float HourEnd = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Causality")
+	float ColorTempKelvin = 6500.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Causality")
+	float ShadowLengthMultiplier = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Causality")
+	float ShadowSoftness = 0.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Causality")
+	FLinearColor LightColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Causality")
+	FString PeriodName;
+};
+
+USTRUCT(BlueprintType)
+struct FColorBleedCausality
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ColorBleed")
+	float MaxBleedDistance = 800.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ColorBleed")
+	FString BleedDecayCurve = TEXT("linear");
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ColorBleed")
+	float WallBleed = 0.22f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ColorBleed")
+	float GlassBleed = 0.08f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ColorBleed")
+	float RoadBleed = 0.15f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ColorBleed")
+	float VegetationBleed = 0.05f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ColorBleed")
+	float RedWallBleed = 0.03f;
+};
+
+USTRUCT(BlueprintType)
+struct FCellLightingConsistency
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CellLighting")
+	float MaxBrightnessDelta = 0.05f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CellLighting")
+	float MaxColorTempDelta = 500.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CellLighting")
+	int32 TransitionZoneCells = 2;
+};
+
 UCLASS()
 class GUANGZHOUOPENWORLD_API AGZGameMode : public AGameModeBase
 {
@@ -189,6 +258,11 @@ protected:
 	void ApplyLumenColorBleed();
 	float GetWeatherTransitionTime(EGZWeatherType From, EGZWeatherType To) const;
 	int32 GetLightingZoneSampleCount(EGZLightingZone Zone) const;
+	void ApplyCausalitySchedule(float Hour, EGZWeatherType Weather);
+	void ApplyColorBleedCausality();
+	void ApplyCellLightingConsistency();
+	FLinearColor KelvinToRGB(float Kelvin) const;
+	bool IsHourInRange(float Hour, float RangeStart, float RangeEnd) const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DayNight")
 	FDayNightCycleSettings DayNight;
@@ -216,6 +290,18 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AdaptiveRes")
 	FAdaptiveResolutionSettings AdaptiveResolution;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Causality")
+	TArray<FDayNightCausalityEntry> CausalitySchedule;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ColorBleed")
+	FColorBleedCausality ColorBleedCausality;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CellLighting")
+	FCellLightingConsistency CellLightingConsistency;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ToneMapping")
+	FLinearColor NeutralGrayBase = FLinearColor(0.5f, 0.5f, 0.5f);
 
 	UPROPERTY()
 	EAppleSiliconChip DetectedChip = EAppleSiliconChip::Unknown;

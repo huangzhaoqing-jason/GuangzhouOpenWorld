@@ -35,14 +35,16 @@ void UGZNavigationSystem::Initialize()
 {
 	NavTiles.Empty();
 	Obstacles.Empty();
+	ShelterPoints.Empty();
 	NavRefreshTimer = 0.0f;
 	ObstacleUpdateTimer = 0.0f;
 	SimulationTime = 0.0f;
 
 	InitializeNavLayers();
+	FindShelterPoints();
 
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Navigation: Recast v%.1f, 3 layers: %.2fm/%.2fm/%.2fm, refresh=%.0fHz, obstacle=%.0fms"),
-		RecastVersion, LargeCellSize, MediumCellSize, FineCellSize, NavRefreshRate, ObstacleUpdateInterval * 1000.0f);
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Navigation: Recast v%.1f, 3 layers: %.2fm/%.2fm/%.2fm, refresh=%.0fHz, obstacle=%.0fms, shelters=%d"),
+		RecastVersion, LargeCellSize, MediumCellSize, FineCellSize, NavRefreshRate, ObstacleUpdateInterval * 1000.0f, ShelterPoints.Num());
 }
 
 void UGZNavigationSystem::Tick(float DeltaTime)
@@ -67,7 +69,9 @@ void UGZNavigationSystem::Tick(float DeltaTime)
 void UGZNavigationSystem::RebuildNavMesh()
 {
 	NavTiles.Empty();
+	ShelterPoints.Empty();
 	InitializeNavLayers();
+	FindShelterPoints();
 	RebuildDirtyTiles();
 }
 
@@ -146,6 +150,72 @@ bool UGZNavigationSystem::FindPath(const FVector& Start, const FVector& End, TAr
 	}
 
 	return OutPath.Num() > 0;
+}
+
+void UGZNavigationSystem::FindShelterPoints()
+{
+	ShelterPoints.Empty();
+
+	float MapHalf = 10000.0f;
+	float GridStep = 2000.0f;
+
+	for (float X = -MapHalf; X < MapHalf; X += GridStep)
+	{
+		for (float Y = -MapHalf; Y < MapHalf; Y += GridStep)
+		{
+			FVector BasePoint(X, Y, 0.0f);
+
+			if (IsPointNavigable(BasePoint))
+			{
+				ShelterPoints.Add(BasePoint);
+
+				FVector Entrance1(X + 500.0f, Y, 0.0f);
+				if (IsPointNavigable(Entrance1))
+				{
+					ShelterPoints.Add(Entrance1);
+				}
+
+				FVector Entrance2(X, Y + 500.0f, 0.0f);
+				if (IsPointNavigable(Entrance2))
+				{
+					ShelterPoints.Add(Entrance2);
+				}
+
+				FVector Entrance3(X - 500.0f, Y, 0.0f);
+				if (IsPointNavigable(Entrance3))
+				{
+					ShelterPoints.Add(Entrance3);
+				}
+
+				FVector Entrance4(X, Y - 500.0f, 0.0f);
+				if (IsPointNavigable(Entrance4))
+				{
+					ShelterPoints.Add(Entrance4);
+				}
+			}
+		}
+	}
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Shelter points: found %d potential shelter locations (building entrances, covered areas)"),
+		ShelterPoints.Num());
+}
+
+FVector UGZNavigationSystem::FindNearestShelter(const FVector& Location) const
+{
+	FVector Nearest = Location;
+	float NearestDist = ShelterSearchRadius;
+
+	for (const FVector& Shelter : ShelterPoints)
+	{
+		float Dist = FVector::Dist(Location, Shelter);
+		if (Dist < NearestDist)
+		{
+			NearestDist = Dist;
+			Nearest = Shelter;
+		}
+	}
+
+	return Nearest;
 }
 
 void UGZNavigationSystem::UpdateObstacles(float DeltaTime)

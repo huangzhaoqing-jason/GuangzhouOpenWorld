@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
+#include "Game/GZGameMode.h"
 #include "GZMassAI.generated.h"
 
 UENUM(BlueprintType)
@@ -41,6 +42,15 @@ enum class EGZAgentLOD : uint8
 	Far			UMETA(DisplayName = "Far (>200m)"),
 };
 
+UENUM(BlueprintType)
+enum class ENPCWeatherResponse : uint8
+{
+	Normal		UMETA(DisplayName = "Normal"),
+	SeekShelter	UMETA(DisplayName = "Seek Shelter"),
+	SlowDown	UMETA(DisplayName = "Slow Down"),
+	StayIndoor	UMETA(DisplayName = "Stay Indoor"),
+};
+
 USTRUCT(BlueprintType)
 struct FGZAgentIdentity
 {
@@ -72,6 +82,33 @@ struct FGZAgentIdentity
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float ScheduleTime = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsIndoor = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector CurrentLocation = FVector::ZeroVector;
+};
+
+USTRUCT(BlueprintType)
+struct FAgentWeatherState
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	ENPCWeatherResponse CurrentResponse = ENPCWeatherResponse::Normal;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector ShelterLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float SpeedMultiplier = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bHasReachedShelter = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float WeatherResponseTimer = 0.0f;
 };
 
 USTRUCT(BlueprintType)
@@ -134,6 +171,11 @@ public:
 	void UpdateAgentLOD(const FVector& AgentLocation, const FVector& PlayerLocation, int32 AgentID);
 	void UpdatePoliceResponse(int32 WantedLevel, const FVector& TargetLocation);
 
+	void UpdateWeatherResponse(EGZWeatherType Weather, float HourOfDay);
+	void ApplyRainShelter();
+	void ApplyFogSlowdown();
+	void ApplyStormResponse();
+
 	UFUNCTION(BlueprintPure)
 	int32 GetAgentCount() const { return Agents.Num(); }
 
@@ -142,6 +184,9 @@ public:
 
 	UFUNCTION(BlueprintPure)
 	const FGZPoliceTactics& GetPoliceTactics() const { return CurrentTactics; }
+
+	UFUNCTION(BlueprintPure)
+	ENPCWeatherResponse GetAgentWeatherResponse(int32 AgentID) const;
 
 	static FGZNPCSchedule GetScheduleForHour(float Hour);
 	static FGZPoliceTactics GetPoliceTacticsForWantedLevel(int32 WantedLevel);
@@ -154,12 +199,17 @@ private:
 	float GetAgentLODTickRate(EGZAgentLOD LOD) const;
 	void AssignDriverTypes();
 	void HandleAccidentReroute(int32 AgentID, const FVector& AccidentLocation);
+	void UpdateAgentWeatherStates(float DeltaTime);
+	void ReduceOutdoorDensity(float OutdoorFraction);
 
 	UPROPERTY()
 	TMap<int32, FGZAgentIdentity> Agents;
 
 	UPROPERTY()
 	TMap<int32, EGZAgentLOD> AgentLODs;
+
+	UPROPERTY()
+	TMap<int32, FAgentWeatherState> AgentWeatherStates;
 
 	UPROPERTY()
 	FGZPoliceTactics CurrentTactics;
@@ -179,6 +229,11 @@ private:
 	float ScheduleUpdateInterval = 1.0f;
 	float PoliceUpdateTimer = 0.0f;
 	float PoliceUpdateInterval = 0.5f;
+	float WeatherUpdateTimer = 0.0f;
+	float WeatherUpdateInterval = 2.0f;
+
+	EGZWeatherType CurrentWeather = EGZWeatherType::Clear;
+	float CurrentHourOfDay = 12.0f;
 
 	static constexpr float NearDistance = 10000.0f;
 	static constexpr float MediumDistance = 20000.0f;
@@ -192,4 +247,8 @@ private:
 	static constexpr float DriverRatioAggressive = 3.0f;
 	static constexpr float DriverRatioCautious = 5.0f;
 	static constexpr float DriverRatioLawful = 2.0f;
+	static constexpr float RainShelterSpeedMultiplier = 1.5f;
+	static constexpr float FogSlowdownMultiplier = 0.7f;
+	static constexpr float StormOutdoorFraction = 0.05f;
+	static constexpr float ShelterSearchRadius = 5000.0f;
 };
