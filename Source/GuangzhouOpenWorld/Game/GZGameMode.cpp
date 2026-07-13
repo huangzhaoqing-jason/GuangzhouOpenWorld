@@ -159,6 +159,67 @@ AGZGameMode::AGZGameMode()
 	RoadWetnessTarget = 0.0f;
 	RoadWetState = EGZRoadWetState::Dry;
 	WindStrength = 0.0f;
+
+	// v5.1 Cloud Tiers - 3 entries
+	CloudTiers.Empty();
+	{
+		FCloudTierLighting Heavy; Heavy.TopAmbientReduction = -0.06f; Heavy.ShadowVariationPeriod = 4.0f; Heavy.ShadowVariationAmplitude = 0.15f;
+		FCloudTierLighting Medium; Medium.TopAmbientReduction = 0.0f; Medium.ShadowVariationPeriod = 4.0f; Medium.ShadowVariationAmplitude = 0.10f;
+		FCloudTierLighting Thin; Thin.TopAmbientReduction = 0.05f; Thin.ShadowVariationPeriod = 4.0f; Thin.ShadowVariationAmplitude = 0.05f;
+		CloudTiers.Add(Heavy); CloudTiers.Add(Medium); CloudTiers.Add(Thin);
+	}
+
+	// v5.1 RayTracingConfig
+	RayTracingConfig.bEnableRTGI = true;
+	RayTracingConfig.bEnableRTShadows = true;
+	RayTracingConfig.bEnableRTAO = true;
+	RayTracingConfig.bEnableRTReflections = true;
+	RayTracingConfig.bEnableDLSS = true;
+	RayTracingConfig.bEnableFSR = true;
+	RayTracingConfig.bEnableFrameGen = true;
+	RayTracingConfig.RTSamplesPerPixel = 1;
+
+	// v5.1 DirectStorageConfig
+	DirectStorageConfig.bEnableDirectStorage = true;
+	DirectStorageConfig.PreloadPriority1_Distance = 4.0f;
+	DirectStorageConfig.PreloadPriority2_Distance = 3.0f;
+	DirectStorageConfig.PreloadPriority3_Distance = 2.0f;
+
+	// v5.1 NPCLifecycle
+	NPCLifecycle.bEnableMemory = true;
+	NPCLifecycle.MemoryRetentionHours = 24.0f;
+	NPCLifecycle.bEnableInterNPCInteraction = true;
+	NPCLifecycle.InteractionRadius = 3000.0f;
+	NPCLifecycle.InteractionFrequencyMin = 10.0f;
+	NPCLifecycle.InteractionFrequencyMax = 60.0f;
+
+	// v5.1 TrafficBehaviors - 5 entries
+	TrafficBehaviors.Empty();
+	{
+		FTrafficAIExpanded Normal; Normal.DecelerationBuffer = 0.0f; Normal.SmoothTurnRadius = 0.0f; Normal.RainBrakingExtension = 0.0f; Normal.RainTurnRadiusIncrease = 0.0f; Normal.WaterSplashThreshold = 0.0f; Normal.WaterSplashMaxHeight = 0.0f; Normal.bEnableAutoLights = false; Normal.TunnelLightTrigger = 0.0f; Normal.NightLightTrigger = 0.0f;
+		FTrafficAIExpanded RushHour; RushHour.DecelerationBuffer = 0.5f; RushHour.SmoothTurnRadius = 5.0f; RushHour.RainBrakingExtension = 0.0f; RushHour.RainTurnRadiusIncrease = 0.0f; RushHour.WaterSplashThreshold = 0.0f; RushHour.WaterSplashMaxHeight = 0.0f; RushHour.bEnableAutoLights = false; RushHour.TunnelLightTrigger = 0.0f; RushHour.NightLightTrigger = 0.0f;
+		FTrafficAIExpanded NightSparse; NightSparse.DecelerationBuffer = 0.0f; NightSparse.SmoothTurnRadius = 0.0f; NightSparse.RainBrakingExtension = 0.0f; NightSparse.RainTurnRadiusIncrease = 0.0f; NightSparse.WaterSplashThreshold = 0.0f; NightSparse.WaterSplashMaxHeight = 0.0f; NightSparse.bEnableAutoLights = true; NightSparse.TunnelLightTrigger = 0.0f; NightSparse.NightLightTrigger = 18.0f;
+		FTrafficAIExpanded RainCautious; RainCautious.DecelerationBuffer = 1.0f; RainCautious.SmoothTurnRadius = 0.0f; RainCautious.RainBrakingExtension = 15.0f; RainCautious.RainTurnRadiusIncrease = 10.0f; RainCautious.WaterSplashThreshold = 0.3f; RainCautious.WaterSplashMaxHeight = 150.0f; RainCautious.bEnableAutoLights = true; RainCautious.TunnelLightTrigger = 0.0f; RainCautious.NightLightTrigger = 0.0f;
+		FTrafficAIExpanded FogSlow; FogSlow.DecelerationBuffer = 2.0f; FogSlow.SmoothTurnRadius = 10.0f; FogSlow.RainBrakingExtension = 0.0f; FogSlow.RainTurnRadiusIncrease = 0.0f; FogSlow.WaterSplashThreshold = 0.0f; FogSlow.WaterSplashMaxHeight = 0.0f; FogSlow.bEnableAutoLights = true; FogSlow.TunnelLightTrigger = 1.0f; FogSlow.NightLightTrigger = 0.0f;
+		TrafficBehaviors.Add(Normal); TrafficBehaviors.Add(RushHour); TrafficBehaviors.Add(NightSparse); TrafficBehaviors.Add(RainCautious); TrafficBehaviors.Add(FogSlow);
+	}
+
+	// v5.1 FogSpatialization
+	FogSpatialization.LowElevationBoost = 0.15f;
+	FogSpatialization.HighElevationReduction = 0.1f;
+	FogSpatialization.CoolWavelengthDecay = 1.3f;
+	FogSpatialization.WarmWavelengthRetention = 0.8f;
+	FogSpatialization.ElevationThreshold = 5000.0f;
+
+	// v5.1 WeatherPreTransition
+	WeatherPreTransition.PreTransitionTime = 1.0f;
+	WeatherPreTransition.StormDarkeningIntensity = 0.3f;
+	WeatherPreTransition.TransitionCurveType = TEXT("easeInOut");
+
+	// v5.1 NaniteSeamFix
+	NaniteSeamFix.VertexInterpolationDistance = 0.01f;
+	NaniteSeamFix.MaxSeamGap = 0.01f;
+	NaniteSeamFix.bEnableSeamBlend = true;
 }
 
 void AGZGameMode::BeginPlay()
@@ -274,6 +335,11 @@ void AGZGameMode::BeginPlay()
 	ApplyCausalitySchedule(DayNight.TimeOfDay, CurrentWeather);
 	ApplyWeatherLayeredLighting(DayNight.TimeOfDay, CurrentWeather);
 	UpdateLightingFromZone(CurrentLightingZone);
+
+	// v5.1
+	ApplyRayTracingConfig();
+	ApplyDirectStorageConfig();
+	ApplyNaniteSeamFix();
 }
 
 void AGZGameMode::Tick(float DeltaSeconds)
@@ -289,6 +355,22 @@ void AGZGameMode::Tick(float DeltaSeconds)
 		AdaptiveTransitionTimer -= DeltaSeconds;
 		float Alpha = 1.0f - (AdaptiveTransitionTimer / AdaptiveResolution.TransitionTime);
 		CurrentAdaptiveScreenPercentage = FMath::Lerp(AdaptiveTransitionFrom, AdaptiveTransitionTarget, FMath::Clamp(Alpha, 0.0f, 1.0f));
+	}
+
+	// v5.1 Fog spatialization and weather pre-transition
+	float Elevation = 0.0f;
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+	{
+		if (APawn* Pawn = PC->GetPawn())
+		{
+			Elevation = Pawn->GetActorLocation().Z;
+		}
+	}
+	ApplyFogSpatialization(Elevation);
+
+	if (WeatherTransitionProgress < 1.0f)
+	{
+		ApplyWeatherPreTransition(DeltaSeconds);
 	}
 }
 
@@ -1080,4 +1162,154 @@ void AGZGameMode::UpdateVegetationWind(float DeltaSeconds)
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Signs.AngleRange"))->Set(WindParams.SignSwingAngleRange);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Signs.PeriodMin"))->Set(WindParams.SignSwingPeriodMin);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Signs.PeriodMax"))->Set(WindParams.SignSwingPeriodMax);
+}
+
+// ============================================================================
+// v5.1 Cloud Tier Lighting
+// ============================================================================
+void AGZGameMode::ApplyCloudTierLighting(EGZCloudThickness Tier)
+{
+	if (CloudTiers.Num() < 3) return;
+
+	const FCloudTierLighting& TierData = CloudTiers[(int32)Tier];
+
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.AmbientLighting.TopLayerReduction"))->Set(TierData.TopAmbientReduction);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.AmbientLighting.ShadowVariationPeriod"))->Set(TierData.ShadowVariationPeriod);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.AmbientLighting.ShadowVariationAmplitude"))->Set(TierData.ShadowVariationAmplitude);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("CloudTier: tier=%d topReduction=%.3f shadowPeriod=%.1f shadowAmp=%.3f"),
+		(int32)Tier, TierData.TopAmbientReduction, TierData.ShadowVariationPeriod, TierData.ShadowVariationAmplitude);
+}
+
+// ============================================================================
+// v5.1 Ray Tracing Config
+// ============================================================================
+void AGZGameMode::ApplyRayTracingConfig()
+{
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.GlobalIllumination"))->Set(RayTracingConfig.bEnableRTGI ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Shadows"))->Set(RayTracingConfig.bEnableRTShadows ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.AmbientOcclusion"))->Set(RayTracingConfig.bEnableRTAO ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Reflections"))->Set(RayTracingConfig.bEnableRTReflections ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.SamplesPerPixel"))->Set(RayTracingConfig.RTSamplesPerPixel);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("RayTracingConfig: GI=%d Shadows=%d AO=%d Reflections=%d SPP=%d"),
+		RayTracingConfig.bEnableRTGI, RayTracingConfig.bEnableRTShadows, RayTracingConfig.bEnableRTAO,
+		RayTracingConfig.bEnableRTReflections, RayTracingConfig.RTSamplesPerPixel);
+}
+
+// ============================================================================
+// v5.1 DirectStorage Config
+// ============================================================================
+void AGZGameMode::ApplyDirectStorageConfig()
+{
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.DirectStorage.Enable"))->Set(DirectStorageConfig.bEnableDirectStorage ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.DirectStorage.PreloadPriority1Distance"))->Set(DirectStorageConfig.PreloadPriority1_Distance);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.DirectStorage.PreloadPriority2Distance"))->Set(DirectStorageConfig.PreloadPriority2_Distance);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.DirectStorage.PreloadPriority3Distance"))->Set(DirectStorageConfig.PreloadPriority3_Distance);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("DirectStorage: enable=%d P1=%.0f P2=%.0f P3=%.0f"),
+		DirectStorageConfig.bEnableDirectStorage, DirectStorageConfig.PreloadPriority1_Distance,
+		DirectStorageConfig.PreloadPriority2_Distance, DirectStorageConfig.PreloadPriority3_Distance);
+}
+
+// ============================================================================
+// v5.1 Fog Spatialization
+// ============================================================================
+void AGZGameMode::ApplyFogSpatialization(float Elevation)
+{
+	float FogBoost = 0.0f;
+	if (Elevation < FogSpatialization.ElevationThreshold)
+	{
+		float T = 1.0f - (Elevation / FogSpatialization.ElevationThreshold);
+		FogBoost = FogSpatialization.LowElevationBoost * T;
+	}
+	else
+	{
+		float T = (Elevation - FogSpatialization.ElevationThreshold) / FogSpatialization.ElevationThreshold;
+		FogBoost = -FogSpatialization.HighElevationReduction * FMath::Min(T, 1.0f);
+	}
+
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.ElevationBoost"))->Set(FogBoost);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.CoolWavelengthDecay"))->Set(FogSpatialization.CoolWavelengthDecay);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.WarmWavelengthRetention"))->Set(FogSpatialization.WarmWavelengthRetention);
+
+	UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("FogSpatialization: elevation=%.0f boost=%.3f coolDecay=%.2f warmRet=%.2f"),
+		Elevation, FogBoost, FogSpatialization.CoolWavelengthDecay, FogSpatialization.WarmWavelengthRetention);
+}
+
+// ============================================================================
+// v5.1 Weather Pre-Transition
+// ============================================================================
+void AGZGameMode::ApplyWeatherPreTransition(float DeltaSeconds)
+{
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.PreTransitionTime"))->Set(WeatherPreTransition.PreTransitionTime);
+
+	if (TargetWeather == EGZWeatherType::Storm)
+	{
+		float Darkening = WeatherPreTransition.StormDarkeningIntensity * WeatherTransitionProgress;
+		IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.StormDarkening"))->Set(Darkening);
+	}
+
+	if (WeatherPreTransition.TransitionCurveType == TEXT("easeInOut"))
+	{
+		IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.TransitionCurve"))->Set(0);
+	}
+	else if (WeatherPreTransition.TransitionCurveType == TEXT("linear"))
+	{
+		IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.TransitionCurve"))->Set(1);
+	}
+
+	UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("WeatherPreTransition: progress=%.2f curve=%s darkening=%.2f"),
+		WeatherTransitionProgress, *WeatherPreTransition.TransitionCurveType, WeatherPreTransition.StormDarkeningIntensity);
+}
+
+// ============================================================================
+// v5.1 Nanite Seam Fix
+// ============================================================================
+void AGZGameMode::ApplyNaniteSeamFix()
+{
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.SeamFix.VertexInterpolationDistance"))->Set(NaniteSeamFix.VertexInterpolationDistance);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.SeamFix.MaxSeamGap"))->Set(NaniteSeamFix.MaxSeamGap);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.SeamFix.EnableBlend"))->Set(NaniteSeamFix.bEnableSeamBlend ? 1 : 0);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("NaniteSeamFix: interpDist=%.3f maxGap=%.3f blend=%d"),
+		NaniteSeamFix.VertexInterpolationDistance, NaniteSeamFix.MaxSeamGap, NaniteSeamFix.bEnableSeamBlend);
+}
+
+// ============================================================================
+// v5.1 Traffic Behavior
+// ============================================================================
+void AGZGameMode::ApplyTrafficBehavior(EGZTrafficBehavior Behavior)
+{
+	if (TrafficBehaviors.Num() < 5) return;
+
+	const FTrafficAIExpanded& BehaviorData = TrafficBehaviors[(int32)Behavior];
+
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Traffic.DecelerationBuffer"))->Set(BehaviorData.DecelerationBuffer);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Traffic.SmoothTurnRadius"))->Set(BehaviorData.SmoothTurnRadius);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Traffic.RainBrakingExtension"))->Set(BehaviorData.RainBrakingExtension);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Traffic.RainTurnRadiusIncrease"))->Set(BehaviorData.RainTurnRadiusIncrease);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Traffic.WaterSplashThreshold"))->Set(BehaviorData.WaterSplashThreshold);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Traffic.WaterSplashMaxHeight"))->Set(BehaviorData.WaterSplashMaxHeight);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Traffic.AutoLights"))->Set(BehaviorData.bEnableAutoLights ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Traffic.TunnelLightTrigger"))->Set(BehaviorData.TunnelLightTrigger);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Traffic.NightLightTrigger"))->Set(BehaviorData.NightLightTrigger);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("TrafficBehavior: behavior=%d decelBuf=%.1f turnRadius=%.1f rainBrake=%.1f rainTurn=%.1f splash=%.2f/%.0f autoLights=%d"),
+		(int32)Behavior, BehaviorData.DecelerationBuffer, BehaviorData.SmoothTurnRadius,
+		BehaviorData.RainBrakingExtension, BehaviorData.RainTurnRadiusIncrease,
+		BehaviorData.WaterSplashThreshold, BehaviorData.WaterSplashMaxHeight, BehaviorData.bEnableAutoLights);
+}
+
+// ============================================================================
+// v5.1 DLSS / FSR Config
+// ============================================================================
+void AGZGameMode::ApplyDLSSFSRConfig()
+{
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.DLSS.Enable"))->Set(RayTracingConfig.bEnableDLSS ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.FSR.Enable"))->Set(RayTracingConfig.bEnableFSR ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.FrameGen.Enable"))->Set(RayTracingConfig.bEnableFrameGen ? 1 : 0);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("DLSSFSR: DLSS=%d FSR=%d FrameGen=%d"),
+		RayTracingConfig.bEnableDLSS, RayTracingConfig.bEnableFSR, RayTracingConfig.bEnableFrameGen);
 }

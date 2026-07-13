@@ -71,6 +71,24 @@ enum class EGZTSRDistanceTier : uint8
 	Skyline_1500Plus UMETA(DisplayName = "1500m+"),
 };
 
+UENUM(BlueprintType)
+enum class EGZCloudThickness : uint8
+{
+	Heavy		UMETA(DisplayName = "Heavy"),
+	Medium		UMETA(DisplayName = "Medium"),
+	Thin		UMETA(DisplayName = "Thin"),
+};
+
+UENUM(BlueprintType)
+enum class EGZTrafficBehavior : uint8
+{
+	Normal		UMETA(DisplayName = "Normal"),
+	RushHour	UMETA(DisplayName = "RushHour"),
+	NightSparse	UMETA(DisplayName = "NightSparse"),
+	RainCautious UMETA(DisplayName = "RainCautious"),
+	FogSlow		UMETA(DisplayName = "FogSlow"),
+};
+
 USTRUCT(BlueprintType)
 struct FDayNightCycleSettings
 {
@@ -388,6 +406,98 @@ struct FCellLightingConsistency
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 TransitionZoneCells = 2;
 };
 
+// ============================================================================
+// v5.1 Cloud Tier Lighting, Ray Tracing, DirectStorage, NPC, Traffic, Fog, Nanite
+// ============================================================================
+USTRUCT(BlueprintType)
+struct FCloudTierLighting
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float TopAmbientReduction = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ShadowVariationPeriod = 4.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ShadowVariationAmplitude = 0.15f;
+};
+
+USTRUCT(BlueprintType)
+struct FRayTracingConfig
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnableRTGI = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnableRTShadows = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnableRTAO = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnableRTReflections = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnableDLSS = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnableFSR = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnableFrameGen = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 RTSamplesPerPixel = 1;
+};
+
+USTRUCT(BlueprintType)
+struct FDirectStorageConfig
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnableDirectStorage = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float PreloadPriority1_Distance = 4.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float PreloadPriority2_Distance = 3.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float PreloadPriority3_Distance = 2.0f;
+};
+
+USTRUCT(BlueprintType)
+struct FNPC24HLifecycle
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnableMemory = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float MemoryRetentionHours = 24.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnableInterNPCInteraction = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float InteractionRadius = 3000.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float InteractionFrequencyMin = 10.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float InteractionFrequencyMax = 60.0f;
+};
+
+USTRUCT(BlueprintType)
+struct FTrafficAIExpanded
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float DecelerationBuffer = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float SmoothTurnRadius = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float RainBrakingExtension = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float RainTurnRadiusIncrease = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float WaterSplashThreshold = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float WaterSplashMaxHeight = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnableAutoLights = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float TunnelLightTrigger = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float NightLightTrigger = 0.0f;
+};
+
+USTRUCT(BlueprintType)
+struct FFogSpatialization
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float LowElevationBoost = 0.15f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float HighElevationReduction = 0.1f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float CoolWavelengthDecay = 1.3f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float WarmWavelengthRetention = 0.8f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ElevationThreshold = 5000.0f;
+};
+
+USTRUCT(BlueprintType)
+struct FWeatherPreTransition
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float PreTransitionTime = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float StormDarkeningIntensity = 0.3f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FString TransitionCurveType = TEXT("easeInOut");
+};
+
+USTRUCT(BlueprintType)
+struct FNaniteSeamFix
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float VertexInterpolationDistance = 0.01f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float MaxSeamGap = 0.01f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnableSeamBlend = true;
+};
+
 UCLASS()
 class GUANGZHOUOPENWORLD_API AGZGameMode : public AGameModeBase
 {
@@ -407,6 +517,16 @@ public:
 	UFUNCTION(BlueprintPure) float GetTimeOfDay() const { return DayNight.TimeOfDay; }
 	UFUNCTION(BlueprintCallable) void SetTimeOfDay(float NewTime);
 	UFUNCTION(BlueprintCallable) void UpdateAdaptiveResolution(float VehicleSpeedKmh, bool bIsInCBD, bool bIsInStreet, bool bIsFar);
+
+	// v5.1 Cloud / RT / DS / NPC / Traffic / Fog / Nanite
+	UFUNCTION(BlueprintCallable) void ApplyCloudTierLighting(EGZCloudThickness Tier);
+	UFUNCTION(BlueprintCallable) void ApplyRayTracingConfig();
+	UFUNCTION(BlueprintCallable) void ApplyDirectStorageConfig();
+	UFUNCTION(BlueprintCallable) void ApplyFogSpatialization(float Elevation);
+	UFUNCTION(BlueprintCallable) void ApplyWeatherPreTransition(float DeltaSeconds);
+	UFUNCTION(BlueprintCallable) void ApplyNaniteSeamFix();
+	UFUNCTION(BlueprintCallable) void ApplyTrafficBehavior(EGZTrafficBehavior Behavior);
+	UFUNCTION(BlueprintCallable) void ApplyDLSSFSRConfig();
 
 	// v5.0 Road wetness
 	UFUNCTION(BlueprintPure) EGZRoadWetState GetRoadWetState() const { return RoadWetState; }
@@ -486,6 +606,16 @@ protected:
 	UPROPERTY() float WeatherPhaseTimer = 0.0f;
 	UPROPERTY() int32 WeatherPhase = 0;
 	UPROPERTY() float CloudCoverThickness = 0.0f;
+
+	// v5.1 New configs
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FCloudTierLighting> CloudTiers;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FRayTracingConfig RayTracingConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FDirectStorageConfig DirectStorageConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FNPC24HLifecycle NPCLifecycle;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FTrafficAIExpanded> TrafficBehaviors;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FFogSpatialization FogSpatialization;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FWeatherPreTransition WeatherPreTransition;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FNaniteSeamFix NaniteSeamFix;
 
 	UPROPERTY() EAppleSiliconChip DetectedChip = EAppleSiliconChip::Unknown;
 	UPROPERTY() class ADirectionalLight* SunLight = nullptr;

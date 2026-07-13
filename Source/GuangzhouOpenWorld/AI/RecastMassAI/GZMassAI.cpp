@@ -96,6 +96,41 @@ FGZPoliceTactics UGZMassAI::GetPoliceTacticsForWantedLevel(int32 WantedLevel)
 
 UGZMassAI::UGZMassAI()
 {
+	RushHourDensityMultiplier = 1.0f;
+	NightSparseDensityMultiplier = 0.2f;
+
+	AreaDensities.Add(EGZAreaType::Commercial, 1.0f);
+	AreaDensities.Add(EGZAreaType::Residential, 0.7f);
+	AreaDensities.Add(EGZAreaType::Industrial, 0.5f);
+	AreaDensities.Add(EGZAreaType::Park, 0.3f);
+	AreaDensities.Add(EGZAreaType::Transport, 0.8f);
+	AreaDensities.Add(EGZAreaType::Tourist, 0.9f);
+
+	WeatherActions.SetNum(5);
+	WeatherActions[0].WeatherType = EGZWeatherType::Clear;
+	WeatherActions[0].SpeedMultiplier = 1.0f;
+
+	WeatherActions[1].WeatherType = EGZWeatherType::Cloudy;
+	WeatherActions[1].SpeedMultiplier = 1.0f;
+
+	WeatherActions[2].WeatherType = EGZWeatherType::Rain;
+	WeatherActions[2].bHasUmbrella = true;
+	WeatherActions[2].bCoversHead = true;
+	WeatherActions[2].bPrefersCoveredPaths = true;
+	WeatherActions[2].SpeedMultiplier = 1.0f;
+
+	WeatherActions[3].WeatherType = EGZWeatherType::Storm;
+	WeatherActions[3].bStaysIndoor = true;
+	WeatherActions[3].SpeedMultiplier = 0.5f;
+
+	WeatherActions[4].WeatherType = EGZWeatherType::FogHaze;
+	WeatherActions[4].bPrefersCoveredPaths = true;
+	WeatherActions[4].SpeedMultiplier = 0.55f;
+
+	DialogUpdateTimer = 0.0f;
+	DialogUpdateInterval = 3.0f;
+	MemoryUpdateTimer = 0.0f;
+	MemoryUpdateInterval = 5.0f;
 }
 
 void UGZMassAI::Initialize()
@@ -146,6 +181,23 @@ void UGZMassAI::Tick(float DeltaTime, const FVector& PlayerLocation)
 	}
 
 	UpdateDriverBehavior(DeltaTime);
+
+	DialogUpdateTimer += DeltaTime;
+	if (DialogUpdateTimer >= DialogUpdateInterval)
+	{
+		DialogUpdateTimer = 0.0f;
+		UpdateNPCInteractions(DeltaTime, CurrentHourOfDay);
+	}
+
+	MemoryUpdateTimer += DeltaTime;
+	if (MemoryUpdateTimer >= MemoryUpdateInterval)
+	{
+		MemoryUpdateTimer = 0.0f;
+		UpdateAgentMemory(DeltaTime, PlayerLocation);
+	}
+
+	UpdateRushHour(CurrentHourOfDay);
+	ApplyWeatherActions(CurrentWeather);
 }
 
 void UGZMassAI::RegisterAgent(int32 AgentID, const FGZAgentIdentity& Identity)
@@ -278,6 +330,8 @@ void UGZMassAI::UpdateWeatherResponse(EGZWeatherType Weather, float HourOfDay)
 
 	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Weather response updated: weather=%d, hour=%.1f, agents=%d"),
 		(int32)Weather, HourOfDay, AgentWeatherStates.Num());
+
+	ApplyWeatherActions(Weather);
 }
 
 void UGZMassAI::ApplyRainShelter()
@@ -653,6 +707,325 @@ void UGZMassAI::HandleAccidentReroute(int32 AgentID, const FVector& AccidentLoca
 		{
 			float RerouteDelay = AccidentRerouteTime;
 			UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("Accident reroute for agent %d, delay=%.2fs"), AgentID, RerouteDelay);
+		}
+	}
+}
+
+void UGZMassAI::UpdateNPCInteractions(float DeltaTime, float HourOfDay)
+{
+	static constexpr float InteractionRadius = 500.0f;
+	static constexpr float DialogChance = 0.15f;
+
+	for (int32 i = ActiveDialogs.Num() - 1; i >= 0; --i)
+	{
+		FInterNPCDialog& Dialog = ActiveDialogs[i];
+		Dialog.Duration -= DeltaTime;
+
+		if (Dialog.Duration <= 0.0f)
+		{
+			if (Agents.Contains(Dialog.SpeakerA_ID))
+			{
+				Agents[Dialog.SpeakerA_ID].bIsInConversation = false;
+				Agents[Dialog.SpeakerA_ID].ConversationTargetID = -1;
+				Agents[Dialog.SpeakerA_ID].Memory.NPCInteractionCount++;
+			}
+			if (Agents.Contains(Dialog.SpeakerB_ID))
+			{
+				Agents[Dialog.SpeakerB_ID].bIsInConversation = false;
+				Agents[Dialog.SpeakerB_ID].ConversationTargetID = -1;
+				Agents[Dialog.SpeakerB_ID].Memory.NPCInteractionCount++;
+			}
+			ActiveDialogs.RemoveAt(i);
+		}
+	}
+
+	TArray<int32> AgentIDs;
+	Agents.GetKeys(AgentIDs);
+
+	for (int32 i = 0; i < AgentIDs.Num(); ++i)
+	{
+		int32 AgentA = AgentIDs[i];
+		if (!Agents.Contains(AgentA)) continue;
+		FGZAgentIdentity& IdentityA = Agents[AgentA];
+		if (IdentityA.bIsInConversation) continue;
+
+		for (int32 j = i + 1; j < AgentIDs.Num(); ++j)
+		{
+			int32 AgentB = AgentIDs[j];
+			if (!Agents.Contains(AgentB)) continue;
+			FGZAgentIdentity& IdentityB = Agents[AgentB];
+			if (IdentityB.bIsInConversation) continue;
+
+			float Dist = FVector::Dist(IdentityA.CurrentLocation, IdentityB.CurrentLocation);
+			if (Dist < InteractionRadius && FMath::FRand() < DialogChance)
+			{
+				GenerateInterNPCDialog(AgentA, AgentB);
+				break;
+			}
+		}
+	}
+}
+
+void UGZMassAI::UpdateAgentMemory(float DeltaTime, const FVector& PlayerLocation)
+{
+	static constexpr float HostilityDecayRate = 0.5f;
+	static constexpr float ReputationRecoveryRate = 0.2f;
+	static constexpr float PlayerInteractionRadius = 800.0f;
+
+	for (auto& Pair : Agents)
+	{
+		FGZAgentIdentity& Agent = Pair.Value;
+		FAgentMemory& Memory = Agent.Memory;
+
+		float DistToPlayer = FVector::Dist(Agent.CurrentLocation, PlayerLocation);
+		if (DistToPlayer < PlayerInteractionRadius)
+		{
+			Memory.PlayerLastInteraction = PlayerLocation;
+			Memory.LastInteractionTime = 0.0f;
+		}
+
+		Memory.LastInteractionTime += DeltaTime;
+
+		if (Memory.bIsHostile && Memory.LastInteractionTime > 30.0f)
+		{
+			Memory.bIsHostile = false;
+			Memory.ReputationScore = FMath::Min(100.0f, Memory.ReputationScore + ReputationRecoveryRate * DeltaTime);
+		}
+
+		if (!Memory.bIsHostile)
+		{
+			Memory.ReputationScore = FMath::Min(100.0f, Memory.ReputationScore + ReputationRecoveryRate * 0.5f * DeltaTime);
+		}
+	}
+}
+
+void UGZMassAI::GenerateInterNPCDialog(int32 AgentA, int32 AgentB)
+{
+	if (!Agents.Contains(AgentA) || !Agents.Contains(AgentB)) return;
+
+	FInterNPCDialog Dialog;
+	Dialog.DialogID = ActiveDialogs.Num() + 1;
+	Dialog.SpeakerA_ID = AgentA;
+	Dialog.SpeakerB_ID = AgentB;
+	Dialog.bIsWeatherRelated = (CurrentWeather == EGZWeatherType::Rain || CurrentWeather == EGZWeatherType::Storm);
+
+	if (Dialog.bIsWeatherRelated)
+	{
+		if (CurrentWeather == EGZWeatherType::Rain)
+		{
+			Dialog.DialogText = TEXT("这雨真大啊...");
+			Dialog.Duration = FMath::FRandRange(6.0f, 10.0f);
+		}
+		else if (CurrentWeather == EGZWeatherType::Storm)
+		{
+			Dialog.DialogText = TEXT("得赶紧找个地方躲躲！");
+			Dialog.Duration = FMath::FRandRange(2.0f, 4.0f);
+		}
+		else
+		{
+			Dialog.DialogText = TEXT("天气不太好呢。");
+			Dialog.Duration = FMath::FRandRange(3.0f, 6.0f);
+		}
+	}
+	else
+	{
+		const TCHAR* DialogPool[] = {
+			TEXT("你好！今天过得怎么样？"),
+			TEXT("最近忙什么呢？"),
+			TEXT("听说那边新开了家店！"),
+			TEXT("你也是这附近的吗？"),
+			TEXT("广州的天气真多变啊。"),
+		};
+		int32 PoolIdx = FMath::RandRange(0, 4);
+		Dialog.DialogText = DialogPool[PoolIdx];
+		Dialog.Duration = FMath::FRandRange(3.0f, 8.0f);
+	}
+
+	Agents[AgentA].bIsInConversation = true;
+	Agents[AgentA].ConversationTargetID = AgentB;
+	Agents[AgentB].bIsInConversation = true;
+	Agents[AgentB].ConversationTargetID = AgentA;
+
+	ActiveDialogs.Add(Dialog);
+
+	UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("NPC Dialog #%d: Agent %d <-> Agent %d, duration=%.1fs, weather=%d"),
+		Dialog.DialogID, AgentA, AgentB, Dialog.Duration, (int32)CurrentWeather);
+}
+
+void UGZMassAI::ApplyWeatherActions(EGZWeatherType Weather)
+{
+	switch (Weather)
+	{
+	case EGZWeatherType::Rain:
+	{
+		for (auto& Pair : Agents)
+		{
+			FGZAgentIdentity& Agent = Pair.Value;
+			if (Agent.bIsIndoor) continue;
+
+			if (FMath::FRand() < 0.7f)
+			{
+				Agent.bHasUmbrella = true;
+			}
+
+			if (AgentWeatherStates.Contains(Pair.Key))
+			{
+				AgentWeatherStates[Pair.Key].SpeedMultiplier = 1.0f;
+			}
+		}
+	}
+	break;
+
+	case EGZWeatherType::Storm:
+	{
+		for (auto& Pair : Agents)
+		{
+			FGZAgentIdentity& Agent = Pair.Value;
+			if (Agent.bIsIndoor) continue;
+
+			if (FMath::FRand() < 0.95f)
+			{
+				Agent.bIsIndoor = true;
+				if (AgentWeatherStates.Contains(Pair.Key))
+				{
+					AgentWeatherStates[Pair.Key].CurrentResponse = ENPCWeatherResponse::StayIndoor;
+					AgentWeatherStates[Pair.Key].bHasReachedShelter = true;
+					AgentWeatherStates[Pair.Key].SpeedMultiplier = 0.5f;
+				}
+			}
+		}
+	}
+	break;
+
+	case EGZWeatherType::FogHaze:
+	{
+		for (auto& Pair : Agents)
+		{
+			FGZAgentIdentity& Agent = Pair.Value;
+			if (Agent.bIsIndoor) continue;
+
+			if (AgentWeatherStates.Contains(Pair.Key))
+			{
+				AgentWeatherStates[Pair.Key].SpeedMultiplier = 0.55f;
+			}
+		}
+	}
+	break;
+
+	case EGZWeatherType::Clear:
+	case EGZWeatherType::Cloudy:
+	default:
+		for (auto& Pair : Agents)
+		{
+			FGZAgentIdentity& Agent = Pair.Value;
+			Agent.bHasUmbrella = false;
+		}
+		break;
+	}
+}
+
+FAgentWeatherAction UGZMassAI::GetWeatherActionForAgent(EGZWeatherType Weather, int32 AgentID) const
+{
+	FAgentWeatherAction Result;
+	Result.WeatherType = Weather;
+
+	if (!Agents.Contains(AgentID))
+	{
+		return Result;
+	}
+
+	const FGZAgentIdentity& Agent = Agents[AgentID];
+
+	for (const FAgentWeatherAction& Action : WeatherActions)
+	{
+		if (Action.WeatherType == Weather)
+		{
+			Result = Action;
+			break;
+		}
+	}
+
+	if (Agent.bIsIndoor)
+	{
+		Result.bHasUmbrella = false;
+		Result.bCoversHead = false;
+		Result.bPrefersCoveredPaths = false;
+		Result.bStaysIndoor = false;
+		Result.SpeedMultiplier = 1.0f;
+	}
+
+	return Result;
+}
+
+void UGZMassAI::UpdateCommuteBehavior(float HourOfDay, EGZAreaType Area)
+{
+	float CommuteBoost = 0.0f;
+	bool bIsRushHour = ((HourOfDay >= 7.0f && HourOfDay < 9.0f) || (HourOfDay >= 17.0f && HourOfDay < 19.0f));
+	bool bIsNight = (HourOfDay >= 22.0f || HourOfDay < 6.0f);
+
+	if (bIsRushHour)
+	{
+		if (Area == EGZAreaType::Commercial || Area == EGZAreaType::Transport)
+		{
+			CommuteBoost = RushHourDensityMultiplier;
+		}
+	}
+	else if (bIsNight)
+	{
+		CommuteBoost = NightSparseDensityMultiplier;
+	}
+	else
+	{
+		if (AreaDensities.Contains(Area))
+		{
+			CommuteBoost = AreaDensities[Area];
+		}
+	}
+
+	UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("Commute behavior: area=%d, hour=%.1f, density=%.2f"),
+		(int32)Area, HourOfDay, CommuteBoost);
+}
+
+void UGZMassAI::SetAreaDensity(EGZAreaType Area, float Density)
+{
+	if (AreaDensities.Contains(Area))
+	{
+		AreaDensities[Area] = FMath::Clamp(Density, 0.0f, 1.0f);
+	}
+	else
+	{
+		AreaDensities.Add(Area, FMath::Clamp(Density, 0.0f, 1.0f));
+	}
+}
+
+void UGZMassAI::UpdateRushHour(float HourOfDay)
+{
+	bool bIsRushHour = ((HourOfDay >= 7.0f && HourOfDay < 9.0f) || (HourOfDay >= 17.0f && HourOfDay < 19.0f));
+	bool bIsNight = (HourOfDay >= 22.0f || HourOfDay < 6.0f);
+
+	if (bIsRushHour)
+	{
+		RushHourDensityMultiplier = 1.0f;
+		if (AreaDensities.Contains(EGZAreaType::Commercial))
+		{
+			AreaDensities[EGZAreaType::Commercial] = 1.0f;
+		}
+		if (AreaDensities.Contains(EGZAreaType::Transport))
+		{
+			AreaDensities[EGZAreaType::Transport] = 1.0f;
+		}
+
+		for (auto& Pair : AgentWeatherStates)
+		{
+			Pair.Value.SpeedMultiplier = FMath::Max(Pair.Value.SpeedMultiplier, 1.2f);
+		}
+	}
+	else if (bIsNight)
+	{
+		NightSparseDensityMultiplier = 0.2f;
+		for (auto& AreaPair : AreaDensities)
+		{
+			AreaDensities[AreaPair.Key] = FMath::Min(AreaPair.Value, 0.2f);
 		}
 	}
 }

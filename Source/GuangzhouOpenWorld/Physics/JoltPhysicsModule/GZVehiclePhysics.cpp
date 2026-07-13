@@ -112,6 +112,32 @@ float UGZVehiclePhysics::GetSurfaceFriction(EGZRoadSurface Surface)
 
 UGZVehiclePhysics::UGZVehiclePhysics()
 {
+	TrafficAIState.CurrentBehavior = EGZTrafficBehavior::Normal;
+	TrafficAIState.DecelerationBuffer = 0.4f;
+	TrafficAIState.bIsInTunnel = false;
+	TrafficAIState.bLightsOn = false;
+	TrafficAIState.bWipersOn = false;
+	TrafficAIState.CurrentSpeed = 0.0f;
+	TrafficAIState.TargetSpeed = 0.0f;
+	TrafficAIState.bIsBraking = false;
+	TrafficAIState.BrakeTimer = 0.0f;
+	TrafficAIState.TurnRadiusMultiplier = 1.0f;
+	TrafficAIState.WaterSplashIntensity = 0.0f;
+
+	WaterSplash.bIsActive = false;
+	WaterSplash.SplashHeight = 0.0f;
+	WaterSplash.SplashWidth = 0.0f;
+	WaterSplash.Velocity = FVector::ZeroVector;
+	WaterSplash.Lifetime = 0.0f;
+
+	TrafficLight.bIsRed = false;
+	TrafficLight.TimeUntilChange = 0.0f;
+	TrafficLight.IntersectionLocation = FVector::ZeroVector;
+	TrafficLight.bHasTrafficLight = false;
+
+	LightState = EGZVehicleLightState::Auto;
+	bIsAIVehicle = true;
+	bHasAutoLights = true;
 }
 
 void UGZVehiclePhysics::Initialize(EGZVehicleType Type)
@@ -130,11 +156,20 @@ void UGZVehiclePhysics::Initialize(EGZVehicleType Type)
 	State.EngineRPM = IdleRPM;
 }
 
-void UGZVehiclePhysics::Simulate(float DeltaTime, float ThrottleInput, float BrakeInput, float SteerInput, EGZRoadSurface Surface, bool bIsRaining)
+void UGZVehiclePhysics::Simulate(float DeltaTime, float ThrottleInput, float BrakeInput, float SteerInput, EGZRoadSurface Surface, bool bIsRaining, bool bIsFoggy, float TimeOfDay)
 {
 	float SubStep = 1.0f / PhysicsTickRate;
 	int32 Steps = FMath::Max(1, FMath::RoundToInt(DeltaTime / SubStep));
 	float StepDT = DeltaTime / Steps;
+
+	UpdateTrafficAI(DeltaTime, bIsRaining, bIsFoggy, TimeOfDay);
+	UpdateAutoLights(TimeOfDay, bIsRaining, TrafficAIState.bIsInTunnel, bIsFoggy);
+
+	float EffectiveMaxSpeed = Spec.MaxSpeed / 3.6f;
+	if (bIsFoggy)
+	{
+		EffectiveMaxSpeed *= FogSpeedMultiplier;
+	}
 
 	for (int32 i = 0; i < Steps; ++i)
 	{
@@ -154,24 +189,39 @@ void UGZVehiclePhysics::Simulate(float DeltaTime, float ThrottleInput, float Bra
 			EffectiveFriction *= Spec.RainGripMultiplier;
 		}
 
+		float EffectiveBraking = Spec.Braking;
+		if (bIsRaining)
+		{
+			EffectiveBraking *= RainBrakingExtension;
+		}
+
 		float DriveForce = ThrottleInput * Spec.Acceleration * Spec.Mass * (State.EngineRPM / MaxEngineRPM);
-		float BrakeForce = BrakeInput * Spec.Braking * Spec.Mass;
+		float BrakeForce = BrakeInput * EffectiveBraking * Spec.Mass;
 		float DragForce = State.BodyVelocity * State.BodyVelocity * Spec.Drag * 0.5f * AirDensity * FrontalArea;
 		float NetForce = DriveForce - BrakeForce - DragForce;
 		NetForce *= (1.0f - SlopeEffect * 0.5f);
 
 		float AccelerationMPS = NetForce / Spec.Mass;
 		State.BodyVelocity += AccelerationMPS * StepDT;
-		State.BodyVelocity = FMath::Clamp(State.BodyVelocity, 0.0f, Spec.MaxSpeed / 3.6f);
+		State.BodyVelocity = FMath::Clamp(State.BodyVelocity, 0.0f, EffectiveMaxSpeed);
 
 		FVector Forward = State.Rotation.Vector();
 		State.Velocity = Forward * State.BodyVelocity;
 		State.Position += State.Velocity * StepDT;
 
-		float YawRate = SteerInput * Spec.Handling * State.BodyVelocity * 0.05f * EffectiveFriction;
+		float EffectiveHandling = Spec.Handling;
+		if (bIsRaining)
+		{
+			EffectiveHandling *= (1.0f / RainTurnRadiusExtension);
+		}
+
+		float YawRate = SteerInput * EffectiveHandling * State.BodyVelocity * 0.05f * EffectiveFriction;
 		YawRate *= (1.0f - State.Deformation.WheelAlignmentOffset * 0.5f);
 		State.Rotation.Yaw += YawRate * StepDT * 180.0f / PI;
 	}
+
+	TrafficAIState.CurrentSpeed = State.BodyVelocity;
+	UpdateWaterSplash(DeltaTime, State.BodyVelocity);
 }
 
 void UGZVehiclePhysics::ApplyDamage(const FVector& ImpactPoint, const FVector& ImpactVelocity, float ImpactMass)
@@ -279,6 +329,174 @@ EGZDeformationLevel UGZVehiclePhysics::CalculateDeformationLevel(float ImpactSpe
 	return EGZDeformationLevel::Heavy;
 }
 
+void UGZVehiclePhysics::UpdateTrafficAI(float DeltaTime, bool bIsRaining, bool bIsFoggy, float TimeOfDay)
+{
+	TrafficAIState.CurrentSpeed = State.BodyVelocity;
+
+	if (bIsFoggy)
+	{
+		TrafficAIState.TargetSpeed = Spec.MaxSpeed / 3.6f * FogSpeedMultiplier;
+		TrafficAIState.CurrentBehavior = EGZTrafficBehavior::NightSparse;
+	}
+	else
+	{
+		TrafficAIState.TargetSpeed = Spec.MaxSpeed / 3.6f;
+		TrafficAIState.CurrentBehavior = EGZTrafficBehavior::Normal;
+	}
+
+	if (bIsRaining)
+	{
+		TrafficAIState.TurnRadiusMultiplier = RainTurnRadiusExtension;
+		TrafficAIState.bWipersOn = true;
+	}
+	else
+	{
+		TrafficAIState.TurnRadiusMultiplier = 1.0f;
+		TrafficAIState.bWipersOn = false;
+	}
+
+	if (bIsFoggy)
+	{
+		TrafficAIState.TurnRadiusMultiplier = FMath::Max(TrafficAIState.TurnRadiusMultiplier, 1.25f);
+	}
+
+	if (TrafficAIState.bIsBraking)
+	{
+		TrafficAIState.BrakeTimer += DeltaTime;
+	}
+}
+
+void UGZVehiclePhysics::UpdateAutoLights(float TimeOfDay, bool bIsRaining, bool bIsInTunnel, bool bIsFoggy)
+{
+	if (!bHasAutoLights)
+	{
+		return;
+	}
+
+	bool bShouldLightsBeOn = false;
+
+	if (TimeOfDay < 6.0f || TimeOfDay > 18.0f)
+	{
+		bShouldLightsBeOn = true;
+	}
+
+	if (bIsRaining)
+	{
+		bShouldLightsBeOn = true;
+	}
+
+	if (bIsInTunnel)
+	{
+		bShouldLightsBeOn = true;
+	}
+
+	if (bIsFoggy)
+	{
+		bShouldLightsBeOn = true;
+	}
+
+	if (bShouldLightsBeOn)
+	{
+		LightState = EGZVehicleLightState::LowBeam;
+		TrafficAIState.bLightsOn = true;
+	}
+	else
+	{
+		LightState = EGZVehicleLightState::DaytimeRunning;
+		TrafficAIState.bLightsOn = false;
+	}
+}
+
+void UGZVehiclePhysics::UpdateWaterSplash(float DeltaTime, float VehicleSpeed)
+{
+	if (VehicleSpeed > WaterSplashThreshold)
+	{
+		WaterSplash.bIsActive = true;
+		float SpeedRatio = (VehicleSpeed - WaterSplashThreshold) / (Spec.MaxSpeed / 3.6f - WaterSplashThreshold);
+		SpeedRatio = FMath::Clamp(SpeedRatio, 0.0f, 1.0f);
+
+		WaterSplash.SplashHeight = FMath::Lerp(0.0f, MaxSplashHeight, SpeedRatio);
+		WaterSplash.SplashWidth = WaterSplash.SplashHeight * 0.5f;
+
+		FVector Forward = State.Rotation.Vector();
+		WaterSplash.Velocity = Forward * VehicleSpeed * 0.3f + FVector(0.0f, 0.0f, VehicleSpeed * 0.5f);
+
+		WaterSplash.Lifetime = FMath::Lerp(1.5f, 0.5f, SpeedRatio);
+		TrafficAIState.WaterSplashIntensity = SpeedRatio;
+	}
+	else
+	{
+		if (WaterSplash.Lifetime > 0.0f)
+		{
+			WaterSplash.Lifetime -= DeltaTime;
+			if (WaterSplash.Lifetime <= 0.0f)
+			{
+				WaterSplash.bIsActive = false;
+				WaterSplash.SplashHeight = 0.0f;
+				WaterSplash.SplashWidth = 0.0f;
+				WaterSplash.Velocity = FVector::ZeroVector;
+				WaterSplash.Lifetime = 0.0f;
+				TrafficAIState.WaterSplashIntensity = 0.0f;
+			}
+		}
+	}
+}
+
+void UGZVehiclePhysics::HandleTrafficLight(const FVector& IntersectionLocation, bool bIsRed)
+{
+	TrafficLight.IntersectionLocation = IntersectionLocation;
+	TrafficLight.bIsRed = bIsRed;
+	TrafficLight.bHasTrafficLight = true;
+
+	if (bIsRed)
+	{
+		SmoothBraking(0.0f, 0.016f);
+	}
+}
+
+void UGZVehiclePhysics::SmoothBraking(float TargetSpeed, float DeltaTime)
+{
+	TrafficAIState.TargetSpeed = TargetSpeed;
+	TrafficAIState.bIsBraking = true;
+
+	if (TrafficAIState.BrakeTimer < TrafficAIState.DecelerationBuffer)
+	{
+		TrafficAIState.BrakeTimer += DeltaTime;
+		return;
+	}
+
+	float SpeedDiff = TrafficAIState.CurrentSpeed - TargetSpeed;
+	if (SpeedDiff > 0.0f)
+	{
+		float BrakeStrength = FMath::GetMappedRangeValueClamped(
+			FVector2D(0.0f, 1.0f),
+			FVector2D(0.1f, 1.0f),
+			SpeedDiff / FMath::Max(TrafficAIState.CurrentSpeed, 1.0f)
+		);
+		State.BodyVelocity = FMath::FInterpTo(State.BodyVelocity, TargetSpeed, DeltaTime, BrakeStrength * 3.0f);
+		TrafficAIState.CurrentSpeed = State.BodyVelocity;
+	}
+	else
+	{
+		TrafficAIState.bIsBraking = false;
+		TrafficAIState.BrakeTimer = 0.0f;
+	}
+}
+
+void UGZVehiclePhysics::SmoothTurning(float SteerAngle, float DeltaTime)
+{
+	float SpeedKmh = State.BodyVelocity * 3.6f;
+	float SpeedRatio = FMath::Clamp(SpeedKmh / (Spec.MaxSpeed * 0.5f), 0.0f, 1.0f);
+
+	float TurnRadiusFactor = 1.0f + SpeedRatio * 2.0f;
+	TurnRadiusFactor *= TrafficAIState.TurnRadiusMultiplier;
+
+	float SmoothedSteer = FMath::FInterpTo(0.0f, SteerAngle, DeltaTime, 2.0f / TurnRadiusFactor);
+	SmoothedSteer = FMath::Clamp(SmoothedSteer, -1.0f, 1.0f);
+
+	State.Rotation.Yaw += SmoothedSteer * Spec.Handling * State.BodyVelocity * 0.05f * DeltaTime * 180.0f / PI;
+}
+
 UGZVehicleManager::UGZVehicleManager()
 {
 }
@@ -336,4 +554,95 @@ void UGZVehicleManager::RemoveVehicle(int32 VehicleID)
 void UGZVehicleManager::SetMaxVehicles(int32 Max)
 {
 	MaxVehicles = FMath::Clamp(Max, 0, 200);
+}
+
+void UGZVehicleManager::UpdateTrafficLights(float DeltaTime, float TimeOfDay)
+{
+	for (FGZTrafficLightSystem& Light : TrafficLights)
+	{
+		Light.TimeUntilChange -= DeltaTime;
+
+		if (Light.TimeUntilChange <= 0.0f)
+		{
+			Light.bIsRed = !Light.bIsRed;
+			Light.TimeUntilChange = Light.bIsRed ? FMath::FRandRange(30.0f, 60.0f) : FMath::FRandRange(20.0f, 45.0f);
+		}
+	}
+
+	if (TimeOfDay < 6.0f || TimeOfDay > 22.0f)
+	{
+		for (FGZTrafficLightSystem& Light : TrafficLights)
+		{
+			Light.bIsRed = false;
+			Light.TimeUntilChange = 0.0f;
+		}
+	}
+}
+
+void UGZVehicleManager::SpawnRushHourTraffic(float HourOfDay)
+{
+	bool bIsRushHour = (HourOfDay >= 7.0f && HourOfDay < 9.0f) || (HourOfDay >= 17.0f && HourOfDay < 19.0f);
+
+	if (bIsRushHour)
+	{
+		MaxVehicles = FMath::Min(MaxAIUnits, 200);
+		TrafficSpawnInterval = 0.5f;
+	}
+	else
+	{
+		MaxVehicles = FMath::Min(MaxAIUnits / 2, 200);
+		TrafficSpawnInterval = 2.0f;
+	}
+}
+
+void UGZVehicleManager::SpawnNightSparseTraffic()
+{
+	int32 NightVehicleCount = FMath::Max(1, FMath::RoundToInt(MaxAIUnits * 0.2f));
+	MaxVehicles = FMath::Clamp(NightVehicleCount, 0, 200);
+	TrafficSpawnInterval = 5.0f;
+}
+
+void UGZVehicleManager::HandleTrafficCongestion()
+{
+	if (CongestionPoints.Num() == 0)
+	{
+		return;
+	}
+
+	for (const FVector& CongestionPoint : CongestionPoints)
+	{
+		for (auto& Pair : ActiveVehicles)
+		{
+			UGZVehiclePhysics* Vehicle = Pair.Value;
+			if (!Vehicle) continue;
+
+			const FGZVehicleState16DOF& State = Vehicle->GetState();
+			float DistToCongestion = FVector::Dist(State.Position, CongestionPoint);
+
+			if (DistToCongestion < 500.0f)
+			{
+				Vehicle->SmoothBraking(State.BodyVelocity * 0.3f, 0.016f);
+			}
+		}
+	}
+}
+
+void UGZVehicleManager::RerouteTraffic(const FVector& CongestionLocation)
+{
+	CongestionPoints.AddUnique(CongestionLocation);
+
+	for (auto& Pair : ActiveVehicles)
+	{
+		UGZVehiclePhysics* Vehicle = Pair.Value;
+		if (!Vehicle) continue;
+
+		const FGZVehicleState16DOF& State = Vehicle->GetState();
+		float Dist = FVector::Dist(State.Position, CongestionLocation);
+
+		if (Dist < 800.0f)
+		{
+			Vehicle->TrafficAIState.CurrentBehavior = EGZTrafficBehavior::Rerouting;
+			Vehicle->TrafficAIState.TurnRadiusMultiplier = 1.5f;
+		}
+	}
 }

@@ -79,6 +79,33 @@ struct FGZGraphicsSettings
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float FieldOfView = 90.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bEnableRayTracing = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bEnableRTGI = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bEnableRTShadows = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bEnableRTReflections = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bEnableDLSS = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bEnableFSR = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bEnableFrameGen = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 DLSSQuality = 3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 FSRQuality = 3;
 };
 
 USTRUCT(BlueprintType)
@@ -133,6 +160,12 @@ struct FGZAudioSettings
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float ReverbIntensity = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bEnableDolbyAtmos = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bEnable3DAudioHeadphones = true;
 };
 
 USTRUCT(BlueprintType)

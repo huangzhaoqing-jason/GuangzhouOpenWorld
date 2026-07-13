@@ -51,6 +51,41 @@ enum class ENPCWeatherResponse : uint8
 	StayIndoor	UMETA(DisplayName = "Stay Indoor"),
 };
 
+UENUM(BlueprintType)
+enum class EGZAreaType : uint8
+{
+	Commercial	UMETA(DisplayName = "Commercial"),
+	Residential	UMETA(DisplayName = "Residential"),
+	Industrial	UMETA(DisplayName = "Industrial"),
+	Park		UMETA(DisplayName = "Park"),
+	Transport	UMETA(DisplayName = "Transport"),
+	Tourist		UMETA(DisplayName = "Tourist"),
+};
+
+USTRUCT(BlueprintType)
+struct FAgentMemory
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector PlayerLastInteraction = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString PlayerLastAction = TEXT("None");
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 NPCInteractionCount = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float LastInteractionTime = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsHostile = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float ReputationScore = 50.0f;
+};
+
 USTRUCT(BlueprintType)
 struct FGZAgentIdentity
 {
@@ -88,6 +123,69 @@ struct FGZAgentIdentity
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FVector CurrentLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EGZAreaType AreaType = EGZAreaType::Commercial;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bHasUmbrella = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsInConversation = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 ConversationTargetID = -1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FAgentMemory Memory;
+};
+
+USTRUCT(BlueprintType)
+struct FInterNPCDialog
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 DialogID = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 SpeakerA_ID = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 SpeakerB_ID = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString DialogText;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Duration = 3.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsWeatherRelated = false;
+};
+
+USTRUCT(BlueprintType)
+struct FAgentWeatherAction
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EGZWeatherType WeatherType = EGZWeatherType::Clear;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bHasUmbrella = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bCoversHead = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bPrefersCoveredPaths = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bStaysIndoor = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float SpeedMultiplier = 1.0f;
 };
 
 USTRUCT(BlueprintType)
@@ -176,6 +274,15 @@ public:
 	void ApplyFogSlowdown();
 	void ApplyStormResponse();
 
+	void UpdateNPCInteractions(float DeltaTime, float HourOfDay);
+	void UpdateAgentMemory(float DeltaTime, const FVector& PlayerLocation);
+	void GenerateInterNPCDialog(int32 AgentA, int32 AgentB);
+	void ApplyWeatherActions(EGZWeatherType Weather);
+	FAgentWeatherAction GetWeatherActionForAgent(EGZWeatherType Weather, int32 AgentID) const;
+	void UpdateCommuteBehavior(float HourOfDay, EGZAreaType Area);
+	void SetAreaDensity(EGZAreaType Area, float Density);
+	void UpdateRushHour(float HourOfDay);
+
 	UFUNCTION(BlueprintPure)
 	int32 GetAgentCount() const { return Agents.Num(); }
 
@@ -219,6 +326,22 @@ private:
 
 	UPROPERTY()
 	TArray<FVector> AccidentLocations;
+
+	UPROPERTY()
+	TArray<FInterNPCDialog> ActiveDialogs;
+
+	UPROPERTY()
+	TMap<EGZAreaType, float> AreaDensities;
+
+	UPROPERTY()
+	TArray<FAgentWeatherAction> WeatherActions;
+
+	float RushHourDensityMultiplier = 1.0f;
+	float NightSparseDensityMultiplier = 0.2f;
+	float DialogUpdateTimer = 0.0f;
+	float DialogUpdateInterval = 3.0f;
+	float MemoryUpdateTimer = 0.0f;
+	float MemoryUpdateInterval = 5.0f;
 
 	int32 NextAgentID = 0;
 	int32 MaxAgents = 12000;

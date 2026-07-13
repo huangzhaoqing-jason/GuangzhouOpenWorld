@@ -112,6 +112,50 @@ void UGZMainMenuWidget::OnInviteFriend(const FString& PlayerID)
 	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Inviting friend: %s"), *PlayerID);
 }
 
+void UGZMainMenuWidget::OnOpenSaveManagement()
+{
+	SetActiveTab(EGZMainMenuTab::SaveManagement);
+}
+
+void UGZMainMenuWidget::OnDownloadCloudSave()
+{
+	UGZGameInstance* GI = Cast<UGZGameInstance>(GetGameInstance());
+	if (!GI) return;
+
+	UGZSaveGameManager* SaveMgr = GI->GetSaveManager();
+	if (SaveMgr)
+	{
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Downloading cloud save from EOS..."));
+		SaveMgr->LoadGame(0);
+	}
+}
+
+void UGZMainMenuWidget::OnBackupSave()
+{
+	UGZGameInstance* GI = Cast<UGZGameInstance>(GetGameInstance());
+	if (!GI) return;
+
+	UGZSaveGameManager* SaveMgr = GI->GetSaveManager();
+	if (SaveMgr)
+	{
+		SaveMgr->SaveGame(0, TEXT("ManualBackup"));
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Manual save backup created"));
+	}
+}
+
+void UGZMainMenuWidget::OnRestoreSave(int32 SaveIndex)
+{
+	UGZGameInstance* GI = Cast<UGZGameInstance>(GetGameInstance());
+	if (!GI) return;
+
+	UGZSaveGameManager* SaveMgr = GI->GetSaveManager();
+	if (SaveMgr && SaveMgr->DoesSaveExist(SaveIndex))
+	{
+		SaveMgr->LoadGame(SaveIndex);
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Restored save slot %d"), SaveIndex);
+	}
+}
+
 void UGZMainMenuWidget::OnOpenSettings()
 {
 	SetActiveTab(EGZMainMenuTab::Settings);

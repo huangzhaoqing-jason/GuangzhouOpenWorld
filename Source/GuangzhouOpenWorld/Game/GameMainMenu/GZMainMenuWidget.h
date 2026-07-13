@@ -7,11 +7,12 @@
 UENUM(BlueprintType)
 enum class EGZMainMenuTab : uint8
 {
-	Continue	UMETA(DisplayName = "Continue"),
-	SinglePlayer UMETA(DisplayName = "Single Player"),
-	Multiplayer	UMETA(DisplayName = "Multiplayer"),
-	Settings	UMETA(DisplayName = "Settings"),
-	Quit		UMETA(DisplayName = "Quit"),
+	Continue		UMETA(DisplayName = "Continue"),
+	SinglePlayer	UMETA(DisplayName = "Single Player"),
+	Multiplayer		UMETA(DisplayName = "Multiplayer"),
+	Settings		UMETA(DisplayName = "Settings"),
+	SaveManagement	UMETA(DisplayName = "Save Management"),
+	Quit			UMETA(DisplayName = "Quit"),
 };
 
 UCLASS()
@@ -51,6 +52,18 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "MainMenu")
 	void OnOpenSettings();
+
+	UFUNCTION(BlueprintCallable, Category = "MainMenu")
+	void OnOpenSaveManagement();
+
+	UFUNCTION(BlueprintCallable, Category = "MainMenu")
+	void OnDownloadCloudSave();
+
+	UFUNCTION(BlueprintCallable, Category = "MainMenu")
+	void OnBackupSave();
+
+	UFUNCTION(BlueprintCallable, Category = "MainMenu")
+	void OnRestoreSave(int32 SaveIndex);
 
 	UFUNCTION(BlueprintCallable, Category = "MainMenu")
 	void OnQuitGame();
