@@ -1,0 +1,155 @@
+// LiquidGlass.usf - UE5 Metal 4 Liquid Glass Shader
+// GTA-广州 AAA Glass Material - Multi-layer refraction, Fresnel, thickness variation
+// Target: Guangzhou skyscraper glass facades, vehicle glass, UI glass effects
+
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/DeferredShadingCommon.ush"
+
+// Material inputs
+float3 BaseColor;
+float Metallic;
+float Specular;
+float Roughness;
+float Opacity;
+float3 WorldNormal;
+float Thickness; // Glass thickness in mm (0-25)
+float RefractionIndex; // IOR (typically 1.45-1.52 for glass)
+float DirtAmount;
+float3 TintColor;
+
+// Liquid Glass specific parameters
+float GlassDistortion; // 0-1, controls the waviness/distortion
+float GlassSmoothness; // 0-1, surface smoothness
+float EdgeDarkening; // 0-1, darkening at edges due to thickness
+
+// Fresnel - Schlick approximation
+float3 FresnelSchlick(float CosTheta, float3 F0)
+{
+    return F0 + (1.0 - F0) * pow(1.0 - CosTheta, 5.0);
+}
+
+// Multi-layer refraction
+float3 RefractRay(float3 Incident, float3 Normal, float Eta)
+{
+    float NI = dot(Normal, Incident);
+    float K = 1.0 - Eta * Eta * (1.0 - NI * NI);
+    return K >= 0.0 ? Eta * Incident - (Eta * NI + sqrt(K)) * Normal : reflect(Incident, Normal);
+}
+
+// Thickness-based absorption (Beer-Lambert law)
+float3 BeerLambert(float3 Color, float3 Absorption, float Distance)
+{
+    return Color * exp(-Absorption * Distance);
+}
+
+// Liquid glass surface normal perturbation
+float3 LiquidGlassNormal(float2 UV, float3 BaseNormal, float Distortion)
+{
+    // Multi-octave distortion for liquid glass look
+    float2 DistUV = UV * 50.0;
+    float N1 = PerlinNoise3D(float3(DistUV * 1.0, View.Time * 0.1));
+    float N2 = PerlinNoise3D(float3(DistUV * 2.5, View.Time * 0.15));
+    float N3 = PerlinNoise3D(float3(DistUV * 5.0, View.Time * 0.2));
+    float N4 = PerlinNoise3D(float3(DistUV * 10.0, View.Time * 0.25));
+
+    float D = Distortion * 0.05;
+    float2 Perturb = float2(
+        N1 * 0.5 + N2 * 0.3 + N3 * 0.15 + N4 * 0.05,
+        N1 * 0.4 + N2 * 0.35 + N3 * 0.15 + N4 * 0.1
+    ) * D;
+
+    return normalize(BaseNormal + float3(Perturb, 0.0));
+}
+
+// Main material function
+void LiquidGlassMain(
+    in float2 SvPosition,
+    in float3 CameraVector,
+    in float3 WorldPosition,
+    in float3 WorldNormalVS,
+    out float4 OutColor,
+    out float OutRoughness)
+{
+    float3 V = normalize(-CameraVector);
+    float3 N = LiquidGlassNormal(SvPosition, WorldNormalVS, GlassDistortion);
+
+    // Fresnel reflection
+    float3 F0 = lerp(0.04, BaseColor, Metallic);
+    float3 F = FresnelSchlick(abs(dot(N, V)), F0);
+
+    // Refraction through glass
+    float Eta = 1.0 / RefractionIndex;
+    float3 Refracted = RefractRay(-V, N, Eta);
+
+    // Sample scene color behind glass
+    float2 UV = SvPosition * View.BufferSizeAndInvSize.zw;
+    float2 RefractionOffset = Refracted.xy * Thickness * 0.01;
+    float3 BehindColor = SceneTextureLookup(UV + RefractionOffset, 0, false).rgb;
+
+    // Beer-Lambert absorption through thickness
+    float3 Absorption = (1.0 - TintColor) * 0.5;
+    float3 Transmitted = BeerLambert(BehindColor, Absorption, Thickness);
+
+    // Edge darkening from thickness
+    float EdgeFade = 1.0 - pow(1.0 - abs(dot(N, V)), 3.0) * EdgeDarkening;
+
+    // Dirt/imperfection layer
+    float Dirt = DirtAmount * PerlinNoise3D(float3(SvPosition * 0.1, 0.0));
+
+    // Combine reflection and refraction
+    float3 Reflection = EnvBRDF(Specular, Roughness, N, V).rgb;
+    float3 Result = lerp(Transmitted, Reflection, F) * EdgeFade;
+    Result = lerp(Result, Result * 0.5, Dirt);
+
+    // Specular highlight
+    float3 H = normalize(V + float3(0.5, 0.8, 0.3)); // Light direction
+    float D = GGX_Distribution(N, H, Roughness);
+    float G = SmithGGX(N, V, Roughness) * SmithGGX(N, float3(0.5, 0.8, 0.3), Roughness);
+    float3 Spec = (D * G * F) / (4.0 * max(dot(N, V), 0.001) * max(dot(N, float3(0.5, 0.8, 0.3)), 0.001));
+    Result += Spec * 0.5;
+
+    OutColor = float4(Result * TintColor, Opacity);
+    OutRoughness = Roughness * GlassSmoothness;
+}
+
+// Material entry point
+void CalcPixelMaterialInputs(
+    in out FPixelMaterialInputs PixelMaterialInputs,
+    in out FPixelMaterialInOut_MainOpacities MainOpacities,
+    in float4 SvPosition,
+    in float3 MaterialWorldPosition,
+    in float3 CameraVector,
+    in float3x3 TangentToWorld,
+    in float3 Local0,
+    in float3 Local1,
+    in float3 Local2,
+    in float3 Local3,
+    in float3 Local4)
+{
+    float3 WorldNormal = TransformTangentVectorToWorld(TangentToWorld, float3(0, 0, 1));
+    float4 OutColor;
+    float OutRoughness;
+
+    LiquidGlassMain(SvPosition, CameraVector, MaterialWorldPosition, WorldNormal, OutColor, OutRoughness);
+
+    PixelMaterialInputs.EmissiveColor = 0;
+    PixelMaterialInputs.Opacity = Opacity;
+    PixelMaterialInputs.OpacityMask = 1.0;
+    PixelMaterialInputs.BaseColor = OutColor.rgb;
+    PixelMaterialInputs.Metallic = Metallic;
+    PixelMaterialInputs.Specular = Specular;
+    PixelMaterialInputs.Roughness = OutRoughness;
+    PixelMaterialInputs.Anisotropy = 0;
+    PixelMaterialInputs.Normal = float3(0, 0, 1);
+    PixelMaterialInputs.Tangent = float3(1, 0, 0);
+    PixelMaterialInputs.WorldPositionOffset = 0;
+    PixelMaterialInputs.Displacement = 0;
+    PixelMaterialInputs.PixelDepthOffset = 0;
+    PixelMaterialInputs.ShadingModel = SHADINGMODELID_DEFAULT_LIT;
+    PixelMaterialInputs.Subsurface = 0;
+    PixelMaterialInputs.CustomData0 = 0;
+    PixelMaterialInputs.CustomData1 = 0;
+    PixelMaterialInputs.AmbientOcclusion = 1;
+    PixelMaterialInputs.Refraction = RefractionIndex > 1.0 ? 1.0 - (1.0 / RefractionIndex) : 0;
+    PixelMaterialInputs.RefractionDepthBias = 0.1;
+}
