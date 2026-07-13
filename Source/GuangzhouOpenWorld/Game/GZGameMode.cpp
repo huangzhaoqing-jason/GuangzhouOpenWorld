@@ -183,6 +183,16 @@ AGZGameMode::AGZGameMode()
 	RayTracingConfig.RTFarSamples = 8;
 	RayTracingConfig.RTNearDistance = 5000.0f;
 	RayTracingConfig.RTMidDistance = 20000.0f;
+	RayTracingConfig.bEnableContactShadows = true;
+	RayTracingConfig.ContactShadowSamples = 16;
+	RayTracingConfig.RTShadowNearSamples = 32;
+	RayTracingConfig.RTShadowMidSamples = 16;
+	RayTracingConfig.RTShadowFarSamples = 8;
+	RayTracingConfig.bEnablePathTracingReflections = true;
+	RayTracingConfig.NeonLightSamples = 64;
+	RayTracingConfig.ReflectionNearSamples = 32;
+	RayTracingConfig.ReflectionMidSamples = 16;
+	RayTracingConfig.ReflectionFarSamples = 8;
 
 	// v5.1 DirectStorageConfig
 	DirectStorageConfig.bEnableDirectStorage = true;
@@ -865,6 +875,15 @@ float AGZGameMode::QuarticBlendWeight(float T) const
 	return t2 * t2 * (35.0f - 84.0f * Clamped + 70.0f * t2 - 20.0f * t2 * Clamped);
 }
 
+float AGZGameMode::QuarticCosineBlendWeight(float T) const
+{
+	float Clamped = FMath::Clamp(T, 0.0f, 1.0f);
+	// UE5.8 quartic-cosine smoothing: cosine easing first, then quartic falloff
+	float CosineT = 0.5f - 0.5f * FMath::Cos(Clamped * PI);
+	float t2 = CosineT * CosineT;
+	return t2 * t2 * (35.0f - 84.0f * CosineT + 70.0f * t2 - 20.0f * t2 * CosineT);
+}
+
 // ============================================================================
 // v5.0 Cell Blend Region - 2-cell width, quartic curve, full parameter blend
 // ============================================================================
@@ -873,14 +892,15 @@ void AGZGameMode::ApplyCellBlendRegion()
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.CellBlend.WidthCells"))->Set(CellBlend.BlendWidthCells);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.CellBlend.WidthMeters"))->Set(CellBlend.BlendWidthMeters);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.CellBlend.CosineCurve"))->Set(CellBlend.bUseCosineCurve ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.CellBlend.BlendCurve"))->Set((int32)CellBlend.BlendCurve);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.CellBlend.ColorTempThreshold"))->Set(CellBlend.ColorTempBlendThreshold);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.CellBlend.ShadowHardness"))->Set(CellBlend.bBlendShadowHardness ? 1 : 0);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.CellBlend.ShadowDirection"))->Set(CellBlend.bBlendShadowDirection ? 1 : 0);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.CellBlend.BleedIntensity"))->Set(CellBlend.bBlendBleedIntensity ? 1 : 0);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.CellBlend.AmbientOcclusion"))->Set(CellBlend.bBlendAmbientOcclusion ? 1 : 0);
 
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("CellBlend: width=%d cells, quartic=%d, tempBlend=%.0fK, shadow=%d, bleed=%d, ao=%d"),
-		CellBlend.BlendWidthCells, CellBlend.bUseCosineCurve, CellBlend.ColorTempBlendThreshold,
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("CellBlend: width=%d cells, curve=%d, tempBlend=%.0fK, shadow=%d, bleed=%d, ao=%d"),
+		CellBlend.BlendWidthCells, (int32)CellBlend.BlendCurve, CellBlend.ColorTempBlendThreshold,
 		CellBlend.bBlendShadowHardness, CellBlend.bBlendBleedIntensity, CellBlend.bBlendAmbientOcclusion);
 }
 
@@ -992,20 +1012,22 @@ void AGZGameMode::ApplyWallBleedParams(float SunAzimuth, float SunElevation)
 // ============================================================================
 void AGZGameMode::ApplyRoadBleedParams()
 {
-	// Asphalt emits 0, only receives; worn road absorbs +0.05, new road contrast +0.02
+	// Asphalt emits 0, only receives.
+	// RoadWear 0-0.3 = new road (higher reflection); 0.3-1.0 = worn road (+0.05 absorption, -0.03 brightness)
 	float EffectiveReceive = RoadBleed.ReceiveBleedIntensity;
-	if (RoadWetness > 0.5f)
+	if (RoadBleed.RoadWear > RoadBleed.RoadWearThreshold)
 	{
-		EffectiveReceive += RoadBleed.WornRoadAbsorptionBoost * RoadWetness;
+		EffectiveReceive += RoadBleed.WornRoadAbsorptionBoost;
 	}
 	else
 	{
-		EffectiveReceive += RoadBleed.NewRoadContrastBoost * (1.0f - RoadWetness);
+		EffectiveReceive += RoadBleed.NewRoadContrastBoost;
 	}
 
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.RoadIntensity"))->Set(EffectiveReceive);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.RoadEmitIntensity"))->Set(RoadBleed.EmitBleedIntensity);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.RoadBrightnessReduction"))->Set(RoadBleed.BrightnessReduction);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.RoadWear"))->Set(RoadBleed.RoadWear);
 
 	UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("RoadBleed: receive=%.3f emit=%.3f brightness=-%.3f wetness=%.2f"),
 		EffectiveReceive, RoadBleed.EmitBleedIntensity, RoadBleed.BrightnessReduction, RoadWetness);
@@ -1239,10 +1261,27 @@ void AGZGameMode::ApplyRayTracingConfig()
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.NearDistance"))->Set(RayTracingConfig.RTNearDistance);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.MidDistance"))->Set(RayTracingConfig.RTMidDistance);
 
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("RayTracingConfig: GI=%d Shadows=%d AO=%d Reflections=%d SPP=%d Near=%d Mid=%d Far=%d"),
+	// Ray-traced contact shadows with tiered sample counts
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.ContactShadows"))->Set(RayTracingConfig.bEnableContactShadows ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.ContactShadows.RayTracing"))->Set(RayTracingConfig.bEnableContactShadows ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.ContactShadows.Samples"))->Set(RayTracingConfig.ContactShadowSamples);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Shadow.NearSamples"))->Set(RayTracingConfig.RTShadowNearSamples);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Shadow.MidSamples"))->Set(RayTracingConfig.RTShadowMidSamples);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Shadow.FarSamples"))->Set(RayTracingConfig.RTShadowFarSamples);
+
+	// Path-traced reflections: neon lights use higher sample count
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.PathTracing.Reflections"))->Set(RayTracingConfig.bEnablePathTracingReflections ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Reflections.NearSamples"))->Set(RayTracingConfig.ReflectionNearSamples);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Reflections.MidSamples"))->Set(RayTracingConfig.ReflectionMidSamples);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Reflections.FarSamples"))->Set(RayTracingConfig.ReflectionFarSamples);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Reflections.NeonLightSamples"))->Set(RayTracingConfig.NeonLightSamples);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("RayTracingConfig: GI=%d Shadows=%d AO=%d Reflections=%d SPP=%d Near=%d Mid=%d Far=%d Contact=%d PathTrace=%d Neon=%d"),
 		RayTracingConfig.bEnableRTGI, RayTracingConfig.bEnableRTShadows, RayTracingConfig.bEnableRTAO,
 		RayTracingConfig.bEnableRTReflections, RayTracingConfig.RTSamplesPerPixel,
-		RayTracingConfig.RTNearSamples, RayTracingConfig.RTMidSamples, RayTracingConfig.RTFarSamples);
+		RayTracingConfig.RTNearSamples, RayTracingConfig.RTMidSamples, RayTracingConfig.RTFarSamples,
+		RayTracingConfig.bEnableContactShadows, RayTracingConfig.bEnablePathTracingReflections,
+		RayTracingConfig.NeonLightSamples);
 }
 
 // ============================================================================

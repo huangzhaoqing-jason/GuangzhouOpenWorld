@@ -1,0 +1,149 @@
+// ============================================================================
+// GuangzhouOpenWorld - ColorBleed.usf
+// UE5.8 + Metal 4.3 | GPU per-pixel color bleed with 3-segment decay
+// 0-2m: 60% decay | 2-5m: 30% decay | 5-8m: tail to zero
+// Material-aware: vegetation, brick/stone wall, tile, asphalt
+// ============================================================================
+
+#include "/Engine/Public/Platform.ush"
+
+// Metal 4.3 feature level
+#pragma metal_shader_model 3.1
+
+// Decay distances (centimeters, UE unit)
+#define BLEED_NEAR_START    0.0
+#define BLEED_NEAR_END      200.0     // 2 meters
+#define BLEED_MID_END       500.0     // 5 meters
+#define BLEED_FAR_END       800.0     // 8 meters
+
+// Decay rates
+#define BLEED_NEAR_DECAY    0.60
+#define BLEED_MID_DECAY     0.30
+#define BLEED_FAR_DECAY     0.10
+
+// Material intensity caps
+#define BLEED_MAX_DISTANCE  800.0
+#define BLEED_MAX_INTENSITY 0.25
+
+// Per-material multipliers
+#define VEG_BROADLEAF_RANGE 1.10
+#define VEG_TALLTREE_BOOST  0.07
+#define VEG_SHRUB_REDUCE    0.04
+#define VEG_NEEDLE_REDUCE   0.15
+#define WALL_ROUGH_SPREAD   0.08
+#define ROAD_WEAR_NEW_MAX   0.3
+
+// Texture inputs
+Texture2D SceneColorTexture;
+Texture2D WorldNormalTexture;
+Texture2D MaterialMaskTexture; // R=vegetation, G=wall, B=road, A=tile
+SamplerState LinearSampler;
+
+// CBuffer parameters
+float4 BleedParameters;       // x=IntensityScale, y=SunAzimuth, z=WallRoughness, w=RoadWear
+float4 DecayParameters;       // x=NearStart, y=NearEnd, z=MidEnd, w=FarEnd
+
+// ============================================================================
+// Quartic-cosine smoothing helper (UE5.8 built-in style)
+// ============================================================================
+float QuarticCosineSmooth(float t)
+{
+    float c = saturate(t);
+    float cosT = 0.5 - 0.5 * cos(c * PI);
+    float t2 = cosT * cosT;
+    return t2 * t2 * (35.0 - 84.0 * cosT + 70.0 * t2 - 20.0 * t2 * cosT);
+}
+
+// ============================================================================
+// 3-segment color bleed decay
+// ============================================================================
+float ComputeBleedDecay(float DistanceCm)
+{
+    float NearStart = DecayParameters.x;
+    float NearEnd   = DecayParameters.y;
+    float MidEnd    = DecayParameters.z;
+    float FarEnd    = DecayParameters.w;
+
+    if (DistanceCm <= NearStart) return 1.0;
+    if (DistanceCm < NearEnd)
+    {
+        float t = (DistanceCm - NearStart) / (NearEnd - NearStart);
+        return 1.0 - BLEED_NEAR_DECAY * QuarticCosineSmooth(t);
+    }
+    if (DistanceCm < MidEnd)
+    {
+        float t = (DistanceCm - NearEnd) / (MidEnd - NearEnd);
+        return 0.4 - BLEED_MID_DECAY * QuarticCosineSmooth(t);
+    }
+    if (DistanceCm < FarEnd)
+    {
+        float t = (DistanceCm - MidEnd) / (FarEnd - MidEnd);
+        return 0.1 - BLEED_FAR_DECAY * QuarticCosineSmooth(t);
+    }
+    return 0.0;
+}
+
+// ============================================================================
+// Material-specific bleed modifiers
+// ============================================================================
+float4 ApplyMaterialBleed(float4 SourceColor, float4 Mask, float3 Normal, float SunAzimuth)
+{
+    float4 Bleed = SourceColor;
+
+    // Vegetation: broadleaf range +10%, tall tree +0.07, shrub -0.04, needle -15%
+    float vegIntensity = 1.0;
+    vegIntensity += Mask.r * VEG_BROADLEAF_RANGE;
+    vegIntensity += Mask.g * VEG_TALLTREE_BOOST;
+    vegIntensity -= Mask.b * VEG_SHRUB_REDUCE;
+    vegIntensity *= (1.0 - Mask.a * VEG_NEEDLE_REDUCE);
+
+    // Sun azimuth drives lateral bleed offset for vegetation
+    float3 sunDir = float3(cos(SunAzimuth), sin(SunAzimuth), 0.0);
+    float lateralOffset = dot(normalize(Normal.xy + 1e-5), sunDir.xy);
+    vegIntensity *= 1.0 + lateralOffset * 0.05;
+
+    // Wall: roughness >= 0.6 increases spread by 0.08; surface occlusion darkens cavities
+    float wallFactor = Mask.g * (1.0 + step(0.6, BleedParameters.z) * WALL_ROUGH_SPREAD);
+    float cavityOcclusion = saturate(1.0 - Normal.z);
+    wallFactor *= lerp(0.7, 1.0, cavityOcclusion);
+
+    // Road: only receives bleed, does not emit; wear 0-0.3 new -> higher reflect, 0.3-1 old -> absorb +0.05
+    float roadWear = BleedParameters.w;
+    float roadAbsorb = (roadWear > ROAD_WEAR_NEW_MAX) ? 0.05 : 0.0;
+    float roadBrightness = (roadWear > ROAD_WEAR_NEW_MAX) ? -0.03 : 0.0;
+    float roadFactor = Mask.b * (1.0 + roadAbsorb + roadBrightness);
+
+    // Tile: only direct sunlight region bleeds
+    float tileFactor = Mask.a * saturate(dot(Normal, float3(0,0,1)));
+
+    float materialScale = saturate(vegIntensity + wallFactor + roadFactor + tileFactor);
+    Bleed.rgb *= materialScale;
+    Bleed.a = materialScale;
+
+    return Bleed;
+}
+
+// ============================================================================
+// Main pixel shader entry
+// ============================================================================
+void MainPS(
+    float4 UVAndScreenPos : TEXCOORD0,
+    out float4 OutColor : SV_Target0)
+{
+    float2 UV = UVAndScreenPos.xy;
+
+    float4 SceneColor = SceneColorTexture.Sample(LinearSampler, UV);
+    float4 Mask = MaterialMaskTexture.Sample(LinearSampler, UV);
+    float3 Normal = WorldNormalTexture.Sample(LinearSampler, UV).xyz * 2.0 - 1.0;
+
+    float DistanceCm = length(fwidth(WorldNormalTexture.Sample(LinearSampler, UV).xyz)) * 10000.0;
+    float Decay = ComputeBleedDecay(DistanceCm);
+
+    float4 Bleed = ApplyMaterialBleed(SceneColor, Mask, Normal, BleedParameters.y);
+
+    // Cap intensity and distance
+    Bleed.rgb *= Decay * BleedParameters.x;
+    Bleed.rgb = clamp(Bleed.rgb, 0.0, BLEED_MAX_INTENSITY);
+
+    OutColor = SceneColor + Bleed;
+}

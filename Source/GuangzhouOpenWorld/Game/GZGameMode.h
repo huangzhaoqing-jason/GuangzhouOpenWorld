@@ -183,6 +183,8 @@ struct FRoadBleedParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float BrightnessReduction = 0.03f;    // Bleed zone -0.03 brightness
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float WornRoadAbsorptionBoost = 0.05f; // Worn road +0.05
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float NewRoadContrastBoost = 0.02f;   // New road contrast+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float RoadWear = 0.0f;                // 0.0=new, 1.0=fully worn
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float RoadWearThreshold = 0.3f;       // 0-0.3 new, 0.3-1.0 worn
 };
 
 // Gradient decay: 0-2m=60% fast, 2-5m=30% slow, 5-8m=10% tail
@@ -204,13 +206,23 @@ struct FBleedDecayCurve
 // ============================================================================
 // v5.0 World Partition Cell Blend - 2-cell width, cosine curve, full parameter blend
 // ============================================================================
+UENUM(BlueprintType)
+enum class EGZCellBlendCurve : uint8
+{
+	Linear              UMETA(DisplayName = "Linear"),
+	Cosine              UMETA(DisplayName = "Cosine"),
+	Quartic             UMETA(DisplayName = "Quartic"),
+	QuarticCosine       UMETA(DisplayName = "Quartic Cosine (UE5.8)")
+};
+
 USTRUCT(BlueprintType)
 struct FCellBlendRegion
 {
 	GENERATED_BODY()
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 BlendWidthCells = 2;               // 2 full cells
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float BlendWidthMeters = 256.0f;          // 2×128m
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bUseCosineCurve = true;              // Quartic smooth
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) EGZCellBlendCurve BlendCurve = EGZCellBlendCurve::QuarticCosine; // UE5.8 quartic-cosine
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bUseCosineCurve = true;              // Legacy flag
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ColorTempBlendThreshold = 300.0f;   // >300K triggers blend
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bBlendShadowHardness = true;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bBlendShadowDirection = true;
@@ -449,6 +461,20 @@ struct FRayTracingConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 RTFarSamples = 8;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float RTNearDistance = 5000.0f;  // 50m
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float RTMidDistance = 20000.0f; // 200m
+
+	// Ray-traced contact shadows with tiered samples
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnableContactShadows = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 ContactShadowSamples = 16;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 RTShadowNearSamples = 32;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 RTShadowMidSamples = 16;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 RTShadowFarSamples = 8;
+
+	// Path-traced reflections with neon light boost
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnablePathTracingReflections = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 NeonLightSamples = 64;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 ReflectionNearSamples = 32;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 ReflectionMidSamples = 16;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 ReflectionFarSamples = 8;
 };
 
 USTRUCT(BlueprintType)
@@ -583,6 +609,7 @@ protected:
 	bool IsHourInRange(float Hour, float RangeStart, float RangeEnd) const;
 	float CosineBlendWeight(float T) const;
 	float QuarticBlendWeight(float T) const;
+	float QuarticCosineBlendWeight(float T) const;
 
 	// Legacy
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) FDayNightCycleSettings DayNight;
