@@ -17,6 +17,148 @@ AGZGameMode::AGZGameMode()
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.TickInterval = 1.0f / 60.0f;
 	DayNight.TimeOfDay = 8.0f;
+
+	// Initialize v5.0 default parameters per requirements
+	BleedDecay.NearStart = 0.0f;
+	BleedDecay.NearEnd = 200.0f;
+	BleedDecay.NearDecay = 0.60f;
+	BleedDecay.MidStart = 200.0f;
+	BleedDecay.MidEnd = 500.0f;
+	BleedDecay.MidDecay = 0.30f;
+	BleedDecay.FarStart = 500.0f;
+	BleedDecay.FarEnd = 800.0f;
+	BleedDecay.FarDecay = 0.10f;
+
+	VegetationBleed.BaseBleedIntensity = 0.05f;
+	VegetationBleed.CanopyBleedBoost = 0.07f;
+	VegetationBleed.ShrubBleedReduction = 0.04f;
+	VegetationBleed.BroadleafRangeBoost = 1.10f;
+	VegetationBleed.NeedleleafIntensityScale = 0.85f;
+
+	WallBleed.BaseBleedIntensity = 0.22f;
+	WallBleed.DirectSunBoost = 0.09f;
+	WallBleed.SideLightReduction = 0.06f;
+	WallBleed.ProjectionAngle = 30.0f;
+	WallBleed.RoughBleedSpread = 0.08f;
+	WallBleed.SmoothTileFocus = 0.0f;
+	WallBleed.bOcclusionFromSurface = true;
+
+	RoadBleed.ReceiveBleedIntensity = 0.15f;
+	RoadBleed.EmitBleedIntensity = 0.0f;
+	RoadBleed.BrightnessReduction = 0.03f;
+	RoadBleed.WornRoadAbsorptionBoost = 0.05f;
+	RoadBleed.NewRoadContrastBoost = 0.02f;
+
+	CellBlend.BlendWidthCells = 2;
+	CellBlend.BlendWidthMeters = 256.0f;
+	CellBlend.bUseCosineCurve = true;
+	CellBlend.ColorTempBlendThreshold = 300.0f;
+	CellBlend.bBlendShadowHardness = true;
+	CellBlend.bBlendShadowDirection = true;
+	CellBlend.bBlendBleedIntensity = true;
+	CellBlend.bBlendAmbientOcclusion = true;
+
+	WeatherLayers.TopAmbientBrightness = 0.12f;
+	WeatherLayers.TopAmbientColorTemp = 6800.0f;
+	WeatherLayers.SideAmbientBrightness = 0.07f;
+	WeatherLayers.SideAmbientColorTemp = 7200.0f;
+	WeatherLayers.EdgeContrastRetention = 0.70f;
+	WeatherLayers.VisibilityNearNoDecay = 4000.0f;
+	WeatherLayers.VisibilityFarDecay = 8000.0f;
+	WeatherLayers.FarBrightnessFloor = 0.85f;
+
+	FogLighting.SatNearNoDecay = 2000.0f;
+	FogLighting.SatMidDecay = 5000.0f;
+	FogLighting.SatFarDecay = 8000.0f;
+	FogLighting.ShadowBlurMultiplier = 2.0f;
+	FogLighting.ShadowLengthReduction = 0.15f;
+	FogLighting.LowElevationFogBoost = 0.15f;
+	FogLighting.CoolColorDecayFaster = 1.3f;
+	FogLighting.WarmColorRetention = 0.8f;
+
+	WeatherPhases.Phase1_DirectSunReduction = 1.2f;
+	WeatherPhases.Phase2_ColorTempShift = 0.8f;
+	WeatherPhases.Phase3_ContrastShadow = 0.8f;
+	WeatherPhases.CloudPreAnimation = 1.0f;
+	WeatherPhases.bStormRapidDarkening = true;
+
+	RoadWetnessParams.WetTransitionTime = 30.0f;
+	RoadWetnessParams.DryTimeClear = 480.0f;
+	RoadWetnessParams.DryTimeCloudy = 900.0f;
+	RoadWetnessParams.WetReflectivityBoost = 0.22f;
+	RoadWetnessParams.WetRoughnessReduction = 0.16f;
+	RoadWetnessParams.PuddleReflectivityExtra = 0.20f;
+	RoadWetnessParams.PuddleEvapTimeScale = 0.70f;
+	RoadWetnessParams.SunFacingDrySpeedBoost = 1.40f;
+	RoadWetnessParams.ShadeFacingDrySpeedReduction = 0.80f;
+
+	WindParams.BranchSwingPeriodMin = 8.0f;
+	WindParams.BranchSwingPeriodMax = 12.0f;
+	WindParams.LeafSwingPeriodMin = 2.0f;
+	WindParams.LeafSwingPeriodMax = 4.0f;
+	WindParams.WindGustAmplitude = 0.3f;
+	WindParams.HeavyMetalSwingScale = 0.3f;
+	WindParams.LightClothSwingScale = 2.0f;
+	WindParams.ThickBranchSwingScale = 0.2f;
+	WindParams.ThinBranchSwingScale = 1.5f;
+	WindParams.LocalWindVariation = 0.15f;
+	WindParams.SignSwingAngleRange = 15.0f;
+	WindParams.SignSwingPeriodMin = 3.0f;
+	WindParams.SignSwingPeriodMax = 7.0f;
+
+	// TSR distance weights - 7 tiers
+	TSRDistanceWeights.Empty();
+	{
+		FTSRDistanceWeight Tier0; Tier0.Tier = EGZTSRDistanceTier::Near_0_50; Tier0.MinDistance = 0.0f; Tier0.MaxDistance = 5000.0f; Tier0.HistoryWeightBoost = 0.00f; Tier0.FrameCacheCount = 6;
+		FTSRDistanceWeight Tier1; Tier1.Tier = EGZTSRDistanceTier::MidNear_50_100; Tier1.MinDistance = 5000.0f; Tier1.MaxDistance = 10000.0f; Tier1.HistoryWeightBoost = 0.05f; Tier1.FrameCacheCount = 6;
+		FTSRDistanceWeight Tier2; Tier2.Tier = EGZTSRDistanceTier::Mid_100_200; Tier2.MinDistance = 10000.0f; Tier2.MaxDistance = 20000.0f; Tier2.HistoryWeightBoost = 0.08f; Tier2.FrameCacheCount = 7;
+		FTSRDistanceWeight Tier3; Tier3.Tier = EGZTSRDistanceTier::MidFar_200_400; Tier3.MinDistance = 20000.0f; Tier3.MaxDistance = 40000.0f; Tier3.HistoryWeightBoost = 0.12f; Tier3.FrameCacheCount = 7;
+		FTSRDistanceWeight Tier4; Tier4.Tier = EGZTSRDistanceTier::Far_400_800; Tier4.MinDistance = 40000.0f; Tier4.MaxDistance = 80000.0f; Tier4.HistoryWeightBoost = 0.15f; Tier4.FrameCacheCount = 8;
+		FTSRDistanceWeight Tier5; Tier5.Tier = EGZTSRDistanceTier::VeryFar_800_1500; Tier5.MinDistance = 80000.0f; Tier5.MaxDistance = 150000.0f; Tier5.HistoryWeightBoost = 0.18f; Tier5.FrameCacheCount = 8;
+		FTSRDistanceWeight Tier6; Tier6.Tier = EGZTSRDistanceTier::Skyline_1500Plus; Tier6.MinDistance = 150000.0f; Tier6.MaxDistance = 1000000.0f; Tier6.HistoryWeightBoost = 0.20f; Tier6.FrameCacheCount = 8;
+		TSRDistanceWeights.Add(Tier0); TSRDistanceWeights.Add(Tier1); TSRDistanceWeights.Add(Tier2); TSRDistanceWeights.Add(Tier3);
+		TSRDistanceWeights.Add(Tier4); TSRDistanceWeights.Add(Tier5); TSRDistanceWeights.Add(Tier6);
+	}
+
+	TSRSharpening.BaseSharpening = 0.18f;
+	TSRSharpening.LinearTextureBoost = 0.08f;
+	TSRSharpening.LinearTextureMinPx = 1;
+	TSRSharpening.LinearTextureMaxPx = 3;
+	TSRSharpening.TrafficSignSharpening = 0.12f;
+	TSRSharpening.BuildingTextSharpening = 0.08f;
+	TSRSharpening.RoadTextureSharpening = 0.04f;
+	TSRSharpening.BrightLightReduction = 0.7f;
+	TSRSharpening.LowLightBoost = 1.2f;
+
+	GlassLayerParams.Layer1IOR = 1.52f;
+	GlassLayerParams.Layer1BrightnessDecay = 0.18f;
+	GlassLayerParams.Layer2IOR = 1.52f;
+	GlassLayerParams.Layer2BrightnessDecay = 0.12f;
+	GlassLayerParams.Layer2RefractionReduction = 0.50f;
+	GlassLayerParams.AirGapDecay = 0.03f;
+	GlassLayerParams.TotalContrastReduction = 0.25f;
+	GlassLayerParams.FrameSmoothPixels = 0.5f;
+	GlassLayerParams.MaxLayers = 3;
+
+	FresnelParams.View0Reflect = 0.05f;
+	FresnelParams.View60Reflect = 0.15f;
+	FresnelParams.View85Reflect = 0.55f;
+	FresnelParams.View90Reflect = 0.74f;
+	FresnelParams.SunHighlightShrink = 0.20f;
+	FresnelParams.SunHighlightBoost = 0.15f;
+	FresnelParams.bRoughnessBindsFresnel = true;
+
+	GlassNeutrality.bRemoveBlueFilter = true;
+	GlassNeutrality.ThickBottomThreshold = 0.35f;
+	GlassNeutrality.MaxColorShiftKelvin = 50.0f;
+	GlassNeutrality.DuskColorShift = 30.0f;
+	GlassNeutrality.EdgeThicknessColorFade = 0.05f;
+
+	// Initialize state
+	RoadWetness = 0.0f;
+	RoadWetnessTarget = 0.0f;
+	RoadWetState = EGZRoadWetState::Dry;
+	WindStrength = 0.0f;
 }
 
 void AGZGameMode::BeginPlay()
@@ -123,7 +265,14 @@ void AGZGameMode::BeginPlay()
 	ApplyLumenColorBleed();
 	ApplyColorBleedCausality();
 	ApplyCellLightingConsistency();
+	ApplyCellBlendRegion();
+	ApplyVegetationBleedParams(0.0f);
+	ApplyWallBleedParams(0.0f, 45.0f);
+	ApplyRoadBleedParams();
+	ApplyGlassRefractionParams();
+	ApplyRefinedFresnelParams();
 	ApplyCausalitySchedule(DayNight.TimeOfDay, CurrentWeather);
+	ApplyWeatherLayeredLighting(DayNight.TimeOfDay, CurrentWeather);
 	UpdateLightingFromZone(CurrentLightingZone);
 }
 
@@ -132,6 +281,8 @@ void AGZGameMode::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	UpdateDayNightCycle(DeltaSeconds);
 	UpdateWeatherTransition(DeltaSeconds);
+	UpdateRoadWetness(DeltaSeconds);
+	UpdateVegetationWind(DeltaSeconds);
 
 	if (AdaptiveTransitionTimer > 0.0f)
 	{
@@ -139,6 +290,20 @@ void AGZGameMode::Tick(float DeltaSeconds)
 		float Alpha = 1.0f - (AdaptiveTransitionTimer / AdaptiveResolution.TransitionTime);
 		CurrentAdaptiveScreenPercentage = FMath::Lerp(AdaptiveTransitionFrom, AdaptiveTransitionTarget, FMath::Clamp(Alpha, 0.0f, 1.0f));
 	}
+}
+
+void AGZGameMode::SetRoadWetnessTarget(float Target)
+{
+	RoadWetnessTarget = FMath::Clamp(Target, 0.0f, 1.0f);
+	if (RoadWetnessTarget > 0.01f && RoadWetState == EGZRoadWetState::Dry)
+	{
+		RoadWetState = EGZRoadWetState::Transitioning;
+	}
+}
+
+void AGZGameMode::SetWindStrength(float Strength)
+{
+	WindStrength = FMath::Max(0.0f, Strength);
 }
 
 EAppleSiliconChip AGZGameMode::DetectAppleSiliconChip() const
@@ -574,4 +739,345 @@ int32 AGZGameMode::GetLightingZoneSampleCount(EGZLightingZone Zone) const
 	case EGZLightingZone::RiverSurface:  return 2048;
 	default: return 2048;
 	}
+}
+
+// ============================================================================
+// v5.0 Math Utilities
+// ============================================================================
+float AGZGameMode::CosineBlendWeight(float T) const
+{
+	float Clamped = FMath::Clamp(T, 0.0f, 1.0f);
+	return 0.5f - 0.5f * FMath::Cos(Clamped * PI);
+}
+
+float AGZGameMode::QuarticBlendWeight(float T) const
+{
+	float Clamped = FMath::Clamp(T, 0.0f, 1.0f);
+	float t2 = Clamped * Clamped;
+	return t2 * t2 * (35.0f - 84.0f * Clamped + 70.0f * t2 - 20.0f * t2 * Clamped);
+}
+
+// ============================================================================
+// v5.0 Cell Blend Region - 2-cell width, quartic curve, full parameter blend
+// ============================================================================
+void AGZGameMode::ApplyCellBlendRegion()
+{
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.CellBlend.WidthCells"))->Set(CellBlend.BlendWidthCells);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.CellBlend.WidthMeters"))->Set(CellBlend.BlendWidthMeters);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.CellBlend.CosineCurve"))->Set(CellBlend.bUseCosineCurve ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.CellBlend.ColorTempThreshold"))->Set(CellBlend.ColorTempBlendThreshold);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.CellBlend.ShadowHardness"))->Set(CellBlend.bBlendShadowHardness ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.CellBlend.ShadowDirection"))->Set(CellBlend.bBlendShadowDirection ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.CellBlend.BleedIntensity"))->Set(CellBlend.bBlendBleedIntensity ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.CellBlend.AmbientOcclusion"))->Set(CellBlend.bBlendAmbientOcclusion ? 1 : 0);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("CellBlend: width=%d cells, quartic=%d, tempBlend=%.0fK, shadow=%d, bleed=%d, ao=%d"),
+		CellBlend.BlendWidthCells, CellBlend.bUseCosineCurve, CellBlend.ColorTempBlendThreshold,
+		CellBlend.bBlendShadowHardness, CellBlend.bBlendBleedIntensity, CellBlend.bBlendAmbientOcclusion);
+}
+
+// ============================================================================
+// v5.0 Weather Layered Lighting - 2-layer ambient for rain, fog saturation decay
+// ============================================================================
+void AGZGameMode::ApplyWeatherLayeredLighting(float Hour, EGZWeatherType Weather)
+{
+	if (Weather == EGZWeatherType::Rain || Weather == EGZWeatherType::Storm)
+	{
+		IConsoleManager::Get().FindConsoleVariable(TEXT("r.AmbientLighting.TopLayerBrightness"))->Set(WeatherLayers.TopAmbientBrightness);
+		IConsoleManager::Get().FindConsoleVariable(TEXT("r.AmbientLighting.TopLayerColorTemp"))->Set(WeatherLayers.TopAmbientColorTemp);
+		IConsoleManager::Get().FindConsoleVariable(TEXT("r.AmbientLighting.SideLayerBrightness"))->Set(WeatherLayers.SideAmbientBrightness);
+		IConsoleManager::Get().FindConsoleVariable(TEXT("r.AmbientLighting.SideLayerColorTemp"))->Set(WeatherLayers.SideAmbientColorTemp);
+		IConsoleManager::Get().FindConsoleVariable(TEXT("r.AmbientLighting.EdgeContrastRetention"))->Set(WeatherLayers.EdgeContrastRetention);
+
+		// Cloud thickness modulation
+		float CloudThickness = (Weather == EGZWeatherType::Storm) ? 0.18f : 0.08f;
+		float TopAdj = FMath::Lerp(WeatherLayers.TopAmbientBrightness, WeatherLayers.TopAmbientBrightness - 0.06f, CloudThickness);
+		IConsoleManager::Get().FindConsoleVariable(TEXT("r.AmbientLighting.TopLayerBrightness"))->Set(TopAdj);
+
+		UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("WeatherLayers: rain top=%.3f(%.0fK) side=%.3f(%.0fK) edge=%.2f cloud=%.2f"),
+			WeatherLayers.TopAmbientBrightness, WeatherLayers.TopAmbientColorTemp,
+			WeatherLayers.SideAmbientBrightness, WeatherLayers.SideAmbientColorTemp,
+			WeatherLayers.EdgeContrastRetention, CloudThickness);
+	}
+
+	if (Weather == EGZWeatherType::FogHaze)
+	{
+		ApplyFogLightingParams(Hour);
+	}
+}
+
+void AGZGameMode::ApplyFogLightingParams(float Hour)
+{
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.SaturationNearNoDecay"))->Set(FogLighting.SatNearNoDecay);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.SaturationMidDecay"))->Set(FogLighting.SatMidDecay);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.SaturationFarDecay"))->Set(FogLighting.SatFarDecay);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.ShadowBlurMultiplier"))->Set(FogLighting.ShadowBlurMultiplier);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.ShadowLengthReduction"))->Set(FogLighting.ShadowLengthReduction);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.LowElevationBoost"))->Set(FogLighting.LowElevationFogBoost);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.CoolColorDecayFaster"))->Set(FogLighting.CoolColorDecayFaster);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.WarmColorRetention"))->Set(FogLighting.WarmColorRetention);
+
+	UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("FogParams: satRange=%.0f/%.0f/%.0f shadowBlur=%.1fx shadowLen=-%.0f%%"),
+		FogLighting.SatNearNoDecay, FogLighting.SatMidDecay, FogLighting.SatFarDecay,
+		FogLighting.ShadowBlurMultiplier, FogLighting.ShadowLengthReduction * 100.0f);
+}
+
+// ============================================================================
+// v5.0 Vegetation Bleed - per-type, gradient decay, sun-angle offset
+// ============================================================================
+void AGZGameMode::ApplyVegetationBleedParams(float SunAzimuth)
+{
+	// Broadleaf: range +10%, needleleaf: intensity -15%, tall tree canopy: +0.07, shrub: -0.04
+	float BroadleafIntensity = VegetationBleed.BaseBleedIntensity * VegetationBleed.BroadleafRangeBoost;
+	float NeedleleafIntensity = VegetationBleed.BaseBleedIntensity * VegetationBleed.NeedleleafIntensityScale;
+	float ShrubIntensity = FMath::Max(0.0f, VegetationBleed.BaseBleedIntensity - VegetationBleed.ShrubBleedReduction);
+	float TallTreeIntensity = VegetationBleed.BaseBleedIntensity + VegetationBleed.CanopyBleedBoost;
+
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.BroadleafIntensity"))->Set(BroadleafIntensity);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.NeedleleafIntensity"))->Set(NeedleleafIntensity);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.ShrubIntensity"))->Set(ShrubIntensity);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.TallTreeIntensity"))->Set(TallTreeIntensity);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.SunAzimuthOffset"))->Set(SunAzimuth);
+
+	// Gradient decay: 0-2m=60%, 2-5m=30%, 5-8m=10%
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.DecayNearStart"))->Set(BleedDecay.NearStart);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.DecayNearEnd"))->Set(BleedDecay.NearEnd);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.DecayNearRate"))->Set(BleedDecay.NearDecay);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.DecayMidStart"))->Set(BleedDecay.MidStart);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.DecayMidEnd"))->Set(BleedDecay.MidEnd);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.DecayMidRate"))->Set(BleedDecay.MidDecay);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.DecayFarStart"))->Set(BleedDecay.FarStart);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.DecayFarEnd"))->Set(BleedDecay.FarEnd);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.DecayFarRate"))->Set(BleedDecay.FarDecay);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("VegBleed: broadleaf=%.3f needle=%.3f shrub=%.3f talltree=%.3f decay=%.0f/%.0f/%.0f%%"),
+		BroadleafIntensity, NeedleleafIntensity, ShrubIntensity, TallTreeIntensity,
+		BleedDecay.NearDecay * 100.0f, BleedDecay.MidDecay * 100.0f, BleedDecay.FarDecay * 100.0f);
+}
+
+// ============================================================================
+// v5.0 Wall Bleed - surface roughness, sun angle, downward projection only
+// ============================================================================
+void AGZGameMode::ApplyWallBleedParams(float SunAzimuth, float SunElevation)
+{
+	float EffectiveBleed = WallBleed.BaseBleedIntensity;
+
+	// Direct sun: +0.09, side light: -0.06
+	float DirectSunFactor = FMath::Clamp(FMath::Cos(FMath::DegreesToRadians(FMath::Abs(SunAzimuth - 90.0f))), 0.0f, 1.0f);
+	EffectiveBleed += DirectSunFactor * WallBleed.DirectSunBoost;
+	EffectiveBleed -= (1.0f - DirectSunFactor) * WallBleed.SideLightReduction;
+
+	// Rough brick: +0.08 spread, smooth tile: focused
+	float RoughnessSpread = (WallBleed.SurfaceType == EGZSurfaceRoughness::RoughBrick) ? WallBleed.RoughBleedSpread : WallBleed.SmoothTileFocus;
+
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.WallIntensity"))->Set(EffectiveBleed);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.WallProjectionAngle"))->Set(WallBleed.ProjectionAngle);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.WallRoughnessSpread"))->Set(RoughnessSpread);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.WallSurfaceOcclusion"))->Set(WallBleed.bOcclusionFromSurface ? 1 : 0);
+
+	UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("WallBleed: effective=%.3f projAngle=%.0f° spread=%.3f occlusion=%d"),
+		EffectiveBleed, WallBleed.ProjectionAngle, RoughnessSpread, WallBleed.bOcclusionFromSurface);
+}
+
+// ============================================================================
+// v5.0 Road Bleed - asphalt only receives, brightness reduction, wear-based
+// ============================================================================
+void AGZGameMode::ApplyRoadBleedParams()
+{
+	// Asphalt emits 0, only receives; worn road absorbs +0.05, new road contrast +0.02
+	float EffectiveReceive = RoadBleed.ReceiveBleedIntensity;
+	if (RoadWetness > 0.5f)
+	{
+		EffectiveReceive += RoadBleed.WornRoadAbsorptionBoost * RoadWetness;
+	}
+	else
+	{
+		EffectiveReceive += RoadBleed.NewRoadContrastBoost * (1.0f - RoadWetness);
+	}
+
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.RoadIntensity"))->Set(EffectiveReceive);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.RoadEmitIntensity"))->Set(RoadBleed.EmitBleedIntensity);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ColorBleed.RoadBrightnessReduction"))->Set(RoadBleed.BrightnessReduction);
+
+	UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("RoadBleed: receive=%.3f emit=%.3f brightness=-%.3f wetness=%.2f"),
+		EffectiveReceive, RoadBleed.EmitBleedIntensity, RoadBleed.BrightnessReduction, RoadWetness);
+}
+
+// ============================================================================
+// v5.0 TSR Distance Weights - 7 tiers, per-distance frame accumulation
+// ============================================================================
+void AGZGameMode::ApplyTSRDistanceWeights(float CameraDistance)
+{
+	EGZTSRDistanceTier Tier;
+	if (CameraDistance < 5000.0f) Tier = EGZTSRDistanceTier::Near_0_50;
+	else if (CameraDistance < 10000.0f) Tier = EGZTSRDistanceTier::MidNear_50_100;
+	else if (CameraDistance < 20000.0f) Tier = EGZTSRDistanceTier::Mid_100_200;
+	else if (CameraDistance < 40000.0f) Tier = EGZTSRDistanceTier::MidFar_200_400;
+	else if (CameraDistance < 80000.0f) Tier = EGZTSRDistanceTier::Far_400_800;
+	else if (CameraDistance < 150000.0f) Tier = EGZTSRDistanceTier::VeryFar_800_1500;
+	else Tier = EGZTSRDistanceTier::Skyline_1500Plus;
+
+	// Tier weights: 0-50m=0.0, 50-100m=0.05, 100-200m=0.08, 200-400m=0.12, 400-800m=0.15, 800-1500m=0.18, 1500m+=0.20
+	float TierWeights[] = {0.0f, 0.05f, 0.08f, 0.12f, 0.15f, 0.18f, 0.20f};
+	float Weight = TierWeights[(int32)Tier];
+
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.TSR.HistoryWeightBoost"))->Set(Weight);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.TSR.DistanceTier"))->Set((int32)Tier);
+
+	UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("TSR: tier=%d dist=%.0f weight=%.2f"), (int32)Tier, CameraDistance, Weight);
+}
+
+// ============================================================================
+// v5.0 TSR Texture Sharpening - linear texture detection, per-type, light-aware
+// ============================================================================
+void AGZGameMode::ApplyTSRTextureSharpening(float AmbientLightLevel)
+{
+	float EffectiveSharpening = TSRSharpening.BaseSharpening;
+
+	// Light level adaptation
+	if (AmbientLightLevel > 0.7f)
+	{
+		EffectiveSharpening *= TSRSharpening.BrightLightReduction;
+	}
+	else if (AmbientLightLevel < 0.3f)
+	{
+		EffectiveSharpening *= TSRSharpening.LowLightBoost;
+	}
+
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.TSR.MetalSharpening.Base"))->Set(EffectiveSharpening);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.TSR.MetalSharpening.LinearBoost"))->Set(TSRSharpening.LinearTextureBoost);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.TSR.MetalSharpening.LinearMinPx"))->Set(TSRSharpening.LinearTextureMinPx);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.TSR.MetalSharpening.LinearMaxPx"))->Set(TSRSharpening.LinearTextureMaxPx);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.TSR.MetalSharpening.TrafficSign"))->Set(TSRSharpening.TrafficSignSharpening);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.TSR.MetalSharpening.BuildingText"))->Set(TSRSharpening.BuildingTextSharpening);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.TSR.MetalSharpening.RoadTexture"))->Set(TSRSharpening.RoadTextureSharpening);
+
+	UE_LOG(LogGuangzhouOpenWorld, Verbose, TEXT("TSRSharpening: base=%.3f linear=%.3f lightLevel=%.2f"),
+		EffectiveSharpening, TSRSharpening.LinearTextureBoost, AmbientLightLevel);
+}
+
+// ============================================================================
+// v5.0 Glass - Multi-layer refraction, refined Fresnel, color neutrality
+// ============================================================================
+void AGZGameMode::ApplyGlassRefractionParams()
+{
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.Layer1IOR"))->Set(GlassLayerParams.Layer1IOR);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.Layer1BrightnessDecay"))->Set(GlassLayerParams.Layer1BrightnessDecay);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.Layer2IOR"))->Set(GlassLayerParams.Layer2IOR);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.Layer2BrightnessDecay"))->Set(GlassLayerParams.Layer2BrightnessDecay);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.Layer2RefractionReduction"))->Set(GlassLayerParams.Layer2RefractionReduction);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.AirGapDecay"))->Set(GlassLayerParams.AirGapDecay);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.TotalContrastReduction"))->Set(GlassLayerParams.TotalContrastReduction);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.FrameSmoothPixels"))->Set(GlassLayerParams.FrameSmoothPixels);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.MaxLayers"))->Set(GlassLayerParams.MaxLayers);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("GlassMultiLayer: IOR1=%.2f IOR2=%.2f decay=%.2f/%.2f contrast=-%.2f maxLayers=%d"),
+		GlassLayerParams.Layer1IOR, GlassLayerParams.Layer2IOR,
+		GlassLayerParams.Layer1BrightnessDecay, GlassLayerParams.Layer2BrightnessDecay,
+		GlassLayerParams.TotalContrastReduction, GlassLayerParams.MaxLayers);
+}
+
+void AGZGameMode::ApplyRefinedFresnelParams()
+{
+	// Refined curve: 0°=0.05, 60°=0.15 slow, 85°=0.55 fast, 90°=0.74 cap
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.Fresnel.View0"))->Set(FresnelParams.View0Reflect);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.Fresnel.View60"))->Set(FresnelParams.View60Reflect);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.Fresnel.View85"))->Set(FresnelParams.View85Reflect);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.Fresnel.View90Cap"))->Set(FresnelParams.View90Reflect);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.Fresnel.SunHighlightShrink"))->Set(FresnelParams.SunHighlightShrink);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.Fresnel.SunHighlightBoost"))->Set(FresnelParams.SunHighlightBoost);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.Fresnel.RoughnessBind"))->Set(FresnelParams.bRoughnessBindsFresnel ? 1 : 0);
+
+	// Color neutrality: no blue filter, max 50K shift, only thick bottom glass
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.ColorNeutrality.RemoveBlue"))->Set(GlassNeutrality.bRemoveBlueFilter ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.ColorNeutrality.ThickBottom"))->Set(GlassNeutrality.ThickBottomThreshold);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.ColorNeutrality.MaxShiftKelvin"))->Set(GlassNeutrality.MaxColorShiftKelvin);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.ColorNeutrality.DuskShift"))->Set(GlassNeutrality.DuskColorShift);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("GlassFresnel: 0°=%.2f 60°=%.2f 85°=%.2f 90°=%.2f highlight=%.2f/%.2f colorNeutral=%d"),
+		FresnelParams.View0Reflect, FresnelParams.View60Reflect, FresnelParams.View85Reflect, FresnelParams.View90Reflect,
+		FresnelParams.SunHighlightShrink, FresnelParams.SunHighlightBoost, GlassNeutrality.bRemoveBlueFilter);
+}
+
+// ============================================================================
+// v5.0 Road Wetness State Machine
+// ============================================================================
+void AGZGameMode::UpdateRoadWetness(float DeltaSeconds)
+{
+	if (RoadWetState == EGZRoadWetState::Dry && RoadWetnessTarget <= 0.01f) return;
+
+	switch (RoadWetState)
+	{
+	case EGZRoadWetState::Transitioning:
+	{
+		float WetSpeed = 1.0f / RoadWetnessParams.WetTransitionTime;
+		RoadWetness += DeltaSeconds * WetSpeed;
+		if (RoadWetness >= RoadWetnessTarget)
+		{
+			RoadWetness = RoadWetnessTarget;
+			if (RoadWetness >= 0.99f)
+			{
+				RoadWetState = EGZRoadWetState::Wet;
+			}
+			else
+			{
+				RoadWetState = EGZRoadWetState::Drying;
+			}
+		}
+		break;
+	}
+	case EGZRoadWetState::Wet:
+	{
+		if (RoadWetnessTarget < 0.01f)
+		{
+			RoadWetState = EGZRoadWetState::Drying;
+		}
+		break;
+	}
+	case EGZRoadWetState::Drying:
+	{
+		float DryTime = (CurrentWeather == EGZWeatherType::Clear) ? RoadWetnessParams.DryTimeClear : RoadWetnessParams.DryTimeCloudy;
+		float DrySpeed = 1.0f / DryTime;
+		RoadWetness -= DeltaSeconds * DrySpeed;
+		if (RoadWetness <= 0.0f)
+		{
+			RoadWetness = 0.0f;
+			RoadWetState = EGZRoadWetState::Dry;
+		}
+		break;
+	}
+	default: break;
+	}
+
+	// Apply road reflectivity and roughness based on wetness
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Road.ReflectivityBoost"))->Set(RoadWetnessParams.WetReflectivityBoost * RoadWetness);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Road.RoughnessReduction"))->Set(RoadWetnessParams.WetRoughnessReduction * RoadWetness);
+}
+
+// ============================================================================
+// v5.0 Vegetation Wind Dynamics
+// ============================================================================
+void AGZGameMode::UpdateVegetationWind(float DeltaSeconds)
+{
+	if (WindStrength <= 0.01f) return;
+
+	WindGustTimer += DeltaSeconds;
+
+	// Random wind gusts
+	float GustFactor = FMath::PerlinNoise1D(WindGustTimer * 0.3f) * WindParams.WindGustAmplitude;
+	float EffectiveWind = WindStrength * (1.0f + GustFactor);
+
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vegetation.WindStrength"))->Set(EffectiveWind);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vegetation.BranchPeriodMin"))->Set(WindParams.BranchSwingPeriodMin);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vegetation.BranchPeriodMax"))->Set(WindParams.BranchSwingPeriodMax);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vegetation.LeafPeriodMin"))->Set(WindParams.LeafSwingPeriodMin);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vegetation.LeafPeriodMax"))->Set(WindParams.LeafSwingPeriodMax);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vegetation.LocalVariation"))->Set(WindParams.LocalWindVariation);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vegetation.ThickBranchScale"))->Set(WindParams.ThickBranchSwingScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vegetation.ThinBranchScale"))->Set(WindParams.ThinBranchSwingScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Signs.HeavyMetalScale"))->Set(WindParams.HeavyMetalSwingScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Signs.LightClothScale"))->Set(WindParams.LightClothSwingScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Signs.AngleRange"))->Set(WindParams.SignSwingAngleRange);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Signs.PeriodMin"))->Set(WindParams.SignSwingPeriodMin);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Signs.PeriodMax"))->Set(WindParams.SignSwingPeriodMax);
 }

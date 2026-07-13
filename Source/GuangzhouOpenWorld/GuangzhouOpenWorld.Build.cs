@@ -76,6 +76,9 @@ public class GuangzhouOpenWorld : ModuleRules
 			PublicIncludePaths.AddRange(new string[]
 			{
 				"Source/GuangzhouOpenWorld/Game",
+				"Source/GuangzhouOpenWorld/Game/AccountLogin",
+				"Source/GuangzhouOpenWorld/Game/GameMainMenu",
+				"Source/GuangzhouOpenWorld/Game/SystemSettings",
 				"Source/GuangzhouOpenWorld/Physics/JoltPhysicsModule",
 				"Source/GuangzhouOpenWorld/AI/RecastMassAI",
 				"Source/GuangzhouOpenWorld/Scene/RenderingSystem",
@@ -86,6 +89,9 @@ public class GuangzhouOpenWorld : ModuleRules
 			PrivateIncludePaths.AddRange(new string[]
 			{
 				"Source/GuangzhouOpenWorld/Game",
+				"Source/GuangzhouOpenWorld/Game/AccountLogin",
+				"Source/GuangzhouOpenWorld/Game/GameMainMenu",
+				"Source/GuangzhouOpenWorld/Game/SystemSettings",
 				"Source/GuangzhouOpenWorld/Physics/JoltPhysicsModule",
 				"Source/GuangzhouOpenWorld/AI/RecastMassAI",
 				"Source/GuangzhouOpenWorld/Scene/RenderingSystem",
