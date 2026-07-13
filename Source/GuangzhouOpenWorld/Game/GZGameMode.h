@@ -251,9 +251,9 @@ USTRUCT(BlueprintType)
 struct FFogLightingParams
 {
 	GENERATED_BODY()
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) float SatNearNoDecay = 2000.0f;     // 0-20m
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) float SatMidDecay = 5000.0f;        // 20-50m, -20% sat
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) float SatFarDecay = 8000.0f;        // 50-80m, -45% sat
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float SatNearNoDecay = 4000.0f;     // 0-40m no decay
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float SatMidDecay = 8000.0f;        // 40-80m decay to 85%
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float FarBrightnessFloor = 0.85f;   // 80m brightness floor
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ShadowBlurMultiplier = 2.0f;  // Shadows 2x softer
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ShadowLengthReduction = 0.15f; // 15% shorter
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float LowElevationFogBoost = 0.30f; // Low-lying fog +30%
@@ -535,6 +535,21 @@ struct FWeatherPreTransition
 };
 
 USTRUCT(BlueprintType)
+struct FWeatherTransitionStages
+{
+	GENERATED_BODY()
+	// 2.8s total: 0-1.2s direct sun, 1.2-2.0s color temp, 2.0-2.8s contrast/shadow softening
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float DirectSunEnd = 1.2f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ColorTempEnd = 2.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float FinalEnd = 2.8f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float DirectSunIntensityDrop = 1.0f;  // clear->rain drops sun intensity by 100%
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float RainColorTempK = 7000.0f;       // rainy overcast color temp
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ContrastDrop = 0.4f;            // rain reduces contrast 40%
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ShadowBlurBoost = 1.0f;         // rain shadows 2x softer
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ShadowLengthScale = 0.85f;      // rain shadows 15% shorter
+};
+
+USTRUCT(BlueprintType)
 struct FNaniteSeamFix
 {
 	GENERATED_BODY()
@@ -661,6 +676,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FTrafficAIExpanded> TrafficBehaviors;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) FFogSpatialization FogSpatialization;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) FWeatherPreTransition WeatherPreTransition;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FWeatherTransitionStages WeatherStages;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) FNaniteSeamFix NaniteSeamFix;
 
 	UPROPERTY() EAppleSiliconChip DetectedChip = EAppleSiliconChip::Unknown;

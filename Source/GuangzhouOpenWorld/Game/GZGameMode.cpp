@@ -226,9 +226,9 @@ AGZGameMode::AGZGameMode()
 	FogSpatialization.WarmWavelengthRetention = 0.85f;
 	FogSpatialization.ElevationThreshold = 5000.0f;
 
-	// v5.1 WeatherPreTransition
+	// v5.1 Weather Pre-Transition: brightness drops 0.1 one second before storm
 	WeatherPreTransition.PreTransitionTime = 1.0f;
-	WeatherPreTransition.StormDarkeningIntensity = 0.3f;
+	WeatherPreTransition.StormDarkeningIntensity = 0.1f;
 	WeatherPreTransition.TransitionCurveType = TEXT("easeInOut");
 
 	// v5.1 NaniteSeamFix
@@ -756,26 +756,59 @@ void AGZGameMode::UpdateWeatherTransition(float DeltaSeconds)
 	}
 
 	AExponentialHeightFog* FogActor = Cast<AExponentialHeightFog>(UGameplayStatics::GetActorOfClass(GetWorld(), AExponentialHeightFog::StaticClass()));
-	if (!FogActor) return;
-
-	switch (TargetWeather)
+	if (FogActor)
 	{
-	case EGZWeatherType::Clear:
-		FogActor->GetComponent()->SetFogDensity(FMath::Lerp(0.02f, 0.01f, WeatherTransitionProgress));
-		break;
-	case EGZWeatherType::Cloudy:
-		FogActor->GetComponent()->SetFogDensity(FMath::Lerp(0.02f, 0.03f, WeatherTransitionProgress));
-		break;
-	case EGZWeatherType::Rain:
-		FogActor->GetComponent()->SetFogDensity(FMath::Lerp(0.02f, 0.04f, WeatherTransitionProgress));
-		break;
-	case EGZWeatherType::Storm:
-		FogActor->GetComponent()->SetFogDensity(FMath::Lerp(0.02f, 0.06f, WeatherTransitionProgress));
-		break;
-	case EGZWeatherType::FogHaze:
-		FogActor->GetComponent()->SetFogDensity(FMath::Lerp(0.02f, 0.08f, WeatherTransitionProgress));
-		break;
+		switch (TargetWeather)
+		{
+		case EGZWeatherType::Clear:
+			FogActor->GetComponent()->SetFogDensity(FMath::Lerp(0.02f, 0.01f, WeatherTransitionProgress));
+			break;
+		case EGZWeatherType::Cloudy:
+			FogActor->GetComponent()->SetFogDensity(FMath::Lerp(0.02f, 0.03f, WeatherTransitionProgress));
+			break;
+		case EGZWeatherType::Rain:
+			FogActor->GetComponent()->SetFogDensity(FMath::Lerp(0.02f, 0.04f, WeatherTransitionProgress));
+			break;
+		case EGZWeatherType::Storm:
+			FogActor->GetComponent()->SetFogDensity(FMath::Lerp(0.02f, 0.06f, WeatherTransitionProgress));
+			break;
+		case EGZWeatherType::FogHaze:
+			FogActor->GetComponent()->SetFogDensity(FMath::Lerp(0.02f, 0.08f, WeatherTransitionProgress));
+			break;
+		}
 	}
+
+	// 2.8s three-stage weather transition: direct sun -> color temp -> contrast/shadows
+	const float T = WeatherTransitionProgress * WeatherTransitionDuration;
+	float SunAlpha = 0.0f, TempAlpha = 0.0f, ContrastAlpha = 0.0f;
+
+	if (T <= WeatherStages.DirectSunEnd)
+	{
+		SunAlpha = T / WeatherStages.DirectSunEnd;
+	}
+	else if (T <= WeatherStages.ColorTempEnd)
+	{
+		SunAlpha = 1.0f;
+		TempAlpha = (T - WeatherStages.DirectSunEnd) / (WeatherStages.ColorTempEnd - WeatherStages.DirectSunEnd);
+	}
+	else if (T <= WeatherStages.FinalEnd)
+	{
+		SunAlpha = 1.0f;
+		TempAlpha = 1.0f;
+		ContrastAlpha = (T - WeatherStages.ColorTempEnd) / (WeatherStages.FinalEnd - WeatherStages.ColorTempEnd);
+	}
+	else
+	{
+		SunAlpha = TempAlpha = ContrastAlpha = 1.0f;
+	}
+
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.Transition.DirectSunAlpha"))->Set(SunAlpha);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.Transition.ColorTempAlpha"))->Set(TempAlpha);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.Transition.ContrastAlpha"))->Set(ContrastAlpha);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.Transition.RainColorTemp"))->Set(WeatherStages.RainColorTempK);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.Transition.ContrastDrop"))->Set(WeatherStages.ContrastDrop);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.Transition.ShadowBlurBoost"))->Set(WeatherStages.ShadowBlurBoost);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.Transition.ShadowLengthScale"))->Set(WeatherStages.ShadowLengthScale);
 }
 
 void AGZGameMode::UpdateLightingFromZone(EGZLightingZone Zone)
@@ -938,10 +971,12 @@ void AGZGameMode::ApplyFogLightingParams(float Hour)
 {
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.SaturationNearNoDecay"))->Set(FogLighting.SatNearNoDecay);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.SaturationMidDecay"))->Set(FogLighting.SatMidDecay);
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.SaturationFarDecay"))->Set(FogLighting.SatFarDecay);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.SaturationFarDecay"))->Set(FogLighting.SatMidDecay);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.FarBrightnessFloor"))->Set(FogLighting.FarBrightnessFloor);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.ShadowBlurMultiplier"))->Set(FogLighting.ShadowBlurMultiplier);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.ShadowLengthReduction"))->Set(FogLighting.ShadowLengthReduction);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.LowElevationBoost"))->Set(FogLighting.LowElevationFogBoost);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.HighElevationReduction"))->Set(FogSpatialization.HighElevationReduction);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.CoolColorDecayFaster"))->Set(FogLighting.CoolColorDecayFaster);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Fog.WarmColorRetention"))->Set(FogLighting.WarmColorRetention);
 
@@ -1239,9 +1274,12 @@ void AGZGameMode::ApplyCloudTierLighting(EGZCloudThickness Tier)
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.AmbientLighting.TopLayerReduction"))->Set(TierData.TopAmbientReduction);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.AmbientLighting.ShadowVariationPeriod"))->Set(TierData.ShadowVariationPeriod);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.AmbientLighting.ShadowVariationAmplitude"))->Set(TierData.ShadowVariationAmplitude);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Cloud.FlowPeriodMin"))->Set(TierData.CloudFlowPeriodMin);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Cloud.FlowPeriodMax"))->Set(TierData.CloudFlowPeriodMax);
 
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("CloudTier: tier=%d topReduction=%.3f shadowPeriod=%.1f shadowAmp=%.3f"),
-		(int32)Tier, TierData.TopAmbientReduction, TierData.ShadowVariationPeriod, TierData.ShadowVariationAmplitude);
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("CloudTier: tier=%d topReduction=%.3f shadowPeriod=%.1f shadowAmp=%.3f flow=%.0f-%.0fs"),
+		(int32)Tier, TierData.TopAmbientReduction, TierData.ShadowVariationPeriod, TierData.ShadowVariationAmplitude,
+		TierData.CloudFlowPeriodMin, TierData.CloudFlowPeriodMax);
 }
 
 // ============================================================================
@@ -1389,14 +1427,19 @@ void AGZGameMode::ApplyTrafficBehavior(EGZTrafficBehavior Behavior)
 }
 
 // ============================================================================
-// v5.1 DLSS / FSR Config
+// v7.0 DLSS 4.5 / FSR 4 Config - UE5.8 latest protocols
 // ============================================================================
 void AGZGameMode::ApplyDLSSFSRConfig()
 {
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.DLSS.Enable"))->Set(RayTracingConfig.bEnableDLSS ? 1 : 0);
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.FSR.Enable"))->Set(RayTracingConfig.bEnableFSR ? 1 : 0);
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.FrameGen.Enable"))->Set(RayTracingConfig.bEnableFrameGen ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.NGX.DLSS.Enable"))->Set(RayTracingConfig.bEnableDLSS ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.NGX.DLSS.Quality"))->Set(3);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.NGX.DLSS.FrameGeneration"))->Set(RayTracingConfig.bEnableFrameGen ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.NGX.DLSS.RayReconstruction"))->Set(RayTracingConfig.bEnableRTGI ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.FidelityFX.FSR.Enable"))->Set(RayTracingConfig.bEnableFSR ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.FidelityFX.FSR.Quality"))->Set(3);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.FidelityFX.FSR.FrameInterpolation"))->Set(RayTracingConfig.bEnableFrameGen ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.TSR.DLSSFSR.BothEnabled"))->Set((RayTracingConfig.bEnableDLSS && RayTracingConfig.bEnableFSR) ? 1 : 0);
 
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("DLSSFSR: DLSS=%d FSR=%d FrameGen=%d"),
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("DLSSFSR: DLSS4.5=%d FSR4=%d FrameGen=%d"),
 		RayTracingConfig.bEnableDLSS, RayTracingConfig.bEnableFSR, RayTracingConfig.bEnableFrameGen);
 }

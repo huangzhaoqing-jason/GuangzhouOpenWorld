@@ -1,0 +1,132 @@
+// ============================================================================
+// GuangzhouOpenWorld - TSRSharpen.usf
+// UE5.8 + Metal 4.3 | Temporal upscaling sharpness pass
+// Linear high-contrast tiny texture classification with light adaptation
+// ============================================================================
+
+#include "/Engine/Public/Platform.ush"
+#pragma metal_shader_model 3.1
+
+Texture2D InputTexture;
+Texture2D MaterialMaskTexture; // R=traffic sign, G=building text, B=road, A=other
+SamplerState LinearSampler;
+
+float4 SharpenParameters; // x=BaseSharpening, y=LinearBoost, z=BrightLightReduction, w=LowLightBoost
+float4 SizeParameters;    // x=TexelX, y=TexelY, z=LinearMinPx, w=LinearMaxPx
+float3 TypeParameters;    // x=TrafficSign, y=BuildingText, z=RoadTexture
+float AmbientLightLevel;
+
+// ============================================================================
+// Sobel edge detection for linear texture classification
+// ============================================================================
+float SobelEdge(float2 UV)
+{
+    float2 Texel = SizeParameters.xy;
+
+    float s00 = Luminance(InputTexture.Sample(LinearSampler, UV + float2(-Texel.x, -Texel.y)).rgb);
+    float s01 = Luminance(InputTexture.Sample(LinearSampler, UV + float2( 0.0,    -Texel.y)).rgb);
+    float s02 = Luminance(InputTexture.Sample(LinearSampler, UV + float2( Texel.x, -Texel.y)).rgb);
+    float s10 = Luminance(InputTexture.Sample(LinearSampler, UV + float2(-Texel.x,  0.0)).rgb);
+    float s12 = Luminance(InputTexture.Sample(LinearSampler, UV + float2( Texel.x,  0.0)).rgb);
+    float s20 = Luminance(InputTexture.Sample(LinearSampler, UV + float2(-Texel.x,  Texel.y)).rgb);
+    float s21 = Luminance(InputTexture.Sample(LinearSampler, UV + float2( 0.0,     Texel.y)).rgb);
+    float s22 = Luminance(InputTexture.Sample(LinearSampler, UV + float2( Texel.x,  Texel.y)).rgb);
+
+    float sx = -s00 - 2.0 * s10 - s20 + s02 + 2.0 * s12 + s22;
+    float sy = -s00 - 2.0 * s01 - s02 + s20 + 2.0 * s21 + s22;
+    return sqrt(sx * sx + sy * sy);
+}
+
+// ============================================================================
+// Detect 1-3 pixel width linear high-contrast textures
+// ============================================================================
+float ClassifyLinearTexture(float2 UV, out float WidthPx)
+{
+    float2 Texel = SizeParameters.xy;
+    float Edge0 = SobelEdge(UV);
+    float Edge1 = SobelEdge(UV + Texel * 0.5);
+    float Edge2 = SobelEdge(UV - Texel * 0.5);
+
+    float MaxEdge = max(Edge0, max(Edge1, Edge2));
+    float MinEdge = min(Edge0, min(Edge1, Edge2));
+    float EdgeRatio = MaxEdge / (MinEdge + 1e-5);
+
+    WidthPx = (EdgeRatio > 2.0) ? 1.0 : ((EdgeRatio > 1.2) ? 2.5 : 4.0);
+
+    float LinearMin = SizeParameters.z;
+    float LinearMax = SizeParameters.w;
+    return (WidthPx >= LinearMin && WidthPx <= LinearMax) ? 1.0 : 0.0;
+}
+
+// ============================================================================
+// Unsharp masking with noise-aware clamping (no Gaussian blur nodes)
+// ============================================================================
+float3 UnsharpMask(float3 Center, float2 UV)
+{
+    float2 Texel = SizeParameters.xy;
+    float3 Blur = 0.0;
+    Blur += InputTexture.Sample(LinearSampler, UV + float2(-Texel.x, 0.0)).rgb * 0.25;
+    Blur += InputTexture.Sample(LinearSampler, UV + float2( Texel.x, 0.0)).rgb * 0.25;
+    Blur += InputTexture.Sample(LinearSampler, UV + float2(0.0, -Texel.y)).rgb * 0.25;
+    Blur += InputTexture.Sample(LinearSampler, UV + float2(0.0,  Texel.y)).rgb * 0.25;
+
+    float3 Detail = Center - Blur;
+    return Detail;
+}
+
+// ============================================================================
+// Main pixel shader entry
+// ============================================================================
+void MainPS(
+    float4 UVAndScreenPos : TEXCOORD0,
+    out float4 OutColor : SV_Target0)
+{
+    float2 UV = UVAndScreenPos.xy;
+    float4 Source = InputTexture.Sample(LinearSampler, UV);
+    float4 Mask = MaterialMaskTexture.Sample(LinearSampler, UV);
+
+    float BaseSharpening = SharpenParameters.x;
+
+    // Light adaptation: strong light -0.05, weak light +0.05
+    if (AmbientLightLevel > 0.7)
+    {
+        BaseSharpening *= SharpenParameters.z;
+    }
+    else if (AmbientLightLevel < 0.3)
+    {
+        BaseSharpening *= SharpenParameters.w;
+    }
+
+    // Classify linear tiny texture (1-3 px)
+    float WidthPx;
+    float bLinear = ClassifyLinearTexture(UV, WidthPx);
+
+    // Per-type sharpening: traffic sign +0.08, building text base, road -0.06
+    float TypeSharpen = BaseSharpening;
+    TypeSharpen += Mask.r * TypeParameters.x;
+    TypeSharpen += Mask.g * TypeParameters.y;
+    TypeSharpen = lerp(TypeSharpen, TypeParameters.z, Mask.b);
+
+    float EffectiveSharpen = lerp(BaseSharpening * 0.5, TypeSharpen, bLinear);
+
+    // Apply unsharp mask and sample-average denoising
+    float3 Detail = UnsharpMask(Source.rgb, UV);
+    float3 Sharpened = Source.rgb + Detail * EffectiveSharpen;
+
+    // Clamp to avoid highlight noise
+    float3 AvgNeighbor = 0.0;
+    AvgNeighbor += InputTexture.Sample(LinearSampler, UV + float2( 1, 0) * SizeParameters.xy).rgb;
+    AvgNeighbor += InputTexture.Sample(LinearSampler, UV + float2(-1, 0) * SizeParameters.xy).rgb;
+    AvgNeighbor += InputTexture.Sample(LinearSampler, UV + float2( 0, 1) * SizeParameters.xy).rgb;
+    AvgNeighbor += InputTexture.Sample(LinearSampler, UV + float2( 0,-1) * SizeParameters.xy).rgb;
+    AvgNeighbor *= 0.25;
+
+    float Deviation = length(Sharpened - AvgNeighbor);
+    float MaxDeviation = 0.15 * (1.0 + AmbientLightLevel);
+    if (Deviation > MaxDeviation)
+    {
+        Sharpened = lerp(AvgNeighbor, Sharpened, MaxDeviation / Deviation);
+    }
+
+    OutColor = float4(Sharpened, Source.a);
+}
