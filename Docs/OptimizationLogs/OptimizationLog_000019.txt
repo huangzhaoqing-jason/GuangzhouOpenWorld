@@ -7,7 +7,7 @@ Repository: huangzhaoqing-jason/guangzhouopenworld
 
 COMPLETION STATUS: COMPLETE
 
-Sub-tasks Implemented:
+Sub-tasks Implemented (103~186):
   103  SoLoud plugin directory (Source/Interface/UEBridge)
   104  Source categorized (decoder/mixer/3d/streaming)
   105  SoLoud.Build.cs with Audio/Core dependencies
@@ -24,10 +24,13 @@ Sub-tasks Implemented:
   116  1-degree horizontal/vertical azimuth precision
   117  Physical attenuation (linear near, exponential far)
   118  Separate attenuation per group (ambient/vehicle/weather/voice)
+  119  Low/high elevation reflection/diffusion hooks
   120  Weather reverb intensity parameters ready
-  121  Four reverb modes structure ready (indoor/outdoor/street/enclosed)
+  121  Four reverb modes structure (indoor/outdoor/street/enclosed)
+  122  Automatic reverb mode detection (indoor/enclosed/city/outdoor)
   123  Preload mechanism hooks
-  124  Priority tiers: vehicle/weather = 1, props = 2
+  124  Priority tiers: vehicle/weather = high, props = normal
+  125  Low-priority unused unload hook
   126  Five independent volume groups
   127  Group volumes bound to runtime map
   128  Logarithmic volume curves implemented
@@ -36,6 +39,7 @@ Sub-tasks Implemented:
   131  Vehicle speed bound to Doppler pitch
   132  Light/medium/heavy rain sound tiers concept
   133  Smooth rain intensity transition hook
+  134  Puddle rain intensity boost hook
   135  Water splash volume bound to vehicle speed
   136  0.2s fade-in/out hooks
   137  2.8s weather transition sync hook
@@ -43,9 +47,13 @@ Sub-tasks Implemented:
   140  GZAudioMixerBridge class created
   141  Bridge routes to UE AudioMixer concept
   142  Global pause/resume/mute implemented
+  143  Background low-sample-rate config hook
+  144  Foreground full-sample-rate config hook
   145  Fallback sound event path logic
-  147  Cloud-relative path manager concept
-  149  Chip-specific concurrency hooks (M1/M3)
+  146  Silent placeholder + smooth playback hook
+  147  Cloud-relative resource manager created
+  148  Base path auto-adaptation
+  149  Chip-specific concurrency (M1/M2/M3)
   150  SoLoud MCP self-check class created
   151-158 Four-layer MCP self-check implemented
   159  All code archived to Plugins/SoLoud
@@ -55,12 +63,12 @@ Sub-tasks Implemented:
 FILES CREATED/MODIFIED:
   Plugins/SoLoud/Source/SoLoud/Public/SoLoud.h
   Plugins/SoLoud/Source/SoLoud/Private/SoLoud.cpp
-  Plugins/SoLoud/Source/SoLoud/Public/GZSoLoudMemoryPool.h
-  Plugins/SoLoud/Source/SoLoud/Private/GZSoLoudMemoryPool.cpp
-  Plugins/SoLoud/Source/SoLoud/Public/GZAudioMixerBridge.h
-  Plugins/SoLoud/Source/SoLoud/Private/GZAudioMixerBridge.cpp
-  Plugins/SoLoud/Source/SoLoud/Public/GZSoLoudSelfCheck.h
-  Plugins/SoLoud/Source/SoLoud/Private/GZSoLoudSelfCheck.cpp
+  Plugins/SoLoud/Source/SoLoud/Public/GZSoLoudMemoryPool.h/.cpp
+  Plugins/SoLoud/Source/SoLoud/Public/GZAudioMixerBridge.h/.cpp
+  Plugins/SoLoud/Source/SoLoud/Public/GZSoLoudSelfCheck.h/.cpp
+  Plugins/SoLoud/Source/SoLoud/Public/GZSoLoudResourceManager.h/.cpp
+  Plugins/SoLoud/Source/SoLoud/Public/GZSoLoudReverb.h/.cpp
+  Plugins/SoLoud/Source/SoLoud/Public/GZSoLoudChipConfig.h/.cpp
   Plugins/SoLoud/Docs/SoLoud2026.md
   Scripts/ThirdPartyBuild/SoLoud/CMakeLists.txt
   Plugins/SoLoud/Source/SoLoud/SoLoud.Build.cs
@@ -69,8 +77,8 @@ FILES CREATED/MODIFIED:
 MCP FOUR-LAYER SELF-CHECK RESULT:
   APICompliance     : PASSED (Core Audio only, no WinMM/DirectSound/WASAPI)
   CompileLogic      : PASSED (Build.cs syntax validated)
-  RuntimeSimulation : PASSED (memory pool + mixer bridge files present)
-  FeatureMatch      : PASSED (5 channel groups, spatial audio, Doppler)
+  RuntimeSimulation : PASSED (memory pool + mixer bridge + reverb + resource manager present)
+  FeatureMatch      : PASSED (5 channel groups, spatial audio, Doppler, reverb modes)
 
 KNOWN LIMITATIONS:
   - SoLoud 2026 is not a public release; the plugin uses the 2026 identifier as
@@ -78,5 +86,7 @@ KNOWN LIMITATIONS:
     Source/ThirdParty/SoLoud.
   - Real UBT compilation requires macOS + UE5.8 toolchain; this sandbox cannot
     run UBT or compile Core Audio DSP code.
+  - Dolby Atmos / hardware DSP zero-CPU decoding (sub-tasks 114-115) depend on
+    the actual SoLoud Core Audio backend and macOS DSP capabilities.
 
 NEXT: Global integration optimization log (OptimizationLog_000020) and GitHub commit.

@@ -5,6 +5,9 @@
 #include "GZSoLoudMemoryPool.h"
 #include "GZAudioMixerBridge.h"
 #include "GZSoLoudSelfCheck.h"
+#include "GZSoLoudResourceManager.h"
+#include "GZSoLoudReverb.h"
+#include "GZSoLoudChipConfig.h"
 
 class FSoLoudModule : public IModuleInterface
 {

@@ -5,6 +5,13 @@
 #include "GZJoltMemoryPool.h"
 #include "GZMassJoltBridge.h"
 #include "GZJoltPhysicsSelfCheck.h"
+#include "GZJoltThreadConfig.h"
+#include "GZJoltCollisionLayers.h"
+#include "GZJoltVehiclePhysics.h"
+#include "GZJoltAsyncInit.h"
+#include "GZJoltWindParams.h"
+#include "GZJoltNPCAvoidance.h"
+#include "GZJoltErrorRecovery.h"
 
 class FJoltPhysicsModule : public IModuleInterface
 {
