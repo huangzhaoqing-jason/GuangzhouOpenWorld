@@ -68,6 +68,7 @@ public class GuangzhouOpenWorld : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"SoLoud",
+			"JoltPhysics",
 			"DeveloperSettings",
 		});
 
