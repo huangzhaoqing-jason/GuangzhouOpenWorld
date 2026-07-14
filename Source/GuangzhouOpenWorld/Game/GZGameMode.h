@@ -97,6 +97,75 @@ enum class EGZTrafficBehavior : uint8
 	FogSlow		UMETA(DisplayName = "FogSlow"),
 };
 
+// ============================================================================
+// v8.0 City Districts & Detailed Weather (Moon / GTA6 / Watch Dogs 2 / Spider-Man 2)
+// ============================================================================
+UENUM(BlueprintType)
+enum class EGZCityDistrict : uint8
+{
+	TianheCBD		UMETA(DisplayName = "Tianhe CBD"),
+	YuexiuOldTown	UMETA(DisplayName = "Yuexiu Old Town"),
+	HaizhuWaterfront UMETA(DisplayName = "Haizhu Waterfront"),
+	PanyuSuburb		UMETA(DisplayName = "Panyu Suburb"),
+};
+
+UENUM(BlueprintType)
+enum class EGZWeatherStateDetailed : uint8
+{
+	Overcast	UMETA(DisplayName = "Overcast"),
+	LightRain	UMETA(DisplayName = "Light Rain"),
+	ModerateRain UMETA(DisplayName = "Moderate Rain"),
+	HeavyRain	UMETA(DisplayName = "Heavy Rain"),
+	DenseFog	UMETA(DisplayName = "Dense Fog"),
+	StrongWind	UMETA(DisplayName = "Strong Wind"),
+};
+
+UENUM(BlueprintType)
+enum class EGZCharacterRole : uint8
+{
+	DeliveryDriver	UMETA(DisplayName = "Delivery Driver"),
+	UrbanExplorer	UMETA(DisplayName = "Urban Explorer"),
+	PrivateDetective UMETA(DisplayName = "Private Detective"),
+};
+
+UENUM(BlueprintType)
+enum class EGZAnomalyType : uint8
+{
+	LightFlicker	UMETA(DisplayName = "Light Flicker"),
+	FogPocket		UMETA(DisplayName = "Fog Pocket"),
+	ShadowFigure	UMETA(DisplayName = "Shadow Figure"),
+	ReflectionGlitch UMETA(DisplayName = "Reflection Glitch"),
+};
+
+UENUM(BlueprintType)
+enum class EGZCityEventType : uint8
+{
+	CommercialDispute	UMETA(DisplayName = "Commercial Dispute"),
+	NeighborInteraction	UMETA(DisplayName = "Neighbor Interaction"),
+	HelpRequest			UMETA(DisplayName = "Help Request"),
+	RandomConflict		UMETA(DisplayName = "Random Conflict"),
+	StreetPerformance	UMETA(DisplayName = "Street Performance"),
+};
+
+UENUM(BlueprintType)
+enum class EGZVehicleModPart : uint8
+{
+	Suspension	UMETA(DisplayName = "Suspension"),
+	Tires		UMETA(DisplayName = "Tires"),
+	Engine		UMETA(DisplayName = "Engine"),
+	BodyKit		UMETA(DisplayName = "Body Kit"),
+};
+
+UENUM(BlueprintType)
+enum class EGZNPCBehaviorState : uint8
+{
+	Walking		UMETA(DisplayName = "Walking"),
+	Standing	UMETA(DisplayName = "Standing"),
+	Interacting	UMETA(DisplayName = "Interacting"),
+	Reacting	UMETA(DisplayName = "Reacting"),
+	Sheltering	UMETA(DisplayName = "Sheltering"),
+};
+
 USTRUCT(BlueprintType)
 struct FDayNightCycleSettings
 {
@@ -609,6 +678,233 @@ struct FPhysicsWindConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float Damping = 0.92f;                 // angular velocity decay
 };
 
+// ============================================================================
+// v8.0 WorldPartition District Profiles (Moon / GTA6)
+// ============================================================================
+USTRUCT(BlueprintType)
+struct FDistrictRoadProfile
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float RoadWear = 0.0f;              // 0=new, 1=worn
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float RoughnessScale = 1.0f;        // roughness multiplier
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float PuddleEvaporationScale = 1.0f;// district evaporation speed
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float FrictionDry = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float FrictionWet = 0.65f;
+};
+
+USTRUCT(BlueprintType)
+struct FDistrictVegetationProfile
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) EGZVegetationType PrimaryVeg = EGZVegetationType::Broadleaf;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float WindResponseScale = 1.0f;     // per-district wind amplitude
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float DensityScale = 1.0f;          // vegetation density
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ColorBleedBoost = 0.0f;       // district-specific bleed offset
+};
+
+USTRUCT(BlueprintType)
+struct FDistrictProfile
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) EGZCityDistrict District = EGZCityDistrict::TianheCBD;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FDistrictRoadProfile RoadProfile;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FDistrictVegetationProfile VegetationProfile;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float NeonIntensityScale = 1.0f;    // CBD high, suburb low
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float PedestrianSpeedScale = 1.0f;  // CBD fast, old-town slow
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float LandmarkVisibilityDistance = 100000.0f; // 1000m global landmark
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FLinearColor FarCoolTint = FLinearColor(0.75f, 0.85f, 1.0f, 1.0f);
+};
+
+// ============================================================================
+// v8.0 Ray Tracing / Rendering Refinement (GTA6 / Spider-Man 2 / Cyberpunk 2077)
+// ============================================================================
+USTRUCT(BlueprintType)
+struct FNeonLightParams
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float DayIntensityScale = 0.15f;    // weak bleed by day
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float NightIntensityScale = 1.0f;   // strong bleed at night
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float CBDIntensityScale = 1.3f;     // CBD stronger
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float OldTownIntensityScale = 0.6f; // old town weaker
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float BleedDecayExponent = 2.2f;    // physical falloff
+};
+
+USTRUCT(BlueprintType)
+struct FWaterReflectionParams
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float DeepWaterSampleDistance = 200000.0f; // 2000m reflection range
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float PuddleSampleDistance = 30000.0f;     // 300m puddle range
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float DeepWaterDistortion = 0.08f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float PuddleDistortion = 0.25f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float VehicleUnderbodyVisibility = 0.7f;   // puddle maps undercarriage
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ShallowPuddleClarity = 0.85f;        // shallow puddle clearer
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float DeepPuddleClarity = 0.45f;           // deep puddle murkier
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float VehicleDisturbanceRecovery = 1.5f;   // ripple settle speed
+};
+
+USTRUCT(BlueprintType)
+struct FCharacterHairSkinParams
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 HairSamplesPerStrand = 4;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float VolumetricScatteringIntensity = 0.35f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float SkinSubsurfaceScale = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float EnvironmentLightBlend = 1.0f; // match scene lighting
+};
+
+USTRUCT(BlueprintType)
+struct FMetallicMaterialRTParams
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnableMetallicRTSpecular = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float FresnelRangeScale = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float EnvironmentLightResponse = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float FarDistanceFadeStart = 50000.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float FarDistanceFadeEnd = 150000.0f;
+};
+
+USTRUCT(BlueprintType)
+struct FGlassOverlapBlendParams
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float OverlapBlendRadius = 500.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float OverlapColorDamping = 0.6f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 MaxOverlappingFacades = 4;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bResolveColorConflict = true;
+};
+
+// ============================================================================
+// v8.0 Dynamic Weather / Lighting Parameters
+// ============================================================================
+USTRUCT(BlueprintType)
+struct FAtmosphericColorDecay
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float NearDistance = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float FarDistance = 100000.0f;       // 1000m
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float CoolBlueShift = 0.25f;        // far tint strength
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float WarmRetention = 0.85f;        // near warm retention
+};
+
+USTRUCT(BlueprintType)
+struct FCloudShadowParams
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ShadowIntensity = 0.35f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float CloudMoveSpeedBase = 2.0f;     // m/s
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float WindSpeedMultiplier = 1.5f;    // speed scales with wind
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float BlendTransitionTime = 3.0f;    // soft patch movement
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float LowElevationIntensityBoost = 0.15f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float CloudThicknessToShadowScale = 1.0f;
+};
+
+USTRUCT(BlueprintType)
+struct FDetailedWeatherStateParams
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float SunIntensityScale = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float SkyIntensityScale = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ColorTempKelvin = 6500.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float FogDensityScale = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float FogShadowBlurScale = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float FogShadowLengthScale = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float WindStrengthScale = 1.0f;
+};
+
+// ============================================================================
+// v8.0 Gameplay Systems Parameters (GTA6 / Beyond / Infinite)
+// ============================================================================
+USTRUCT(BlueprintType)
+struct FDualCharacterData
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FString CharacterName;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 SaveSlotIndex = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) EGZCharacterRole Role = EGZCharacterRole::UrbanExplorer;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FVector LastLocation = FVector::ZeroVector;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bIsActive = false;
+};
+
+USTRUCT(BlueprintType)
+struct FNPCBehaviorProfile
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) EGZCityDistrict District = EGZCityDistrict::TianheCBD;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float BaseWalkSpeed = 200.0f;       // cm/s
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float StopChance = 0.05f;           // chance per tick to stop
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float InteractionChance = 0.10f;    // chance to interact with other NPC
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ShelterChance = 0.30f;        // chance to seek shelter in rain
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float VisionRange = 5000.0f;        // 50m
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float HearingRange = 8000.0f;       // 80m
+};
+
+USTRUCT(BlueprintType)
+struct FCityEventConfig
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) EGZCityEventType EventType = EGZCityEventType::CommercialDispute;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) EGZCityDistrict PreferredDistrict = EGZCityDistrict::TianheCBD;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float SpawnChance = 0.02f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float MinCooldown = 60.0f;          // seconds
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float MaxRadius = 30000.0f;         // 300m
+};
+
+USTRUCT(BlueprintType)
+struct FVehicleModConfig
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) EGZVehicleModPart Part = EGZVehicleModPart::Suspension;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float SuspensionRollScale = 1.0f;   // body roll multiplier
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float TireDryFriction = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float TireWetFriction = 0.7f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float EnginePowerScale = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float BodyDragScale = 1.0f;
+};
+
+USTRUCT(BlueprintType)
+struct FShopInteractionConfig
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float OpenHour = 8.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float CloseHour = 22.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float RainCloseChance = 0.30f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float InteractionRadius = 250.0f;   // cm
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bIndoorLightingSwitch = true;
+};
+
+USTRUCT(BlueprintType)
+struct FAnomalyPointConfig
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) EGZAnomalyType Type = EGZAnomalyType::LightFlicker;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) EGZCityDistrict District = EGZCityDistrict::TianheCBD;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FVector Location = FVector::ZeroVector;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float TriggerRadius = 1000.0f;      // 10m
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float Duration = 30.0f;             // seconds
+};
+
+USTRUCT(BlueprintType)
+struct FFloodParams
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float RainToWaterRate = 0.5f;       // cm water per rain intensity unit
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float MaxWaterHeight = 50.0f;       // cm
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float EvaporationRate = 0.05f;      // cm/s
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float VehicleSpeedPenalty = 0.4f;   // 40% slower
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float NPCRerouteThreshold = 20.0f;  // cm
+};
+
+USTRUCT(BlueprintType)
+struct FProfessionConfig
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) EGZCharacterRole Role = EGZCharacterRole::UrbanExplorer;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ShopDiscount = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float EventRevealChance = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float NPCFriendlinessOffset = 0.0f;
+};
+
 UCLASS()
 class GUANGZHOUOPENWORLD_API AGZGameMode : public AGameModeBase
 {
@@ -656,6 +952,26 @@ public:
 	UFUNCTION(BlueprintPure) const FVegetationWindParams& GetWindParams() const { return WindParams; }
 	UFUNCTION(BlueprintPure) const FPhysicsWindConfig& GetPhysicsWindConfig() const { return PhysicsWindConfig; }
 
+	// v8.0 District / Rendering / Weather / Gameplay public accessors
+	UFUNCTION(BlueprintCallable) void SetDetailedWeather(EGZWeatherStateDetailed NewWeather);
+	UFUNCTION(BlueprintPure) EGZWeatherStateDetailed GetDetailedWeather() const { return CurrentDetailedWeather; }
+	UFUNCTION(BlueprintCallable) void SetCurrentDistrict(EGZCityDistrict District);
+	UFUNCTION(BlueprintPure) EGZCityDistrict GetCurrentDistrict() const { return CurrentDistrict; }
+	UFUNCTION(BlueprintCallable) void ApplyDistrictProfile(EGZCityDistrict District);
+	UFUNCTION(BlueprintCallable) void ApplyNeonLightParams();
+	UFUNCTION(BlueprintCallable) void ApplyWaterReflectionParams();
+	UFUNCTION(BlueprintCallable) void ApplyCharacterHairSkinParams();
+	UFUNCTION(BlueprintCallable) void ApplyAtmosphericColorDecay();
+	UFUNCTION(BlueprintCallable) void ApplyCloudShadowParams();
+	UFUNCTION(BlueprintCallable) void ApplyFloodParams();
+	UFUNCTION(BlueprintCallable) void ApplyMetallicMaterialRTParams();
+	UFUNCTION(BlueprintCallable) void ApplyGlassOverlapBlendParams();
+	UFUNCTION(BlueprintCallable) void ApplyDetailedWeatherStateParams(EGZWeatherStateDetailed State);
+
+	UFUNCTION(BlueprintPure) float GetCurrentFloodHeight() const { return CurrentFloodHeight; }
+	UFUNCTION(BlueprintPure) bool IsIndoor() const { return bIsIndoor; }
+	UFUNCTION(BlueprintCallable) void SetIndoor(bool bIndoor);
+
 protected:
 	void UpdateDayNightCycle(float DeltaSeconds);
 	void UpdateWeatherTransition(float DeltaSeconds);
@@ -687,6 +1003,13 @@ protected:
 	float CosineBlendWeight(float T) const;
 	float QuarticBlendWeight(float T) const;
 	float QuarticCosineBlendWeight(float T) const;
+
+	// v8.0 district / weather / gameplay update helpers
+	void UpdateDistrictProfiles();
+	void UpdateFloodState(float DeltaSeconds);
+	void UpdateCloudShadows(float DeltaSeconds);
+	void UpdateDetailedWeatherTransition(float DeltaSeconds);
+	float GetDetailedWeatherIntensity() const;
 
 	// Legacy
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) FDayNightCycleSettings DayNight;
@@ -750,6 +1073,27 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) FPhysicsWindConfig PhysicsWindConfig;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FLoadingPriorityTier> LoadingPriorityTiers;
 
+	// v8.0 District / Rendering / Weather / Gameplay config structures
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FDistrictProfile> DistrictProfiles;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FNeonLightParams NeonParams;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FWaterReflectionParams WaterReflection;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FCharacterHairSkinParams CharacterHairSkin;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FAtmosphericColorDecay AtmosphericDecay;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FCloudShadowParams CloudShadow;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FMetallicMaterialRTParams MetallicRTParams;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FGlassOverlapBlendParams GlassOverlapParams;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TMap<EGZWeatherStateDetailed, FDetailedWeatherStateParams> DetailedWeatherParams;
+
+	// v8.0 Gameplay system config structures
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FDualCharacterData> DualCharacterData;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FNPCBehaviorProfile> NPCBehaviorProfiles;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FCityEventConfig> CityEventConfigs;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FVehicleModConfig> VehicleModConfigs;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FShopInteractionConfig> ShopConfigs;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FAnomalyPointConfig> AnomalyConfigs;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FFloodParams FloodParams;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FProfessionConfig> ProfessionConfigs;
+
 	UPROPERTY() EAppleSiliconChip DetectedChip = EAppleSiliconChip::Unknown;
 	UPROPERTY() class ADirectionalLight* SunLight = nullptr;
 	UPROPERTY() class ASkyLight* SkyLightActor = nullptr;
@@ -760,4 +1104,14 @@ protected:
 	float AdaptiveTransitionTimer = 0.0f;
 	float AdaptiveTransitionTarget = 100.0f;
 	float AdaptiveTransitionFrom = 100.0f;
+
+	// v8.0 runtime state
+	UPROPERTY() EGZCityDistrict CurrentDistrict = EGZCityDistrict::TianheCBD;
+	UPROPERTY() EGZWeatherStateDetailed CurrentDetailedWeather = EGZWeatherStateDetailed::Overcast;
+	UPROPERTY() EGZWeatherStateDetailed TargetDetailedWeather = EGZWeatherStateDetailed::Overcast;
+	UPROPERTY() float DetailedWeatherTransitionProgress = 1.0f;
+	UPROPERTY() float CurrentFloodHeight = 0.0f;
+	UPROPERTY() float CloudShadowOffset = 0.0f;
+	UPROPERTY() bool bIsIndoor = false;
+	UPROPERTY() int32 ActiveCharacterIndex = 0;
 };

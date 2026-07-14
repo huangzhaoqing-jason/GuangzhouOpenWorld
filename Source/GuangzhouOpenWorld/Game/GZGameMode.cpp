@@ -71,9 +71,9 @@ AGZGameMode::AGZGameMode()
 	FogLighting.SatNearNoDecay = 2000.0f;
 	FogLighting.SatMidDecay = 5000.0f;
 	FogLighting.SatFarDecay = 8000.0f;
-	FogLighting.ShadowBlurMultiplier = 2.0f;
-	FogLighting.ShadowLengthReduction = 0.15f;
-	FogLighting.LowElevationFogBoost = 0.15f;
+	FogLighting.ShadowBlurMultiplier = 3.0f;
+	FogLighting.ShadowLengthReduction = 0.35f;
+	FogLighting.LowElevationFogBoost = 0.25f;
 	FogLighting.CoolColorDecayFaster = 1.3f;
 	FogLighting.WarmColorRetention = 0.8f;
 
@@ -186,7 +186,7 @@ AGZGameMode::AGZGameMode()
 		CloudTiers.Add(Heavy); CloudTiers.Add(Medium); CloudTiers.Add(Thin);
 	}
 
-	// v5.1 RayTracingConfig (distance-tiered samples: 0-50m=32, 50-200m=16, 200m+=8)
+	// v8.0 RayTracingConfig (distance-tiered samples raised for path-tracing quality)
 	RayTracingConfig.bEnableRTGI = true;
 	RayTracingConfig.bEnableRTShadows = true;
 	RayTracingConfig.bEnableRTAO = true;
@@ -195,21 +195,21 @@ AGZGameMode::AGZGameMode()
 	RayTracingConfig.bEnableFSR = true;
 	RayTracingConfig.bEnableFrameGen = true;
 	RayTracingConfig.RTSamplesPerPixel = 1;
-	RayTracingConfig.RTNearSamples = 32;
-	RayTracingConfig.RTMidSamples = 16;
-	RayTracingConfig.RTFarSamples = 8;
+	RayTracingConfig.RTNearSamples = 48;
+	RayTracingConfig.RTMidSamples = 24;
+	RayTracingConfig.RTFarSamples = 12;
 	RayTracingConfig.RTNearDistance = 5000.0f;
 	RayTracingConfig.RTMidDistance = 20000.0f;
 	RayTracingConfig.bEnableContactShadows = true;
-	RayTracingConfig.ContactShadowSamples = 16;
-	RayTracingConfig.RTShadowNearSamples = 32;
-	RayTracingConfig.RTShadowMidSamples = 16;
-	RayTracingConfig.RTShadowFarSamples = 8;
+	RayTracingConfig.ContactShadowSamples = 24;
+	RayTracingConfig.RTShadowNearSamples = 48;
+	RayTracingConfig.RTShadowMidSamples = 24;
+	RayTracingConfig.RTShadowFarSamples = 12;
 	RayTracingConfig.bEnablePathTracingReflections = true;
-	RayTracingConfig.NeonLightSamples = 64;
-	RayTracingConfig.ReflectionNearSamples = 32;
-	RayTracingConfig.ReflectionMidSamples = 16;
-	RayTracingConfig.ReflectionFarSamples = 8;
+	RayTracingConfig.NeonLightSamples = 96;
+	RayTracingConfig.ReflectionNearSamples = 48;
+	RayTracingConfig.ReflectionMidSamples = 24;
+	RayTracingConfig.ReflectionFarSamples = 12;
 
 	// v5.1 DirectStorageConfig
 	DirectStorageConfig.bEnableDirectStorage = true;
@@ -243,9 +243,9 @@ AGZGameMode::AGZGameMode()
 	FogSpatialization.WarmWavelengthRetention = 0.85f;
 	FogSpatialization.ElevationThreshold = 5000.0f;
 
-	// v5.1 Weather Pre-Transition: brightness drops 0.1 one second before storm
-	WeatherPreTransition.PreTransitionTime = 1.0f;
-	WeatherPreTransition.StormDarkeningIntensity = 0.1f;
+	// v8.0 Weather Pre-Transition: 3s pre-transition with stronger darkening (GTA6)
+	WeatherPreTransition.PreTransitionTime = 3.0f;
+	WeatherPreTransition.StormDarkeningIntensity = 0.35f;
 	WeatherPreTransition.TransitionCurveType = TEXT("easeInOut");
 
 	// v5.1 NaniteSeamFix
@@ -260,6 +260,163 @@ AGZGameMode::AGZGameMode()
 		FLoadingPriorityTier Building; Building.TierName = TEXT("Building"); Building.PriorityWeight = 2.0f; Building.CullDistanceScale = 1.0f; Building.MinLOD = 0;
 		FLoadingPriorityTier Prop;     Prop.TierName = TEXT("Prop");         Prop.PriorityWeight = 1.0f;     Prop.CullDistanceScale = 0.6f;  Prop.MinLOD = 1;
 		LoadingPriorityTiers.Add(Landmark); LoadingPriorityTiers.Add(Building); LoadingPriorityTiers.Add(Prop);
+	}
+
+	// ============================================================================
+	// v8.0 District profiles (Moon / GTA6)
+	// ============================================================================
+	DistrictProfiles.Empty();
+	{
+		FDistrictProfile CBD; CBD.District = EGZCityDistrict::TianheCBD;
+		CBD.RoadProfile.RoadWear = 0.1f; CBD.RoadProfile.RoughnessScale = 0.9f; CBD.RoadProfile.PuddleEvaporationScale = 1.3f;
+		CBD.VegetationProfile.PrimaryVeg = EGZVegetationType::Broadleaf; CBD.VegetationProfile.WindResponseScale = 0.9f; CBD.VegetationProfile.DensityScale = 0.7f;
+		CBD.NeonIntensityScale = 1.3f; CBD.PedestrianSpeedScale = 1.25f; CBD.LandmarkVisibilityDistance = 150000.0f;
+		CBD.FarCoolTint = FLinearColor(0.78f, 0.86f, 1.0f, 1.0f);
+
+		FDistrictProfile OldTown; OldTown.District = EGZCityDistrict::YuexiuOldTown;
+		OldTown.RoadProfile.RoadWear = 0.55f; OldTown.RoadProfile.RoughnessScale = 1.25f; OldTown.RoadProfile.PuddleEvaporationScale = 0.7f;
+		OldTown.VegetationProfile.PrimaryVeg = EGZVegetationType::TallTree; OldTown.VegetationProfile.WindResponseScale = 1.0f; OldTown.VegetationProfile.DensityScale = 1.1f;
+		OldTown.NeonIntensityScale = 0.6f; OldTown.PedestrianSpeedScale = 0.75f; OldTown.LandmarkVisibilityDistance = 120000.0f;
+		OldTown.FarCoolTint = FLinearColor(0.72f, 0.84f, 1.0f, 1.0f);
+
+		FDistrictProfile Waterfront; Waterfront.District = EGZCityDistrict::HaizhuWaterfront;
+		Waterfront.RoadProfile.RoadWear = 0.3f; Waterfront.RoadProfile.RoughnessScale = 1.0f; Waterfront.RoadProfile.PuddleEvaporationScale = 0.9f;
+		Waterfront.VegetationProfile.PrimaryVeg = EGZVegetationType::Shrub; Waterfront.VegetationProfile.WindResponseScale = 1.15f; Waterfront.VegetationProfile.DensityScale = 0.9f;
+		Waterfront.NeonIntensityScale = 0.9f; Waterfront.PedestrianSpeedScale = 0.95f; Waterfront.LandmarkVisibilityDistance = 200000.0f;
+		Waterfront.FarCoolTint = FLinearColor(0.75f, 0.85f, 1.0f, 1.0f);
+
+		FDistrictProfile Suburb; Suburb.District = EGZCityDistrict::PanyuSuburb;
+		Suburb.RoadProfile.RoadWear = 0.4f; Suburb.RoadProfile.RoughnessScale = 1.1f; Suburb.RoadProfile.PuddleEvaporationScale = 1.0f;
+		Suburb.VegetationProfile.PrimaryVeg = EGZVegetationType::Broadleaf; Suburb.VegetationProfile.WindResponseScale = 1.05f; Suburb.VegetationProfile.DensityScale = 1.2f;
+		Suburb.NeonIntensityScale = 0.4f; Suburb.PedestrianSpeedScale = 0.85f; Suburb.LandmarkVisibilityDistance = 100000.0f;
+		Suburb.FarCoolTint = FLinearColor(0.74f, 0.85f, 1.0f, 1.0f);
+
+		DistrictProfiles.Add(CBD); DistrictProfiles.Add(OldTown); DistrictProfiles.Add(Waterfront); DistrictProfiles.Add(Suburb);
+	}
+
+	// v8.0 Rendering refinement defaults (Module 1 + Module 2)
+	NeonParams.DayIntensityScale = 0.10f;
+	NeonParams.NightIntensityScale = 1.15f;
+	NeonParams.CBDIntensityScale = 1.45f;
+	NeonParams.OldTownIntensityScale = 0.55f;
+	NeonParams.BleedDecayExponent = 2.6f;
+
+	WaterReflection.DeepWaterSampleDistance = 300000.0f;
+	WaterReflection.PuddleSampleDistance = 50000.0f;
+	WaterReflection.DeepWaterDistortion = 0.06f;
+	WaterReflection.PuddleDistortion = 0.22f;
+	WaterReflection.VehicleUnderbodyVisibility = 0.75f;
+	WaterReflection.ShallowPuddleClarity = 0.90f;
+	WaterReflection.DeepPuddleClarity = 0.50f;
+	WaterReflection.VehicleDisturbanceRecovery = 2.0f;
+
+	CharacterHairSkin.HairSamplesPerStrand = 6;
+	CharacterHairSkin.VolumetricScatteringIntensity = 0.45f;
+	CharacterHairSkin.SkinSubsurfaceScale = 1.0f;
+	CharacterHairSkin.EnvironmentLightBlend = 1.0f;
+
+	MetallicRTParams.bEnableMetallicRTSpecular = true;
+	MetallicRTParams.FresnelRangeScale = 1.0f;
+	MetallicRTParams.EnvironmentLightResponse = 1.1f;
+	MetallicRTParams.FarDistanceFadeStart = 50000.0f;
+	MetallicRTParams.FarDistanceFadeEnd = 150000.0f;
+
+	GlassOverlapParams.OverlapBlendRadius = 500.0f;
+	GlassOverlapParams.OverlapColorDamping = 0.55f;
+	GlassOverlapParams.MaxOverlappingFacades = 4;
+	GlassOverlapParams.bResolveColorConflict = true;
+
+	AtmosphericDecay.NearDistance = 0.0f;
+	AtmosphericDecay.FarDistance = 120000.0f;
+	AtmosphericDecay.CoolBlueShift = 0.30f;
+	AtmosphericDecay.WarmRetention = 0.88f;
+
+	CloudShadow.ShadowIntensity = 0.40f;
+	CloudShadow.CloudMoveSpeedBase = 250.0f;  // cm/s
+	CloudShadow.WindSpeedMultiplier = 2.0f;
+	CloudShadow.BlendTransitionTime = 4.0f;
+	CloudShadow.LowElevationIntensityBoost = 0.20f;
+	CloudShadow.CloudThicknessToShadowScale = 1.25f;
+
+	// Six detailed weather state parameters
+	DetailedWeatherParams.Empty();
+	{
+		FDetailedWeatherStateParams Overcast; Overcast.SunIntensityScale = 0.65f; Overcast.SkyIntensityScale = 0.85f; Overcast.ColorTempKelvin = 7000.0f; Overcast.FogDensityScale = 1.0f; Overcast.FogShadowBlurScale = 1.1f; Overcast.FogShadowLengthScale = 1.0f; Overcast.WindStrengthScale = 0.5f;
+		FDetailedWeatherStateParams LightRain; LightRain.SunIntensityScale = 0.45f; LightRain.SkyIntensityScale = 0.75f; LightRain.ColorTempKelvin = 7200.0f; LightRain.FogDensityScale = 1.2f; LightRain.FogShadowBlurScale = 1.3f; LightRain.FogShadowLengthScale = 0.92f; LightRain.WindStrengthScale = 0.7f;
+		FDetailedWeatherStateParams ModerateRain; ModerateRain.SunIntensityScale = 0.25f; ModerateRain.SkyIntensityScale = 0.60f; ModerateRain.ColorTempKelvin = 7400.0f; ModerateRain.FogDensityScale = 1.5f; ModerateRain.FogShadowBlurScale = 1.6f; ModerateRain.FogShadowLengthScale = 0.82f; ModerateRain.WindStrengthScale = 0.9f;
+		FDetailedWeatherStateParams HeavyRain; HeavyRain.SunIntensityScale = 0.05f; HeavyRain.SkyIntensityScale = 0.40f; HeavyRain.ColorTempKelvin = 7600.0f; HeavyRain.FogDensityScale = 2.0f; HeavyRain.FogShadowBlurScale = 2.2f; HeavyRain.FogShadowLengthScale = 0.65f; HeavyRain.WindStrengthScale = 1.2f;
+		FDetailedWeatherStateParams DenseFog; DenseFog.SunIntensityScale = 0.10f; DenseFog.SkyIntensityScale = 0.45f; DenseFog.ColorTempKelvin = 6800.0f; DenseFog.FogDensityScale = 2.8f; DenseFog.FogShadowBlurScale = 3.5f; DenseFog.FogShadowLengthScale = 0.45f; DenseFog.WindStrengthScale = 0.4f;
+		FDetailedWeatherStateParams StrongWind; StrongWind.SunIntensityScale = 0.80f; StrongWind.SkyIntensityScale = 0.90f; StrongWind.ColorTempKelvin = 6600.0f; StrongWind.FogDensityScale = 0.9f; StrongWind.FogShadowBlurScale = 1.0f; StrongWind.FogShadowLengthScale = 1.05f; StrongWind.WindStrengthScale = 1.8f;
+		DetailedWeatherParams.Add(EGZWeatherStateDetailed::Overcast, Overcast);
+		DetailedWeatherParams.Add(EGZWeatherStateDetailed::LightRain, LightRain);
+		DetailedWeatherParams.Add(EGZWeatherStateDetailed::ModerateRain, ModerateRain);
+		DetailedWeatherParams.Add(EGZWeatherStateDetailed::HeavyRain, HeavyRain);
+		DetailedWeatherParams.Add(EGZWeatherStateDetailed::DenseFog, DenseFog);
+		DetailedWeatherParams.Add(EGZWeatherStateDetailed::StrongWind, StrongWind);
+	}
+
+	// v8.0 Gameplay system defaults
+	DualCharacterData.Empty();
+	{
+		FDualCharacterData CharA; CharA.CharacterName = TEXT("A"); CharA.SaveSlotIndex = 0; CharA.Role = EGZCharacterRole::UrbanExplorer; CharA.bIsActive = true;
+		FDualCharacterData CharB; CharB.CharacterName = TEXT("B"); CharB.SaveSlotIndex = 1; CharB.Role = EGZCharacterRole::PrivateDetective; CharB.bIsActive = false;
+		DualCharacterData.Add(CharA); DualCharacterData.Add(CharB);
+	}
+
+	NPCBehaviorProfiles.Empty();
+	{
+		FNPCBehaviorProfile CBD; CBD.District = EGZCityDistrict::TianheCBD; CBD.BaseWalkSpeed = 250.0f; CBD.StopChance = 0.03f; CBD.InteractionChance = 0.08f; CBD.ShelterChance = 0.25f; CBD.VisionRange = 5000.0f; CBD.HearingRange = 8000.0f;
+		FNPCBehaviorProfile OldTown; OldTown.District = EGZCityDistrict::YuexiuOldTown; OldTown.BaseWalkSpeed = 150.0f; OldTown.StopChance = 0.12f; OldTown.InteractionChance = 0.18f; OldTown.ShelterChance = 0.35f; OldTown.VisionRange = 4000.0f; OldTown.HearingRange = 7000.0f;
+		FNPCBehaviorProfile Waterfront; Waterfront.District = EGZCityDistrict::HaizhuWaterfront; Waterfront.BaseWalkSpeed = 180.0f; Waterfront.StopChance = 0.08f; Waterfront.InteractionChance = 0.12f; Waterfront.ShelterChance = 0.30f; Waterfront.VisionRange = 4500.0f; Waterfront.HearingRange = 7500.0f;
+		FNPCBehaviorProfile Suburb; Suburb.District = EGZCityDistrict::PanyuSuburb; Suburb.BaseWalkSpeed = 160.0f; Suburb.StopChance = 0.10f; Suburb.InteractionChance = 0.10f; Suburb.ShelterChance = 0.30f; Suburb.VisionRange = 4200.0f; Suburb.HearingRange = 7200.0f;
+		NPCBehaviorProfiles.Add(CBD); NPCBehaviorProfiles.Add(OldTown); NPCBehaviorProfiles.Add(Waterfront); NPCBehaviorProfiles.Add(Suburb);
+	}
+
+	CityEventConfigs.Empty();
+	{
+		FCityEventConfig Commercial; Commercial.EventType = EGZCityEventType::CommercialDispute; Commercial.PreferredDistrict = EGZCityDistrict::TianheCBD; Commercial.SpawnChance = 0.025f; Commercial.MinCooldown = 90.0f; Commercial.MaxRadius = 30000.0f;
+		FCityEventConfig Neighbor; Neighbor.EventType = EGZCityEventType::NeighborInteraction; Neighbor.PreferredDistrict = EGZCityDistrict::YuexiuOldTown; Neighbor.SpawnChance = 0.04f; Neighbor.MinCooldown = 60.0f; Neighbor.MaxRadius = 20000.0f;
+		FCityEventConfig Help; Help.EventType = EGZCityEventType::HelpRequest; Help.PreferredDistrict = EGZCityDistrict::HaizhuWaterfront; Help.SpawnChance = 0.02f; Help.MinCooldown = 120.0f; Help.MaxRadius = 40000.0f;
+		FCityEventConfig Conflict; Conflict.EventType = EGZCityEventType::RandomConflict; Conflict.PreferredDistrict = EGZCityDistrict::PanyuSuburb; Conflict.SpawnChance = 0.015f; Conflict.MinCooldown = 180.0f; Conflict.MaxRadius = 35000.0f;
+		CityEventConfigs.Add(Commercial); CityEventConfigs.Add(Neighbor); CityEventConfigs.Add(Help); CityEventConfigs.Add(Conflict);
+	}
+
+	VehicleModConfigs.Empty();
+	{
+		FVehicleModConfig Suspension; Suspension.Part = EGZVehicleModPart::Suspension; Suspension.SuspensionRollScale = 1.0f; Suspension.TireDryFriction = 1.0f; Suspension.TireWetFriction = 0.7f; Suspension.EnginePowerScale = 1.0f; Suspension.BodyDragScale = 1.0f;
+		FVehicleModConfig Tires; Tires.Part = EGZVehicleModPart::Tires; Tires.SuspensionRollScale = 1.0f; Tires.TireDryFriction = 1.15f; Tires.TireWetFriction = 0.85f; Tires.EnginePowerScale = 1.0f; Tires.BodyDragScale = 1.0f;
+		FVehicleModConfig Engine; Engine.Part = EGZVehicleModPart::Engine; Engine.SuspensionRollScale = 1.0f; Engine.TireDryFriction = 1.0f; Engine.TireWetFriction = 0.7f; Engine.EnginePowerScale = 1.25f; Engine.BodyDragScale = 1.0f;
+		FVehicleModConfig BodyKit; BodyKit.Part = EGZVehicleModPart::BodyKit; BodyKit.SuspensionRollScale = 1.0f; BodyKit.TireDryFriction = 1.0f; BodyKit.TireWetFriction = 0.7f; BodyKit.EnginePowerScale = 1.0f; BodyKit.BodyDragScale = 0.9f;
+		VehicleModConfigs.Add(Suspension); VehicleModConfigs.Add(Tires); VehicleModConfigs.Add(Engine); VehicleModConfigs.Add(BodyKit);
+	}
+
+	ShopConfigs.Empty();
+	{
+		FShopInteractionConfig Shop; Shop.OpenHour = 8.0f; Shop.CloseHour = 22.0f; Shop.RainCloseChance = 0.30f; Shop.InteractionRadius = 250.0f; Shop.bIndoorLightingSwitch = true;
+		ShopConfigs.Add(Shop);
+	}
+
+	AnomalyConfigs.Empty();
+	{
+		FAnomalyPointConfig Light; Light.Type = EGZAnomalyType::LightFlicker; Light.District = EGZCityDistrict::TianheCBD; Light.TriggerRadius = 1000.0f; Light.Duration = 30.0f;
+		FAnomalyPointConfig Fog; Fog.Type = EGZAnomalyType::FogPocket; Fog.District = EGZCityDistrict::YuexiuOldTown; Fog.TriggerRadius = 1500.0f; Fog.Duration = 45.0f;
+		FAnomalyPointConfig Shadow; Shadow.Type = EGZAnomalyType::ShadowFigure; Shadow.District = EGZCityDistrict::HaizhuWaterfront; Shadow.TriggerRadius = 800.0f; Shadow.Duration = 20.0f;
+		FAnomalyPointConfig Reflection; Reflection.Type = EGZAnomalyType::ReflectionGlitch; Reflection.District = EGZCityDistrict::HaizhuWaterfront; Reflection.TriggerRadius = 1200.0f; Reflection.Duration = 35.0f;
+		AnomalyConfigs.Add(Light); AnomalyConfigs.Add(Fog); AnomalyConfigs.Add(Shadow); AnomalyConfigs.Add(Reflection);
+	}
+
+	FloodParams.RainToWaterRate = 0.5f;
+	FloodParams.MaxWaterHeight = 50.0f;
+	FloodParams.EvaporationRate = 0.05f;
+	FloodParams.VehicleSpeedPenalty = 0.4f;
+	FloodParams.NPCRerouteThreshold = 20.0f;
+
+	ProfessionConfigs.Empty();
+	{
+		FProfessionConfig Delivery; Delivery.Role = EGZCharacterRole::DeliveryDriver; Delivery.ShopDiscount = 0.05f; Delivery.EventRevealChance = 0.10f; Delivery.NPCFriendlinessOffset = 0.05f;
+		FProfessionConfig Explorer; Explorer.Role = EGZCharacterRole::UrbanExplorer; Explorer.ShopDiscount = 0.0f; Explorer.EventRevealChance = 0.20f; Explorer.NPCFriendlinessOffset = 0.0f;
+		FProfessionConfig Detective; Detective.Role = EGZCharacterRole::PrivateDetective; Detective.ShopDiscount = 0.0f; Detective.EventRevealChance = 0.30f; Detective.NPCFriendlinessOffset = -0.05f;
+		ProfessionConfigs.Add(Delivery); ProfessionConfigs.Add(Explorer); ProfessionConfigs.Add(Detective);
 	}
 }
 
@@ -389,6 +546,18 @@ void AGZGameMode::BeginPlay()
 	ApplyLoadingPriorities();
 	ApplyPhysicsWindConfig();
 	SetRoadSurfaceType(EGZRoadSurfaceType::Asphalt);
+
+	// v8.0 Initialize new systems
+	ApplyDistrictProfile(CurrentDistrict);
+	ApplyNeonLightParams();
+	ApplyWaterReflectionParams();
+	ApplyCharacterHairSkinParams();
+	ApplyAtmosphericColorDecay();
+	ApplyCloudShadowParams();
+	ApplyFloodParams();
+	ApplyMetallicMaterialRTParams();
+	ApplyGlassOverlapBlendParams();
+	ApplyDetailedWeatherStateParams(CurrentDetailedWeather);
 }
 
 void AGZGameMode::Tick(float DeltaSeconds)
@@ -427,6 +596,12 @@ void AGZGameMode::Tick(float DeltaSeconds)
 	{
 		ApplyWeatherPreTransition(DeltaSeconds);
 	}
+
+	// v8.0 Update new systems
+	UpdateDetailedWeatherTransition(DeltaSeconds);
+	UpdateFloodState(DeltaSeconds);
+	UpdateCloudShadows(DeltaSeconds);
+	ApplyDetailedWeatherStateParams(CurrentDetailedWeather);
 }
 
 void AGZGameMode::SetRoadWetnessTarget(float Target)
@@ -1647,4 +1822,246 @@ void AGZGameMode::ApplyDLSSFSRConfig()
 
 	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("DLSSFSR: DLSS4.5=%d FSR4=%d FrameGen=%d"),
 		RayTracingConfig.bEnableDLSS, RayTracingConfig.bEnableFSR, RayTracingConfig.bEnableFrameGen);
+}
+
+// ============================================================================
+// v8.0 Detailed Weather & District State
+// ============================================================================
+void AGZGameMode::SetDetailedWeather(EGZWeatherStateDetailed NewWeather)
+{
+	if (CurrentDetailedWeather == NewWeather && DetailedWeatherTransitionProgress >= 1.0f) return;
+	TargetDetailedWeather = NewWeather;
+	DetailedWeatherTransitionProgress = 0.0f;
+}
+
+void AGZGameMode::SetCurrentDistrict(EGZCityDistrict District)
+{
+	if (CurrentDistrict == District) return;
+	CurrentDistrict = District;
+	ApplyDistrictProfile(District);
+}
+
+void AGZGameMode::SetIndoor(bool bIndoor)
+{
+	if (bIsIndoor == bIndoor) return;
+	bIsIndoor = bIndoor;
+	SetLightingZone(bIsIndoor ? EGZLightingZone::Indoor : EGZLightingZone::OutdoorStreet);
+}
+
+float AGZGameMode::GetDetailedWeatherIntensity() const
+{
+	switch (CurrentDetailedWeather)
+	{
+	case EGZWeatherStateDetailed::Overcast:     return 0.2f;
+	case EGZWeatherStateDetailed::LightRain:    return 0.4f;
+	case EGZWeatherStateDetailed::ModerateRain: return 0.65f;
+	case EGZWeatherStateDetailed::HeavyRain:    return 1.0f;
+	case EGZWeatherStateDetailed::DenseFog:     return 0.75f;
+	case EGZWeatherStateDetailed::StrongWind:   return 0.55f;
+	default: return 0.0f;
+	}
+}
+
+void AGZGameMode::UpdateDetailedWeatherTransition(float DeltaSeconds)
+{
+	if (DetailedWeatherTransitionProgress >= 1.0f) return;
+	DetailedWeatherTransitionProgress += DeltaSeconds * 0.357f; // ~2.8s full transition
+	if (DetailedWeatherTransitionProgress >= 1.0f)
+	{
+		DetailedWeatherTransitionProgress = 1.0f;
+		CurrentDetailedWeather = TargetDetailedWeather;
+	}
+}
+
+// ============================================================================
+// v8.0 District Profile Application (Moon / GTA6)
+// ============================================================================
+void AGZGameMode::ApplyDistrictProfile(EGZCityDistrict District)
+{
+	const FDistrictProfile* Profile = nullptr;
+	for (const FDistrictProfile& P : DistrictProfiles)
+	{
+		if (P.District == District) { Profile = &P; break; }
+	}
+	if (!Profile) return;
+
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.District.RoadWear"))->Set(Profile->RoadProfile.RoadWear);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.District.RoughnessScale"))->Set(Profile->RoadProfile.RoughnessScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.District.PuddleEvaporationScale"))->Set(Profile->RoadProfile.PuddleEvaporationScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.District.VegetationWindScale"))->Set(Profile->VegetationProfile.WindResponseScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.District.VegetationDensity"))->Set(Profile->VegetationProfile.DensityScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.District.NeonScale"))->Set(Profile->NeonIntensityScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.District.PedestrianSpeedScale"))->Set(Profile->PedestrianSpeedScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.District.LandmarkVisibility"))->Set(Profile->LandmarkVisibilityDistance);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.District.FarCoolTintR"))->Set(Profile->FarCoolTint.R);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.District.FarCoolTintG"))->Set(Profile->FarCoolTint.G);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.District.FarCoolTintB"))->Set(Profile->FarCoolTint.B);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("DistrictProfile: district=%d roadWear=%.2f neon=%.2f pedSpeed=%.2f visibility=%.0f"),
+		(int32)District, Profile->RoadProfile.RoadWear, Profile->NeonIntensityScale, Profile->PedestrianSpeedScale, Profile->LandmarkVisibilityDistance);
+}
+
+// ============================================================================
+// v8.0 Rendering Parameter Application
+// ============================================================================
+void AGZGameMode::ApplyNeonLightParams()
+{
+	const float Hour = DayNight.TimeOfDay;
+	const bool bNight = Hour < 6.0f || Hour > 19.0f;
+	float BaseScale = bNight ? NeonParams.NightIntensityScale : NeonParams.DayIntensityScale;
+	float DistrictScale = (CurrentDistrict == EGZCityDistrict::TianheCBD) ? NeonParams.CBDIntensityScale : NeonParams.OldTownIntensityScale;
+	if (CurrentDistrict != EGZCityDistrict::TianheCBD && CurrentDistrict != EGZCityDistrict::YuexiuOldTown)
+	{
+		DistrictScale = 1.0f;
+	}
+
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Neon.BaseIntensity"))->Set(BaseScale * DistrictScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Neon.BleedDecay"))->Set(NeonParams.BleedDecayExponent);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("NeonParams: base=%.2f district=%.2f decay=%.2f"), BaseScale, DistrictScale, NeonParams.BleedDecayExponent);
+}
+
+void AGZGameMode::ApplyWaterReflectionParams()
+{
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Water.DeepSampleDistance"))->Set(WaterReflection.DeepWaterSampleDistance);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Water.PuddleSampleDistance"))->Set(WaterReflection.PuddleSampleDistance);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Water.DeepDistortion"))->Set(WaterReflection.DeepWaterDistortion);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Water.PuddleDistortion"))->Set(WaterReflection.PuddleDistortion);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Water.VehicleUnderbodyVisibility"))->Set(WaterReflection.VehicleUnderbodyVisibility);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Water.ShallowPuddleClarity"))->Set(WaterReflection.ShallowPuddleClarity);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Water.DeepPuddleClarity"))->Set(WaterReflection.DeepPuddleClarity);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Water.VehicleDisturbanceRecovery"))->Set(WaterReflection.VehicleDisturbanceRecovery);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("WaterReflection: deep=%.0f puddle=%.0f distortion=%.2f/%.2f underbody=%.2f clarity=%.2f/%.2f recovery=%.2f"),
+		WaterReflection.DeepWaterSampleDistance, WaterReflection.PuddleSampleDistance,
+		WaterReflection.DeepWaterDistortion, WaterReflection.PuddleDistortion,
+		WaterReflection.VehicleUnderbodyVisibility, WaterReflection.ShallowPuddleClarity,
+		WaterReflection.DeepPuddleClarity, WaterReflection.VehicleDisturbanceRecovery);
+}
+
+void AGZGameMode::ApplyCharacterHairSkinParams()
+{
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Character.HairSamples"))->Set(CharacterHairSkin.HairSamplesPerStrand);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Character.VolumetricScattering"))->Set(CharacterHairSkin.VolumetricScatteringIntensity);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Character.SkinSubsurface"))->Set(CharacterHairSkin.SkinSubsurfaceScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Character.EnvLightBlend"))->Set(CharacterHairSkin.EnvironmentLightBlend);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("CharacterHairSkin: hairSamples=%d volScatter=%.2f skinSSS=%.2f envBlend=%.2f"),
+		CharacterHairSkin.HairSamplesPerStrand, CharacterHairSkin.VolumetricScatteringIntensity,
+		CharacterHairSkin.SkinSubsurfaceScale, CharacterHairSkin.EnvironmentLightBlend);
+}
+
+void AGZGameMode::ApplyAtmosphericColorDecay()
+{
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Atmospheric.NearDistance"))->Set(AtmosphericDecay.NearDistance);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Atmospheric.FarDistance"))->Set(AtmosphericDecay.FarDistance);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Atmospheric.CoolBlueShift"))->Set(AtmosphericDecay.CoolBlueShift);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Atmospheric.WarmRetention"))->Set(AtmosphericDecay.WarmRetention);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("AtmosphericDecay: far=%.0f coolShift=%.2f warmRet=%.2f"),
+		AtmosphericDecay.FarDistance, AtmosphericDecay.CoolBlueShift, AtmosphericDecay.WarmRetention);
+}
+
+void AGZGameMode::ApplyCloudShadowParams()
+{
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.CloudShadow.Intensity"))->Set(CloudShadow.ShadowIntensity);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.CloudShadow.MoveSpeed"))->Set(CloudShadow.CloudMoveSpeedBase);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.CloudShadow.WindMultiplier"))->Set(CloudShadow.WindSpeedMultiplier);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.CloudShadow.BlendTime"))->Set(CloudShadow.BlendTransitionTime);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.CloudShadow.LowElevationBoost"))->Set(CloudShadow.LowElevationIntensityBoost);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.CloudShadow.ThicknessScale"))->Set(CloudShadow.CloudThicknessToShadowScale);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("CloudShadow: intensity=%.2f speed=%.0f windMul=%.2f blend=%.1f lowElevBoost=%.2f thicknessScale=%.2f"),
+		CloudShadow.ShadowIntensity, CloudShadow.CloudMoveSpeedBase, CloudShadow.WindSpeedMultiplier,
+		CloudShadow.BlendTransitionTime, CloudShadow.LowElevationIntensityBoost, CloudShadow.CloudThicknessToShadowScale);
+}
+
+void AGZGameMode::ApplyFloodParams()
+{
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Flood.RainToWaterRate"))->Set(FloodParams.RainToWaterRate);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Flood.MaxHeight"))->Set(FloodParams.MaxWaterHeight);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Flood.EvaporationRate"))->Set(FloodParams.EvaporationRate);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Flood.VehicleSpeedPenalty"))->Set(FloodParams.VehicleSpeedPenalty);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Flood.NPCRerouteThreshold"))->Set(FloodParams.NPCRerouteThreshold);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("FloodParams: rainToWater=%.2f maxHeight=%.1f evap=%.3f vehiclePenalty=%.2f npcThreshold=%.1f"),
+		FloodParams.RainToWaterRate, FloodParams.MaxWaterHeight, FloodParams.EvaporationRate,
+		FloodParams.VehicleSpeedPenalty, FloodParams.NPCRerouteThreshold);
+}
+
+void AGZGameMode::ApplyMetallicMaterialRTParams()
+{
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.MetallicRT.Enable"))->Set(MetallicRTParams.bEnableMetallicRTSpecular ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.MetallicRT.FresnelRangeScale"))->Set(MetallicRTParams.FresnelRangeScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.MetallicRT.EnvLightResponse"))->Set(MetallicRTParams.EnvironmentLightResponse);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.MetallicRT.FarFadeStart"))->Set(MetallicRTParams.FarDistanceFadeStart);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.MetallicRT.FarFadeEnd"))->Set(MetallicRTParams.FarDistanceFadeEnd);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("MetallicRT: enable=%d fresnelScale=%.2f envResponse=%.2f fade=%.0f-%.0f"),
+		MetallicRTParams.bEnableMetallicRTSpecular, MetallicRTParams.FresnelRangeScale,
+		MetallicRTParams.EnvironmentLightResponse, MetallicRTParams.FarDistanceFadeStart, MetallicRTParams.FarDistanceFadeEnd);
+}
+
+void AGZGameMode::ApplyGlassOverlapBlendParams()
+{
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.OverlapBlendRadius"))->Set(GlassOverlapParams.OverlapBlendRadius);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.OverlapColorDamping"))->Set(GlassOverlapParams.OverlapColorDamping);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.MaxOverlappingFacades"))->Set(GlassOverlapParams.MaxOverlappingFacades);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.ResolveColorConflict"))->Set(GlassOverlapParams.bResolveColorConflict ? 1 : 0);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("GlassOverlap: radius=%.0f damping=%.2f maxFacades=%d resolve=%d"),
+		GlassOverlapParams.OverlapBlendRadius, GlassOverlapParams.OverlapColorDamping,
+		GlassOverlapParams.MaxOverlappingFacades, GlassOverlapParams.bResolveColorConflict);
+}
+
+void AGZGameMode::ApplyDetailedWeatherStateParams(EGZWeatherStateDetailed State)
+{
+	const FDetailedWeatherStateParams* Params = DetailedWeatherParams.Find(State);
+	if (!Params) return;
+
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.State.SunIntensityScale"))->Set(Params->SunIntensityScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.State.SkyIntensityScale"))->Set(Params->SkyIntensityScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.State.ColorTempKelvin"))->Set(Params->ColorTempKelvin);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.State.FogDensityScale"))->Set(Params->FogDensityScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.State.FogShadowBlurScale"))->Set(Params->FogShadowBlurScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.State.FogShadowLengthScale"))->Set(Params->FogShadowLengthScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Weather.State.WindStrengthScale"))->Set(Params->WindStrengthScale);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("DetailedWeatherState %d: sun=%.2f sky=%.2f temp=%.0fK fog=%.2f blur=%.2f len=%.2f wind=%.2f"),
+		(int32)State, Params->SunIntensityScale, Params->SkyIntensityScale, Params->ColorTempKelvin,
+		Params->FogDensityScale, Params->FogShadowBlurScale, Params->FogShadowLengthScale, Params->WindStrengthScale);
+}
+
+// ============================================================================
+// v8.0 Runtime Update Helpers
+// ============================================================================
+void AGZGameMode::UpdateFloodState(float DeltaSeconds)
+{
+	float RainIntensity = GetDetailedWeatherIntensity();
+	if (RainIntensity > 0.4f)
+	{
+		float TargetHeight = FMath::Min(RainIntensity * FloodParams.RainToWaterRate * 10.0f, FloodParams.MaxWaterHeight);
+		CurrentFloodHeight = FMath::Lerp(CurrentFloodHeight, TargetHeight, DeltaSeconds * 0.05f);
+	}
+	else
+	{
+		CurrentFloodHeight = FMath::Max(0.0f, CurrentFloodHeight - DeltaSeconds * FloodParams.EvaporationRate);
+	}
+
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Flood.CurrentHeight"))->Set(CurrentFloodHeight);
+}
+
+void AGZGameMode::UpdateCloudShadows(float DeltaSeconds)
+{
+	float EffectiveWind = GetEffectiveWindStrength();
+	float MoveSpeed = CloudShadow.CloudMoveSpeedBase * (1.0f + EffectiveWind * CloudShadow.WindSpeedMultiplier);
+	CloudShadowOffset += DeltaSeconds * MoveSpeed;
+	if (CloudShadowOffset > 100000.0f) CloudShadowOffset -= 100000.0f;
+
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.CloudShadow.Offset"))->Set(CloudShadowOffset);
+}
+
+void AGZGameMode::UpdateDistrictProfiles()
+{
+	// Placeholder for per-frame district blend updates; currently applied on district change.
 }
