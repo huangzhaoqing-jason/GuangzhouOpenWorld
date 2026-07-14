@@ -1,5 +1,6 @@
 #include "Game/SystemSettings/GZSystemSettings.h"
 #include "GuangzhouOpenWorld.h"
+#include "Internationalization/Internationalization.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonSerializer.h"
@@ -121,6 +122,16 @@ void UGZSystemSettings::SaveAllSettings()
 	GraphicsObj->SetNumberField(TEXT("Contrast"), Graphics.Contrast);
 	GraphicsObj->SetNumberField(TEXT("ColorTemperature"), Graphics.ColorTemperature);
 	GraphicsObj->SetNumberField(TEXT("FieldOfView"), Graphics.FieldOfView);
+	GraphicsObj->SetBoolField(TEXT("bEnableRayTracing"), Graphics.bEnableRayTracing);
+	GraphicsObj->SetBoolField(TEXT("bEnableRTGI"), Graphics.bEnableRTGI);
+	GraphicsObj->SetBoolField(TEXT("bEnableRTShadows"), Graphics.bEnableRTShadows);
+	GraphicsObj->SetBoolField(TEXT("bEnableRTReflections"), Graphics.bEnableRTReflections);
+	GraphicsObj->SetBoolField(TEXT("bEnableRTAO"), Graphics.bEnableRTAO);
+	GraphicsObj->SetBoolField(TEXT("bEnableDLSS"), Graphics.bEnableDLSS);
+	GraphicsObj->SetBoolField(TEXT("bEnableFSR"), Graphics.bEnableFSR);
+	GraphicsObj->SetBoolField(TEXT("bEnableFrameGen"), Graphics.bEnableFrameGen);
+	GraphicsObj->SetNumberField(TEXT("DLSSQuality"), Graphics.DLSSQuality);
+	GraphicsObj->SetNumberField(TEXT("FSRQuality"), Graphics.FSRQuality);
 	RootObj->SetObjectField(TEXT("Graphics"), GraphicsObj);
 
 	TSharedPtr<FJsonObject> PerfObj = MakeShareable(new FJsonObject);
@@ -128,6 +139,9 @@ void UGZSystemSettings::SaveAllSettings()
 	PerfObj->SetNumberField(TEXT("BackgroundFrameRateLimit"), Performance.BackgroundFrameRateLimit);
 	PerfObj->SetNumberField(TEXT("PreloadChunkCount"), Performance.PreloadChunkCount);
 	PerfObj->SetNumberField(TEXT("NaniteQuality"), Performance.NaniteQuality);
+	PerfObj->SetNumberField(TEXT("LumenBounces"), Performance.LumenBounces);
+	PerfObj->SetBoolField(TEXT("bEnableTemporalSuperSampling"), Performance.bEnableTemporalSuperSampling);
+	PerfObj->SetNumberField(TEXT("AdaptiveResolutionTransitionSpeed"), Performance.AdaptiveResolutionTransitionSpeed);
 	RootObj->SetObjectField(TEXT("Performance"), PerfObj);
 
 	TSharedPtr<FJsonObject> AudioObj = MakeShareable(new FJsonObject);
@@ -146,6 +160,16 @@ void UGZSystemSettings::SaveAllSettings()
 	CtrlObj->SetNumberField(TEXT("ViewSmoothing"), Controls.ViewSmoothing);
 	CtrlObj->SetBoolField(TEXT("bEnableMotionBlur"), Controls.bEnableMotionBlur);
 	RootObj->SetObjectField(TEXT("Controls"), CtrlObj);
+
+	TSharedPtr<FJsonObject> DisplayObj = MakeShareable(new FJsonObject);
+	DisplayObj->SetNumberField(TEXT("DisplayMode"), (int32)Display.DisplayMode);
+	DisplayObj->SetNumberField(TEXT("ResolutionX"), Display.Resolution.X);
+	DisplayObj->SetNumberField(TEXT("ResolutionY"), Display.Resolution.Y);
+	DisplayObj->SetBoolField(TEXT("bVSync"), Display.bVSync);
+	DisplayObj->SetBoolField(TEXT("bShowFPS"), Display.bShowFPS);
+	DisplayObj->SetStringField(TEXT("Language"), Display.Language);
+	DisplayObj->SetBoolField(TEXT("bSubtitleEnabled"), Display.bSubtitleEnabled);
+	RootObj->SetObjectField(TEXT("Display"), DisplayObj);
 
 	TSharedPtr<FJsonObject> PrivObj = MakeShareable(new FJsonObject);
 	PrivObj->SetBoolField(TEXT("bHidePlayerID"), AccountPrivacy.bHidePlayerID);
@@ -186,6 +210,16 @@ void UGZSystemSettings::LoadAllSettings()
 				Graphics.Contrast = G->GetNumberField(TEXT("Contrast"));
 				Graphics.ColorTemperature = G->GetNumberField(TEXT("ColorTemperature"));
 				Graphics.FieldOfView = G->GetNumberField(TEXT("FieldOfView"));
+				Graphics.bEnableRayTracing = G->GetBoolField(TEXT("bEnableRayTracing"));
+				Graphics.bEnableRTGI = G->GetBoolField(TEXT("bEnableRTGI"));
+				Graphics.bEnableRTShadows = G->GetBoolField(TEXT("bEnableRTShadows"));
+				Graphics.bEnableRTReflections = G->GetBoolField(TEXT("bEnableRTReflections"));
+				Graphics.bEnableRTAO = G->GetBoolField(TEXT("bEnableRTAO"));
+				Graphics.bEnableDLSS = G->GetBoolField(TEXT("bEnableDLSS"));
+				Graphics.bEnableFSR = G->GetBoolField(TEXT("bEnableFSR"));
+				Graphics.bEnableFrameGen = G->GetBoolField(TEXT("bEnableFrameGen"));
+				Graphics.DLSSQuality = G->GetIntegerField(TEXT("DLSSQuality"));
+				Graphics.FSRQuality = G->GetIntegerField(TEXT("FSRQuality"));
 			}
 
 			if (RootObj->HasField(TEXT("Performance")))
@@ -195,6 +229,9 @@ void UGZSystemSettings::LoadAllSettings()
 				Performance.BackgroundFrameRateLimit = P->GetIntegerField(TEXT("BackgroundFrameRateLimit"));
 				Performance.PreloadChunkCount = P->GetIntegerField(TEXT("PreloadChunkCount"));
 				Performance.NaniteQuality = P->GetIntegerField(TEXT("NaniteQuality"));
+				Performance.LumenBounces = P->GetIntegerField(TEXT("LumenBounces"));
+				Performance.bEnableTemporalSuperSampling = P->GetBoolField(TEXT("bEnableTemporalSuperSampling"));
+				Performance.AdaptiveResolutionTransitionSpeed = P->GetNumberField(TEXT("AdaptiveResolutionTransitionSpeed"));
 			}
 
 			if (RootObj->HasField(TEXT("Audio")))
@@ -208,6 +245,28 @@ void UGZSystemSettings::LoadAllSettings()
 				Audio.bEnable3DSpatialAudio = A->GetBoolField(TEXT("bEnable3DSpatialAudio"));
 			}
 
+			if (RootObj->HasField(TEXT("Controls")))
+			{
+				TSharedPtr<FJsonObject> C = RootObj->GetObjectField(TEXT("Controls"));
+				Controls.MouseSensitivity = C->GetNumberField(TEXT("MouseSensitivity"));
+				Controls.ControllerSensitivity = C->GetNumberField(TEXT("ControllerSensitivity"));
+				Controls.bInvertYAxis = C->GetBoolField(TEXT("bInvertYAxis"));
+				Controls.ViewSmoothing = C->GetNumberField(TEXT("ViewSmoothing"));
+				Controls.bEnableMotionBlur = C->GetBoolField(TEXT("bEnableMotionBlur"));
+			}
+
+			if (RootObj->HasField(TEXT("Display")))
+			{
+				TSharedPtr<FJsonObject> D = RootObj->GetObjectField(TEXT("Display"));
+				Display.DisplayMode = (EGZDisplayMode)D->GetIntegerField(TEXT("DisplayMode"));
+				Display.Resolution.X = D->GetIntegerField(TEXT("ResolutionX"));
+				Display.Resolution.Y = D->GetIntegerField(TEXT("ResolutionY"));
+				Display.bVSync = D->GetBoolField(TEXT("bVSync"));
+				Display.bShowFPS = D->GetBoolField(TEXT("bShowFPS"));
+				Display.Language = D->GetStringField(TEXT("Language"));
+				Display.bSubtitleEnabled = D->GetBoolField(TEXT("bSubtitleEnabled"));
+			}
+
 			ApplyAllSettingsToEngine();
 		}
 	}
@@ -219,6 +278,7 @@ void UGZSystemSettings::ResetAllToDefaults()
 	Performance = FGZPerformanceSettings();
 	Audio = FGZAudioSettings();
 	Controls = FGZControlSettings();
+	Display = FGZDisplaySettings();
 	AccountPrivacy = FGZAccountPrivacySettings();
 	Saves = FGZSaveSettings();
 	ApplyAllSettingsToEngine();
@@ -232,18 +292,44 @@ void UGZSystemSettings::ApplyAllSettingsToEngine()
 	ApplyPerformanceSettings();
 	ApplyAudioSettings();
 	ApplyControlSettings();
+	ApplyDisplaySettings();
+}
+
+static void SafeSetCVar(const TCHAR* Name, float Value)
+{
+	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(Name))
+	{
+		CVar->Set(Value, EConsoleVariableFlags::ECVF_SetByGameSetting);
+	}
+}
+
+static void SafeSetCVarInt(const TCHAR* Name, int32 Value)
+{
+	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(Name))
+	{
+		CVar->Set(Value, EConsoleVariableFlags::ECVF_SetByGameSetting);
+	}
 }
 
 void UGZSystemSettings::ApplyGraphicsSettings()
 {
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.ScreenPercentage"))->Set(Graphics.ResolutionScale);
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.TSR.Enable"))->Set(Graphics.bEnableTSR ? 1 : 0);
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.Reflections.MaxBounces"))->Set(Graphics.LightPrecision > 1024 ? 6 : 3);
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.MaxLayers"))->Set(Graphics.bEnableMultiLayerGlass ? 3 : 1);
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.AmbientLighting.EdgeContrastRetention"))->Set(Graphics.Contrast * 0.7f);
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.TonemapperGamma"))->Set(Graphics.Brightness);
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vegetation.WindStrength"))->Set(Graphics.bEnableVegetationWind ? 1.0f : 0.0f);
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Rain.Enabled"))->Set(Graphics.bEnableRainEffects ? 1 : 0);
+	SafeSetCVar(TEXT("r.ScreenPercentage"), Graphics.ResolutionScale);
+	SafeSetCVarInt(TEXT("r.TSR.Enable"), Graphics.bEnableTSR ? 1 : 0);
+	SafeSetCVarInt(TEXT("r.TSR.History.ScreenPercentage"), Graphics.bEnableTSR ? 200 : 100);
+	SafeSetCVarInt(TEXT("r.Lumen.Reflections.MaxBounces"), Graphics.LightPrecision > 1024 ? 6 : 3);
+	SafeSetCVarInt(TEXT("r.Glass.MaxLayers"), Graphics.bEnableMultiLayerGlass ? 3 : 1);
+	SafeSetCVar(TEXT("r.AmbientLighting.EdgeContrastRetention"), Graphics.Contrast * 0.7f);
+	SafeSetCVar(TEXT("r.TonemapperGamma"), Graphics.Brightness);
+	SafeSetCVar(TEXT("r.Vegetation.WindStrength"), Graphics.bEnableVegetationWind ? 1.0f : 0.0f);
+	SafeSetCVarInt(TEXT("r.Rain.Enabled"), Graphics.bEnableRainEffects ? 1 : 0);
+	SafeSetCVarInt(TEXT("r.Lumen.ScreenProbeGather.RadianceCache.NumProbesToTraceBudget"), Graphics.LightPrecision > 1024 ? 300 : 150);
+
+	// macOS / Metal: DLSS/FSR are not available on Apple Silicon; use MetalFX upscaling instead.
+	SafeSetCVarInt(TEXT("r.MetalFX.Upscaling.Enable"), (Graphics.bEnableTSR && !Graphics.bEnableDLSS && !Graphics.bEnableFSR) ? 1 : 0);
+	SafeSetCVarInt(TEXT("r.MetalFX.FrameInterpolation.Enable"), Graphics.bEnableFrameGen ? 1 : 0);
+	SafeSetCVarInt(TEXT("r.RayTracing.Enable"), Graphics.bEnableRayTracing ? 1 : 0);
+	SafeSetCVarInt(TEXT("r.Lumen.Reflections.Allow"), Graphics.bEnableRTReflections ? 1 : 0);
+	SafeSetCVarInt(TEXT("r.Lumen.ScreenProbeGather.ShortRangeAO"), Graphics.bEnableRTAO ? 1 : 0);
 
 	if (UGameViewportClient* Viewport = GEngine ? GEngine->GameViewport : nullptr)
 	{
@@ -253,8 +339,11 @@ void UGZSystemSettings::ApplyGraphicsSettings()
 
 void UGZSystemSettings::ApplyPerformanceSettings()
 {
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.MaxPixelsPerEdge"))->Set(Performance.NaniteQuality);
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.WorldPartition.PreloadChunkCount"))->Set(Performance.PreloadChunkCount);
+	SafeSetCVar(TEXT("r.Nanite.MaxPixelsPerEdge"), (float)Performance.NaniteQuality);
+	SafeSetCVarInt(TEXT("r.WorldPartition.PreloadChunkCount"), Performance.PreloadChunkCount);
+	SafeSetCVarInt(TEXT("r.Lumen.MaxBounces"), FMath::Clamp(Performance.LumenBounces, 2, 8));
+	SafeSetCVarInt(TEXT("r.TSR.History.SampleCount"), Performance.bEnableTemporalSuperSampling ? 16 : 8);
+	SafeSetCVar(TEXT("r.TemporalAA.Algorithm"), Performance.bEnableTemporalSuperSampling ? 1.0f : 0.0f);
 
 	if (UGameUserSettings* UserSettings = GEngine ? GEngine->GetGameUserSettings() : nullptr)
 	{
@@ -264,21 +353,53 @@ void UGZSystemSettings::ApplyPerformanceSettings()
 		case EGZFrameRateLimit::Limit60: UserSettings->SetFrameRateLimit(60.0f); break;
 		default: UserSettings->SetFrameRateLimit(0.0f); break;
 		}
+		UserSettings->ApplySettings(false);
 	}
 }
 
 void UGZSystemSettings::ApplyAudioSettings()
 {
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Audio.MasterVolume"))->Set(Audio.MasterVolume);
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Audio.MusicVolume"))->Set(Audio.MusicVolume);
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Audio.SFXVolume"))->Set(Audio.SFXVolume);
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Audio.SpatialAudio"))->Set(Audio.bEnable3DSpatialAudio ? 1 : 0);
+	SafeSetCVar(TEXT("r.Audio.MasterVolume"), Audio.MasterVolume);
+	SafeSetCVar(TEXT("r.Audio.MusicVolume"), Audio.MusicVolume);
+	SafeSetCVar(TEXT("r.Audio.SFXVolume"), Audio.SFXVolume);
+	SafeSetCVar(TEXT("r.Audio.WeatherVolume"), Audio.WeatherSFXVolume);
+	SafeSetCVar(TEXT("r.Audio.VehicleVolume"), Audio.VehicleVolume);
+	SafeSetCVarInt(TEXT("r.Audio.SpatialAudio"), Audio.bEnable3DSpatialAudio ? 1 : 0);
+	SafeSetCVar(TEXT("r.Audio.ReverbIntensity"), Audio.ReverbIntensity);
+	SafeSetCVarInt(TEXT("r.Audio.DolbyAtmos"), Audio.bEnableDolbyAtmos ? 1 : 0);
+	SafeSetCVarInt(TEXT("r.Audio.3DHeadphones"), Audio.bEnable3DAudioHeadphones ? 1 : 0);
 }
 
 void UGZSystemSettings::ApplyControlSettings()
 {
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.MotionBlur.Enable"))->Set(Controls.bEnableMotionBlur ? 1 : 0);
-	IConsoleManager::Get().FindConsoleVariable(TEXT("r.MotionBlur.Intensity"))->Set(Controls.MotionBlurIntensity);
+	SafeSetCVarInt(TEXT("r.MotionBlur.Enable"), Controls.bEnableMotionBlur ? 1 : 0);
+	SafeSetCVar(TEXT("r.MotionBlur.Intensity"), Controls.MotionBlurIntensity);
+	SafeSetCVar(TEXT("r.Input.MouseSensitivity"), Controls.MouseSensitivity);
+	SafeSetCVar(TEXT("r.Input.ControllerSensitivity"), Controls.ControllerSensitivity);
+	SafeSetCVarInt(TEXT("r.Input.InvertY"), Controls.bInvertYAxis ? 1 : 0);
+	SafeSetCVar(TEXT("r.Input.ViewSmoothing"), Controls.ViewSmoothing);
+}
+
+void UGZSystemSettings::ApplyDisplaySettings()
+{
+	if (UGameUserSettings* UserSettings = GEngine ? GEngine->GetGameUserSettings() : nullptr)
+	{
+		switch (Display.DisplayMode)
+		{
+		case EGZDisplayMode::Fullscreen:			UserSettings->SetFullscreenMode(EWindowMode::Fullscreen); break;
+		case EGZDisplayMode::Windowed:			UserSettings->SetFullscreenMode(EWindowMode::Windowed); break;
+		case EGZDisplayMode::BorderlessWindowed:	UserSettings->SetFullscreenMode(EWindowMode::WindowedFullscreen); break;
+		}
+
+		UserSettings->SetScreenResolution(Display.Resolution);
+		UserSettings->SetVSyncEnabled(Display.bVSync);
+		UserSettings->ApplySettings(false);
+	}
+
+	SafeSetCVarInt(TEXT("r.ShowFPS"), Display.bShowFPS ? 1 : 0);
+	SafeSetCVarInt(TEXT("r.Subtitles.Enabled"), Display.bSubtitleEnabled ? 1 : 0);
+
+	FInternationalization::Get().SetCurrentCulture(Display.Language);
 }
 
 // ===== Individual setters =====
@@ -289,6 +410,14 @@ void UGZSystemSettings::SetColorTemperature(float Temp) { Graphics.ColorTemperat
 void UGZSystemSettings::SetFieldOfView(float FOV) { Graphics.FieldOfView = FMath::Clamp(FOV, 60.0f, 120.0f); ApplyGraphicsSettings(); SaveAllSettings(); }
 void UGZSystemSettings::ToggleRainEffects(bool bEnabled) { Graphics.bEnableRainEffects = bEnabled; ApplyGraphicsSettings(); SaveAllSettings(); }
 void UGZSystemSettings::ToggleVegetationWind(bool bEnabled) { Graphics.bEnableVegetationWind = bEnabled; ApplyGraphicsSettings(); SaveAllSettings(); }
+void UGZSystemSettings::ToggleRayTracing(bool bEnabled) { Graphics.bEnableRayTracing = bEnabled; ApplyGraphicsSettings(); SaveAllSettings(); }
+void UGZSystemSettings::ToggleRTGI(bool bEnabled) { Graphics.bEnableRTGI = bEnabled; ApplyGraphicsSettings(); SaveAllSettings(); }
+void UGZSystemSettings::ToggleRTShadows(bool bEnabled) { Graphics.bEnableRTShadows = bEnabled; ApplyGraphicsSettings(); SaveAllSettings(); }
+void UGZSystemSettings::ToggleRTReflections(bool bEnabled) { Graphics.bEnableRTReflections = bEnabled; ApplyGraphicsSettings(); SaveAllSettings(); }
+void UGZSystemSettings::ToggleRTAO(bool bEnabled) { Graphics.bEnableRTAO = bEnabled; ApplyGraphicsSettings(); SaveAllSettings(); }
+void UGZSystemSettings::ToggleDLSS(bool bEnabled) { Graphics.bEnableDLSS = bEnabled; ApplyGraphicsSettings(); SaveAllSettings(); }
+void UGZSystemSettings::ToggleFSR(bool bEnabled) { Graphics.bEnableFSR = bEnabled; ApplyGraphicsSettings(); SaveAllSettings(); }
+void UGZSystemSettings::ToggleFrameGen(bool bEnabled) { Graphics.bEnableFrameGen = bEnabled; ApplyGraphicsSettings(); SaveAllSettings(); }
 void UGZSystemSettings::SetFrameRateLimit(EGZFrameRateLimit Limit) { Performance.FrameRateLimit = Limit; ApplyPerformanceSettings(); SaveAllSettings(); }
 void UGZSystemSettings::SetPreloadChunkCount(int32 Count) { Performance.PreloadChunkCount = FMath::Clamp(Count, 2, 16); ApplyPerformanceSettings(); SaveAllSettings(); }
 void UGZSystemSettings::SetMasterVolume(float Volume) { Audio.MasterVolume = FMath::Clamp(Volume, 0.0f, 1.0f); ApplyAudioSettings(); SaveAllSettings(); }
@@ -301,3 +430,9 @@ void UGZSystemSettings::SetAutoCloudSync(bool bEnabled) { AccountPrivacy.bAutoCl
 void UGZSystemSettings::SetAutoLogin(bool bEnabled) { AccountPrivacy.bAutoLogin = bEnabled; SaveAllSettings(); }
 void UGZSystemSettings::SetAutoSaveEnabled(bool bEnabled) { Saves.bAutoSaveEnabled = bEnabled; SaveAllSettings(); }
 void UGZSystemSettings::SetAutoSaveInterval(float Minutes) { Saves.AutoSaveIntervalMinutes = FMath::Clamp(Minutes, 5.0f, 60.0f); SaveAllSettings(); }
+void UGZSystemSettings::SetDisplayMode(EGZDisplayMode Mode) { Display.DisplayMode = Mode; ApplyDisplaySettings(); SaveAllSettings(); }
+void UGZSystemSettings::SetResolution(const FIntPoint& Resolution) { Display.Resolution = Resolution; ApplyDisplaySettings(); SaveAllSettings(); }
+void UGZSystemSettings::SetVSync(bool bEnabled) { Display.bVSync = bEnabled; ApplyDisplaySettings(); SaveAllSettings(); }
+void UGZSystemSettings::SetShowFPS(bool bShow) { Display.bShowFPS = bShow; ApplyDisplaySettings(); SaveAllSettings(); }
+void UGZSystemSettings::SetLanguage(const FString& Language) { Display.Language = Language; ApplyDisplaySettings(); SaveAllSettings(); }
+void UGZSystemSettings::SetSubtitleEnabled(bool bEnabled) { Display.bSubtitleEnabled = bEnabled; ApplyDisplaySettings(); SaveAllSettings(); }

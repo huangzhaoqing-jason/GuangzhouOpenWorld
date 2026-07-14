@@ -105,24 +105,24 @@
 | # | Standard | Requirement | Status | File/Config |
 |---|----------|-------------|--------|-------------|
 | 1.9.1 | iOS27 Refraction | Physical Snell's law, no blur | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` RefractRaySnell() |
-| 1.9.2 | Fresnel Schlick | Exact IOR-based F0 computation | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` FresnelSchlick() |
-| 1.9.3 | Multi-Layer Refraction | Air→Glass→Air (entry+exit) | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` MultiLayerRefraction() |
+| 1.9.2 | Fresnel Schlick | Segmented 0°/60°/85°/90° curve, roughness binds | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` RefinedFresnelF0(), FresnelSchlickRefined() |
+| 1.9.3 | Triple-Pane Refraction | Air→Glass→Air→Glass→Air→Glass→Air | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` TriplePaneRefraction() |
 | 1.9.4 | Beer-Lambert | Thickness-dependent absorption | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` BeerLambertAbsorption() |
-| 1.9.5 | Chromatic Dispersion | Wavelength-dependent IOR (R=650nm, G=532nm, B=473nm) | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` FresnelSchlickDispersion() |
+| 1.9.5 | Chromatic Dispersion | Wavelength-dependent RGB split | ❌ | Not implemented in v7.1; global color neutrality prioritized |
 | 1.9.6 | 3 Material Types | Skyscraper(0)/Vehicle(1)/UI(2) via CustomData0 | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` switch(MaterialType) |
 | 1.9.7 | Lumen GI | Refracted light contributes to GI | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` SampleLumenRefractedGI() |
 | 1.9.8 | GGX Micro-facet BRDF | NDF + Smith geometry shadowing | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` GGX_Distribution(), SmithGGX() |
 | 1.9.9 | No Gaussian Blur | Zero blur/diffusion/frosted/matte at any point | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` verified |
 | 1.9.10 | Substrate Compatible | CalcPixelMaterialInputs with Substrate output | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` CalcPixelMaterialInputs() |
 | 1.9.11 | GPU-Only Compute | All computation on GPU, no CPU dispatch | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` verified |
-| 1.9.12 | Skyscraper IOR=1.52 | Thickness top=0.12mm bottom=0.35mm gradient | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` SKYSCRAPER_IOR=1.52 |
-| 1.9.13 | Skyscraper Fresnel | 0°=0.05, 90°=0.82 | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` SKYSCRAPER_FRESNEL_0/90 |
-| 1.9.14 | Skyscraper Samples | M3=16, M2=12, M1=8 | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` SKYSCRAPER_SAMPLES_M1/M2/M3 |
-| 1.9.15 | Vehicle IOR=1.38 | Thickness=0.18mm | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` VEHICLE_IOR=1.38 |
-| 1.9.16 | Vehicle Fresnel | 0°=0.08, 90°=0.70 | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` VEHICLE_FRESNEL_0/90 |
-| 1.9.17 | Vehicle Samples | M3=12, M2=10, M1=6 | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` VEHICLE_SAMPLES_M1/M2/M3 |
-| 1.9.18 | UI IOR=1.05 | Thickness=0.05mm, Fresnel edge=0.25 | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` UI_IOR=1.05 |
-| 1.9.19 | UI Samples | 4 samples all chips | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` UI_SAMPLES_ALL=4 |
+| 1.9.12 | Triple-Pane IOR=1.52 | All glass layers IOR=1.52, air gaps decay 3% | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` GLASS_LAYER_1/2/3 |
+| 1.9.13 | Edge Thickness Gradient | Center→edge 1.0x→1.25x, 0.5px transition | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` ComputeEdgeThickness() |
+| 1.9.14 | Frame-Only Reflection | Metal frame refracts zero, Fresnel only | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` FrameResult, FrameGlassBlend() |
+| 1.9.15 | Color Neutrality | Global shift ≤30K, thick-glass slight tint | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` KelvinShiftToRGB(), ComputeBehindGlassAttenuation() |
+| 1.9.16 | Multi-Glass Conflict | Chroma clamping prevents cumulative tint bands | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` ResolveGlassColorConflict() |
+| 1.9.17 | Sample Count Tiers | M3=16/12/4, M2=12/10/4, M1=8/6/4 | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` GetSampleCount() |
+| 1.9.18 | No Blue Filter | bRemoveBlueFilter true, DuskShift=30K | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` / `GZGameMode.h` FGlassColorNeutrality |
+| 1.9.19 | Sun Highlight | 20% smaller area, 15% brighter, temp tinted | ✅ | `Shaders/MetalShaders/LiquidGlass.usf` ComputeSunHighlightIntensity() |
 
 ---
 
@@ -178,6 +178,31 @@
 | 2.5.1 | Destruction | JoltPhysics destruction module | ✅ | `Source/GuangzhouOpenWorld/Physics/JoltPhysicsModule/GZDestructionSystem.h` |
 | 2.5.2 | Fracture Patterns | Voronoi + radial | ✅ | `Source/GuangzhouOpenWorld/Physics/JoltPhysicsModule/GZDestructionSystem.cpp` |
 
+### 2.6 Physics Wind Dynamics (Module 3 Subtasks 52-57)
+
+| # | Standard | Requirement | Status | File/Config |
+|---|----------|-------------|--------|-------------|
+| 2.6.1 | No Keyframe Animations | All vegetation/sign motion is procedural | ✅ | `Source/GuangzhouOpenWorld/Physics/PhysicsWind/GZPhysicsWindComponent.h` |
+| 2.6.2 | Heavy Metal Sign | High mass, low amplitude, long period | ✅ | `GZPhysicsWindComponent.cpp` GetMassScale()/GetNaturalPeriod() |
+| 2.6.3 | Light Cloth Banner | Low mass, large amplitude, flutters | ✅ | `GZPhysicsWindComponent.cpp` ObjectType::LightClothBanner |
+| 2.6.4 | Tree Trunk vs Leaf | Two-layer swing: thick branch + thin branch + leaf | ✅ | `GZPhysicsWindComponent.cpp` ThickBranch/ThinBranch/Leaf |
+| 2.6.5 | Local Wind Variation | Per-instance phase and amplitude from world position | ✅ | `GZPhysicsWindComponent.cpp` ComputeLocalVariationFromPosition() |
+| 2.6.6 | Gust Impact | Sudden wind change adds angular impulse | ✅ | `GZPhysicsWindComponent.cpp` TickComponent() GustImpulse |
+| 2.6.7 | Max Swing Angle | Hard clamp prevents model clipping | ✅ | `GZPhysicsWindComponent.cpp` TickComponent() angle clamp |
+| 2.6.8 | Global Wind Params | GameMode publishes wind strength, gust, damping | ✅ | `Source/GuangzhouOpenWorld/Game/GZGameMode.h` FPhysicsWindConfig |
+
+### 2.7 World Streaming & Nanite Seam Fix (Module 3 Subtasks 58-64)
+
+| # | Standard | Requirement | Status | File/Config |
+|---|----------|-------------|--------|-------------|
+| 2.7.1 | Far Preload Distance | 4 cells (512m) for priority 1 | ✅ | `GZGameMode.cpp` ApplyLoadingPriorities() |
+| 2.7.2 | Loading Priority Tiers | Landmark > Building > Prop | ✅ | `Config/DefaultEngine.ini` r.Streaming.LandmarkPriority=3.0 |
+| 2.7.3 | M1/M2/M3 Nanite Precision | Different quality levels per chip | ✅ | `GZGameMode.cpp` ApplyChipSpecificSettings() |
+| 2.7.4 | Nanite Seam Fix | Vertex interpolation, gap ≤ 0.01 | ✅ | `GZGameMode.cpp` ApplyNaniteSeamFix() |
+| 2.7.5 | Adjacent Cell Lighting | Unified sampling, no brightness seams | ✅ | `GZGameMode.cpp` ApplyCellLightingConsistency() |
+| 2.7.6 | DirectStorage | Enabled, async IO, no loading screen | ✅ | `Config/DefaultEngine.ini` r.DirectStorage.Enable=1 |
+| 2.7.7 | Anti-Pop-In | Streaming tuned to reduce model pop-in | ✅ | `Config/DefaultEngine.ini` r.Streaming.* anti-pop-in block |
+
 ---
 
 ## 3. AI
@@ -201,6 +226,31 @@
 | 3.2.5 | LOD Update | 30Hz near, 5Hz far | ✅ | `Source/GuangzhouOpenWorld/AI/RecastMassAI/GZMassAI.cpp` |
 | 3.2.6 | LOD Distances | 5,000m / 15,000m | ✅ | `Config/DefaultEngine.ini` Mass.LOD.Distance=5000 |
 | 3.2.7 | Processor Threads | 4 dedicated | ✅ | `Config/DefaultEngine.ini` Mass.ProcessorThreadCount=4 |
+
+### 3.3 Mass AI Advanced Behaviors (Module 4 Subtasks 67-90)
+
+| # | Standard | Requirement | Status | File/Config |
+|---|----------|-------------|--------|-------------|
+| 3.3.1 | Behavior Tree Base | MassAI base architecture | ✅ | `Source/GuangzhouOpenWorld/AI/RecastMassAI/GZMassAI.h` |
+| 3.3.2 | Time-of-Day Density | 5 virtual time periods | ✅ | `GZMassAI.cpp` TimeDensityTable |
+| 3.3.3 | Area Speed Variance | Commercial vs Residential speed | ✅ | `GZMassAI.cpp` AreaDensities |
+| 3.3.4 | Rain Shelter | NPCs seek shelter in rain/storm | ✅ | `GZMassAI.cpp` ApplyRainShelter() |
+| 3.3.5 | Fog Slowdown | Reduce speed & range in fog | ✅ | `GZMassAI.cpp` ApplyFogSlowdown() |
+| 3.3.6 | Weather Actions | Umbrella, covered path, indoor | ✅ | `GZMassAI.cpp` ApplyWeatherActions() |
+| 3.3.7 | Agent Memory | 24h memory retention data | ✅ | `GZMassAI.h` FAgentMemory |
+| 3.3.8 | Random Dialog | Non-looping random conversations | ✅ | `GZMassAI.cpp` GenerateInterNPCDialog() |
+| 3.3.9 | Inter-NPC Interaction | Autonomous random interactions | ✅ | `GZMassAI.cpp` UpdateNPCInteractions() |
+| 3.3.10 | Driver Types | Aggressive / Cautious / Lawful | ✅ | `GZMassAI.cpp` AssignDriverTypes() |
+| 3.3.11 | Deceleration Buffer | 0.4s buffer, no sudden braking | ✅ | `GZMassAI.cpp` UpdateVehiclePhysics() |
+| 3.3.12 | Speed-Proportional Turn | Larger radius at higher speed | ✅ | `GZMassAI.cpp` UpdateVehiclePhysics() |
+| 3.3.13 | Rain Braking Extension | Longer braking distance in rain | ✅ | `GZMassAI.cpp` UpdateVehiclePhysics() |
+| 3.3.14 | Water Splash | Dynamic splash in puddles | ✅ | `GZMassAI.cpp` TriggerVehicleWaterSplash() |
+| 3.3.15 | Congestion Reroute | Detect clusters, auto reroute | ✅ | `GZMassAI.cpp` UpdateTrafficCongestion() |
+| 3.3.16 | Auto Vehicle Lights | Night/tunnel auto headlights | ✅ | `GZMassAI.cpp` UpdateVehicleLights() |
+| 3.3.17 | 12,000 Agents | Single-scene agent capacity | ✅ | `GZMassAI.h` MaxAgents=12000 |
+| 3.3.18 | Far LOD Decisions | Lower frequency, keep logic | ✅ | `GZMassAI.cpp` AssignAgentLODs() |
+| 3.3.19 | Hostile Tactics | Cover, flanking, surround | ✅ | `GZMassAI.cpp` UpdatePoliceBehavior() |
+| 3.3.20 | Equipment Adaptation | AI changes tactics vs player gear | ✅ | `GZMassAI.cpp` UpdateHostileAdaptation() |
 
 ---
 
@@ -269,6 +319,27 @@
 | 5.3.1 | Max Packet Size | 1,300 bytes | ✅ | `Config/DefaultEngine.ini` net.MaxPacketSize=1300 |
 | 5.3.2 | Server Tick Rate | 60Hz | ✅ | `Config/DefaultEngine.ini` net.ServerMaxTickRate=60 |
 | 5.3.3 | Client Tick Rate | 60Hz | ✅ | `Config/DefaultEngine.ini` net.ClientTicksPerSecond=60 |
+
+### 5.4 Account Login (Module 5 Subtasks 91-108)
+
+| # | Standard | Requirement | Status | File/Config |
+|---|----------|-------------|--------|-------------|
+| 5.4.1 | AccountLogin Directory | Independent source directory | ✅ | `Source/GuangzhouOpenWorld/Game/AccountLogin/` |
+| 5.4.2 | EOS SDK Interface | EOS Auth/Connect interface declared | ⚠️ | `Source/GuangzhouOpenWorld/Network/EOSSystem/GZEOSAuthInterface.h` (stub) |
+| 5.4.3 | Phone Validation | 11-digit China mobile format | ✅ | `GZAccountLoginManager.cpp` ValidatePhone() |
+| 5.4.4 | SMS Code | 6 digits, 60s expiry, 10s cooldown | ✅ | `GZAccountLoginManager.cpp` SendPhoneVerificationCode() |
+| 5.4.5 | Auto PlayerID | Phone first login generates unique ID | ✅ | `GZAccountLoginManager.cpp` LoginWithPhone() |
+| 5.4.6 | Email Validation | Mainstream email format | ✅ | `GZAccountLoginManager.cpp` ValidateEmail() |
+| 5.4.7 | Email Code / Password | 5min expiry, 8-16 alnum password | ✅ | `GZAccountLoginManager.cpp` ValidatePassword(), SendEmailVerificationCode() |
+| 5.4.8 | Password Reset | Email recovery flow | ✅ | `GZAccountLoginManager.cpp` ResetPasswordByEmail() |
+| 5.4.9 | Phone-Email Binding | Cross-bind login methods | ✅ | `GZAccountLoginManager.cpp` BindEmailToPhoneAccount() |
+| 5.4.10 | Shared Save Data | Both login methods share data | ⚠️ | Local shared registry; EOS cloud stub not linked |
+| 5.4.11 | Guest Account | Restrict online + cloud save | ✅ | `GZAccountLoginManager.h` CanGuestUseOnline/CloudSave=false |
+| 5.4.12 | Guest 7-Day Expiry | Auto-clear after 7 days | ✅ | `GZAccountLoginManager.cpp` GuestExpireTime +7 days |
+| 5.4.13 | Bind Within 7 Days | Retain all play data | ✅ | `GZAccountLoginManager.cpp` BindGuestToEmail/Phone keeps account |
+| 5.4.14 | Remember / Auto Login | Toggle + auto restore | ✅ | `GZAccountLoginManager.cpp` TryAutoLogin() |
+| 5.4.15 | EOS Encryption | Account data encrypted in cloud | ⚠️ | `GZEOSAuthInterface.cpp` EncryptAccountData stub |
+| 5.4.16 | Code Lockout | 5 failures -> 30s lock | ✅ | `GZAccountLoginManager.cpp` HandleVerificationFailure() |
 
 ---
 

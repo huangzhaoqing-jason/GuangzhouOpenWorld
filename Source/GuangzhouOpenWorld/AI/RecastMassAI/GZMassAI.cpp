@@ -223,6 +223,9 @@ void UGZMassAI::Tick(float DeltaTime, const FVector& PlayerLocation)
 	}
 
 	UpdateDriverBehavior(DeltaTime);
+	UpdateVehiclePhysics(DeltaTime, CurrentWeather);
+	UpdateTrafficCongestion(DeltaTime);
+	UpdateVehicleLights(DeltaTime, CurrentHourOfDay);
 
 	DialogUpdateTimer += DeltaTime;
 	if (DialogUpdateTimer >= DialogUpdateInterval)
@@ -1069,5 +1072,226 @@ void UGZMassAI::UpdateRushHour(float HourOfDay)
 		{
 			AreaDensities[AreaPair.Key] = FMath::Min(AreaPair.Value, 0.2f);
 		}
+	}
+}
+
+// ============================================================================
+// v5.3 Traffic Vehicle Physics & Lights (subtasks 77-82)
+// ============================================================================
+void UGZMassAI::UpdateVehiclePhysics(float DeltaTime, EGZWeatherType Weather)
+{
+	for (auto& Pair : Agents)
+	{
+		int32 AgentID = Pair.Key;
+		FGZAgentIdentity& Agent = Pair.Value;
+		if (Agent.Occupation != EGZOccupation::Driver)
+		{
+			continue;
+		}
+
+		FTrafficVehicleState* State = VehicleStates.Find(AgentID);
+		if (!State)
+		{
+			FTrafficVehicleState NewState;
+			NewState.AgentID = AgentID;
+			NewState.DecelerationBuffer = BaseDecelerationBuffer;
+			VehicleStates.Add(AgentID, NewState);
+			State = VehicleStates.Find(AgentID);
+		}
+
+		float DriverSpeedMult = LawfulSpeedMultiplier;
+		switch (Agent.DriverType)
+		{
+		case EGZDriverType::Aggressive:
+			DriverSpeedMult = AggressiveSpeedMultiplier;
+			break;
+		case EGZDriverType::Cautious:
+			DriverSpeedMult = CautiousSpeedMultiplier;
+			break;
+		default:
+			DriverSpeedMult = LawfulSpeedMultiplier;
+			break;
+		}
+
+		State->TargetSpeed = 600.0f * DriverSpeedMult; // cm/s (~21 km/h base urban)
+		if (AgentWeatherStates.Contains(AgentID))
+		{
+			State->TargetSpeed *= AgentWeatherStates[AgentID].SpeedMultiplier;
+		}
+
+		// Subtask 77: 0.4s deceleration buffer, no sudden braking.
+		float Acceleration = (State->TargetSpeed - State->CurrentSpeed) / FMath::Max(State->DecelerationBuffer, 0.01f);
+		State->CurrentSpeed += Acceleration * DeltaTime;
+		State->CurrentSpeed = FMath::Clamp(State->CurrentSpeed, 0.0f, State->TargetSpeed * 1.1f);
+
+		// Subtask 78: turn radius proportional to speed.
+		State->TurnRadius = MinTurnRadius + State->CurrentSpeed * TurnRadiusSpeedFactor;
+
+		// Subtask 79: rain extends braking distance and turn radius.
+		if (Weather == EGZWeatherType::Rain || Weather == EGZWeatherType::Storm)
+		{
+			State->BrakingDistance = (State->CurrentSpeed * State->CurrentSpeed) / (2.0f * 800.0f) + RainBrakingExtension;
+			State->TurnRadius += State->CurrentSpeed * RainTurnRadiusIncrease;
+		}
+		else
+		{
+			State->BrakingDistance = (State->CurrentSpeed * State->CurrentSpeed) / (2.0f * 1000.0f);
+		}
+
+		// Subtask 80: water splash intensity tied to puddle state (read from GameMode CVars).
+		if (State->WaterSplashTimer > 0.0f)
+		{
+			State->WaterSplashTimer -= DeltaTime;
+		}
+	}
+}
+
+void UGZMassAI::UpdateTrafficCongestion(float DeltaTime)
+{
+	TArray<int32> DriverIDs;
+	for (auto& Pair : Agents)
+	{
+		if (Pair.Value.Occupation == EGZOccupation::Driver)
+		{
+			DriverIDs.Add(Pair.Key);
+		}
+	}
+
+	// Reset congestion flags.
+	for (auto& Pair : VehicleStates)
+	{
+		Pair.Value.bIsCongested = false;
+	}
+
+	// Subtask 81: detect clusters of slow vehicles and mark congestion + reroute.
+	for (int32 i = 0; i < DriverIDs.Num(); ++i)
+	{
+		int32 AgentA = DriverIDs[i];
+		if (!Agents.Contains(AgentA) || !VehicleStates.Contains(AgentA))
+		{
+			continue;
+		}
+
+		const FVector PosA = Agents[AgentA].CurrentLocation;
+		int32 SlowNeighbors = 0;
+		FVector ClusterCenter = PosA;
+
+		for (int32 j = 0; j < DriverIDs.Num(); ++j)
+		{
+			if (i == j) continue;
+			int32 AgentB = DriverIDs[j];
+			if (!Agents.Contains(AgentB) || !VehicleStates.Contains(AgentB))
+			{
+				continue;
+			}
+
+			const FVector PosB = Agents[AgentB].CurrentLocation;
+			if (FVector::Dist(PosA, PosB) < CongestionRadius && VehicleStates[AgentB].CurrentSpeed < CongestionSpeedThreshold)
+			{
+				SlowNeighbors++;
+				ClusterCenter += PosB;
+			}
+		}
+
+		if (SlowNeighbors >= CongestionMinVehicles)
+		{
+			ClusterCenter /= static_cast<float>(SlowNeighbors + 1);
+			VehicleStates[AgentA].bIsCongested = true;
+			VehicleStates[AgentA].CongestionLocation = ClusterCenter;
+			HandleAccidentReroute(AgentA, ClusterCenter);
+		}
+	}
+}
+
+void UGZMassAI::UpdateVehicleLights(float DeltaTime, float HourOfDay)
+{
+	// Subtask 82: lights react to night time or tunnel.
+	bool bNightTime = (HourOfDay >= NightLightHourStart || HourOfDay < NightLightHourEnd);
+
+	for (auto& Pair : VehicleStates)
+	{
+		FTrafficVehicleState& State = Pair.Value;
+		bool bShouldLightsOn = bNightTime || State.bInTunnel;
+
+		State.bHeadlightsOn = bShouldLightsOn;
+		State.bTailLightsOn = bShouldLightsOn;
+	}
+}
+
+void UGZMassAI::TriggerVehicleWaterSplash(int32 AgentID, float Intensity)
+{
+	if (FTrafficVehicleState* State = VehicleStates.Find(AgentID))
+	{
+		State->WaterSplashIntensity = FMath::Clamp(Intensity, 0.0f, 1.0f);
+		State->WaterSplashTimer = 0.5f;
+	}
+}
+
+FTrafficVehicleState UGZMassAI::GetVehicleState(int32 AgentID) const
+{
+	if (const FTrafficVehicleState* State = VehicleStates.Find(AgentID))
+	{
+		return *State;
+	}
+	return FTrafficVehicleState();
+}
+
+// ============================================================================
+// v5.3 Hostile Adaptation to Player Equipment (subtask 86)
+// ============================================================================
+void UGZMassAI::UpdateHostileAdaptation(EGZPlayerEquipment Equipment)
+{
+	CurrentHostileAdaptation.PlayerEquipment = Equipment;
+
+	switch (Equipment)
+	{
+	case EGZPlayerEquipment::Unarmed:
+		CurrentHostileAdaptation.bUseLongRange = false;
+		CurrentHostileAdaptation.bUseCoverMore = false;
+		CurrentHostileAdaptation.bFlankFrequently = false;
+		CurrentHostileAdaptation.bUseVehicles = false;
+		CurrentHostileAdaptation.EngagementDistance = 300.0f;
+		CurrentHostileAdaptation.AccuracyMultiplier = 1.2f;
+		break;
+	case EGZPlayerEquipment::Melee:
+		CurrentHostileAdaptation.bUseLongRange = false;
+		CurrentHostileAdaptation.bUseCoverMore = false;
+		CurrentHostileAdaptation.bFlankFrequently = true;
+		CurrentHostileAdaptation.bUseVehicles = false;
+		CurrentHostileAdaptation.EngagementDistance = 400.0f;
+		CurrentHostileAdaptation.AccuracyMultiplier = 1.0f;
+		break;
+	case EGZPlayerEquipment::Pistol:
+		CurrentHostileAdaptation.bUseLongRange = false;
+		CurrentHostileAdaptation.bUseCoverMore = true;
+		CurrentHostileAdaptation.bFlankFrequently = true;
+		CurrentHostileAdaptation.bUseVehicles = false;
+		CurrentHostileAdaptation.EngagementDistance = 800.0f;
+		CurrentHostileAdaptation.AccuracyMultiplier = 1.0f;
+		break;
+	case EGZPlayerEquipment::Rifle:
+		CurrentHostileAdaptation.bUseLongRange = true;
+		CurrentHostileAdaptation.bUseCoverMore = true;
+		CurrentHostileAdaptation.bFlankFrequently = true;
+		CurrentHostileAdaptation.bUseVehicles = false;
+		CurrentHostileAdaptation.EngagementDistance = 1500.0f;
+		CurrentHostileAdaptation.AccuracyMultiplier = 0.9f;
+		break;
+	case EGZPlayerEquipment::HeavyWeapon:
+		CurrentHostileAdaptation.bUseLongRange = true;
+		CurrentHostileAdaptation.bUseCoverMore = true;
+		CurrentHostileAdaptation.bFlankFrequently = false;
+		CurrentHostileAdaptation.bUseVehicles = true;
+		CurrentHostileAdaptation.EngagementDistance = 2000.0f;
+		CurrentHostileAdaptation.AccuracyMultiplier = 0.7f;
+		break;
+	case EGZPlayerEquipment::Vehicle:
+		CurrentHostileAdaptation.bUseLongRange = false;
+		CurrentHostileAdaptation.bUseCoverMore = true;
+		CurrentHostileAdaptation.bFlankFrequently = true;
+		CurrentHostileAdaptation.bUseVehicles = true;
+		CurrentHostileAdaptation.EngagementDistance = 1200.0f;
+		CurrentHostileAdaptation.AccuracyMultiplier = 0.8f;
+		break;
 	}
 }

@@ -29,8 +29,17 @@ enum class EGZSettingsCategory : uint8
 	Performance	UMETA(DisplayName = "Performance"),
 	Audio			UMETA(DisplayName = "Audio"),
 	Controls		UMETA(DisplayName = "Controls"),
-	Account		UMETA(DisplayName = "Account & Privacy"),
+	Display			UMETA(DisplayName = "Display"),
+	Account			UMETA(DisplayName = "Account & Privacy"),
 	Saves			UMETA(DisplayName = "Saves"),
+};
+
+UENUM(BlueprintType)
+enum class EGZDisplayMode : uint8
+{
+	Fullscreen			UMETA(DisplayName = "Fullscreen"),
+	Windowed			UMETA(DisplayName = "Windowed"),
+	BorderlessWindowed	UMETA(DisplayName = "Borderless Windowed"),
 };
 
 USTRUCT(BlueprintType)
@@ -93,6 +102,9 @@ struct FGZGraphicsSettings
 	bool bEnableRTReflections = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bEnableRTAO = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bEnableDLSS = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -106,6 +118,30 @@ struct FGZGraphicsSettings
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 FSRQuality = 3;
+};
+
+USTRUCT(BlueprintType)
+struct FGZDisplaySettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EGZDisplayMode DisplayMode = EGZDisplayMode::Fullscreen;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FIntPoint Resolution = FIntPoint(1920, 1080);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bVSync = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bShowFPS = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString Language = TEXT("zh-CN");
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bSubtitleEnabled = true;
 };
 
 USTRUCT(BlueprintType)
@@ -279,6 +315,9 @@ public:
 	const FGZControlSettings& GetControlSettings() const { return Controls; }
 
 	UFUNCTION(BlueprintPure, Category = "Settings")
+	const FGZDisplaySettings& GetDisplaySettings() const { return Display; }
+
+	UFUNCTION(BlueprintPure, Category = "Settings")
 	const FGZAccountPrivacySettings& GetAccountPrivacySettings() const { return AccountPrivacy; }
 
 	UFUNCTION(BlueprintPure, Category = "Settings")
@@ -308,6 +347,30 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Settings|Graphics")
 	void ToggleVegetationWind(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, Category = "Settings|Graphics")
+	void ToggleRayTracing(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, Category = "Settings|Graphics")
+	void ToggleRTGI(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, Category = "Settings|Graphics")
+	void ToggleRTShadows(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, Category = "Settings|Graphics")
+	void ToggleRTReflections(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, Category = "Settings|Graphics")
+	void ToggleRTAO(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, Category = "Settings|Graphics")
+	void ToggleDLSS(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, Category = "Settings|Graphics")
+	void ToggleFSR(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, Category = "Settings|Graphics")
+	void ToggleFrameGen(bool bEnabled);
 
 	// Performance setters
 	UFUNCTION(BlueprintCallable, Category = "Settings|Performance")
@@ -350,17 +413,38 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Settings|Save")
 	void SetAutoSaveInterval(float Minutes);
 
+	// Display setters
+	UFUNCTION(BlueprintCallable, Category = "Settings|Display")
+	void SetDisplayMode(EGZDisplayMode Mode);
+
+	UFUNCTION(BlueprintCallable, Category = "Settings|Display")
+	void SetResolution(const FIntPoint& Resolution);
+
+	UFUNCTION(BlueprintCallable, Category = "Settings|Display")
+	void SetVSync(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, Category = "Settings|Display")
+	void SetShowFPS(bool bShow);
+
+	UFUNCTION(BlueprintCallable, Category = "Settings|Display")
+	void SetLanguage(const FString& Language);
+
+	UFUNCTION(BlueprintCallable, Category = "Settings|Display")
+	void SetSubtitleEnabled(bool bEnabled);
+
 	// Apply individual settings to engine console variables
 	void ApplyGraphicsSettings();
 	void ApplyPerformanceSettings();
 	void ApplyAudioSettings();
 	void ApplyControlSettings();
+	void ApplyDisplaySettings();
 
 private:
 	FGZGraphicsSettings Graphics;
 	FGZPerformanceSettings Performance;
 	FGZAudioSettings Audio;
 	FGZControlSettings Controls;
+	FGZDisplaySettings Display;
 	FGZAccountPrivacySettings AccountPrivacy;
 	FGZSaveSettings Saves;
 

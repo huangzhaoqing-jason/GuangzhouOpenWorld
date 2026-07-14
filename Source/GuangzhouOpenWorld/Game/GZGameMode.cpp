@@ -85,10 +85,18 @@ AGZGameMode::AGZGameMode()
 	RoadWetnessParams.WetTransitionTime = 30.0f;
 	RoadWetnessParams.DryTimeClear = 480.0f;
 	RoadWetnessParams.DryTimeCloudy = 900.0f;
+	RoadWetnessParams.AsphaltDryScale = 1.00f;
+	RoadWetnessParams.CementDryScale = 1.20f;
+	RoadWetnessParams.BrickDryScale = 0.85f;
 	RoadWetnessParams.WetReflectivityBoost = 0.22f;
 	RoadWetnessParams.WetRoughnessReduction = 0.16f;
 	RoadWetnessParams.PuddleReflectivityExtra = 0.20f;
 	RoadWetnessParams.PuddleEvapTimeScale = 0.70f;
+	RoadWetnessParams.LowElevationThreshold = -200.0f;
+	RoadWetnessParams.PuddleMaxDepth = 15.0f;
+	RoadWetnessParams.PuddleEvaporationRate = 0.30f;
+	RoadWetnessParams.RippleSlopeFactor = 0.50f;
+	RoadWetnessParams.RippleWindFactor = 0.40f;
 	RoadWetnessParams.SunFacingDrySpeedBoost = 1.40f;
 	RoadWetnessParams.ShadeFacingDrySpeedReduction = 0.80f;
 
@@ -105,6 +113,14 @@ AGZGameMode::AGZGameMode()
 	WindParams.SignSwingAngleRange = 15.0f;
 	WindParams.SignSwingPeriodMin = 3.0f;
 	WindParams.SignSwingPeriodMax = 7.0f;
+
+	// v5.2 Physics-driven wind config (subtask 52-57)
+	PhysicsWindConfig.bEnablePhysicsWind = true;
+	PhysicsWindConfig.MaxSignSwingAngle = 15.0f;
+	PhysicsWindConfig.MaxTreeBranchAngle = 8.0f;
+	PhysicsWindConfig.MaxLeafAngle = 25.0f;
+	PhysicsWindConfig.PhysicsForceMultiplier = 100.0f;
+	PhysicsWindConfig.Damping = 0.92f;
 
 	// TSR distance weights - 7 tiers
 	TSRDistanceWeights.Empty();
@@ -143,14 +159,14 @@ AGZGameMode::AGZGameMode()
 	FresnelParams.View0Reflect = 0.05f;
 	FresnelParams.View60Reflect = 0.15f;
 	FresnelParams.View85Reflect = 0.55f;
-	FresnelParams.View90Reflect = 0.74f;
+	FresnelParams.View90Reflect = 0.70f;
 	FresnelParams.SunHighlightShrink = 0.20f;
 	FresnelParams.SunHighlightBoost = 0.15f;
 	FresnelParams.bRoughnessBindsFresnel = true;
 
 	GlassNeutrality.bRemoveBlueFilter = true;
 	GlassNeutrality.ThickBottomThreshold = 0.35f;
-	GlassNeutrality.MaxColorShiftKelvin = 50.0f;
+	GlassNeutrality.MaxColorShiftKelvin = 30.0f;  // v7.1 global shift locked <=30K
 	GlassNeutrality.DuskColorShift = 30.0f;
 	GlassNeutrality.EdgeThicknessColorFade = 0.05f;
 
@@ -235,6 +251,15 @@ AGZGameMode::AGZGameMode()
 	NaniteSeamFix.VertexInterpolationDistance = 0.01f;
 	NaniteSeamFix.MaxSeamGap = 0.01f;
 	NaniteSeamFix.bEnableSeamBlend = true;
+
+	// v5.2 Loading priority tiers: Landmark > Building > Prop (subtask 59)
+	LoadingPriorityTiers.Empty();
+	{
+		FLoadingPriorityTier Landmark; Landmark.TierName = TEXT("Landmark"); Landmark.PriorityWeight = 3.0f; Landmark.CullDistanceScale = 2.0f; Landmark.MinLOD = 0;
+		FLoadingPriorityTier Building; Building.TierName = TEXT("Building"); Building.PriorityWeight = 2.0f; Building.CullDistanceScale = 1.0f; Building.MinLOD = 0;
+		FLoadingPriorityTier Prop;     Prop.TierName = TEXT("Prop");         Prop.PriorityWeight = 1.0f;     Prop.CullDistanceScale = 0.6f;  Prop.MinLOD = 1;
+		LoadingPriorityTiers.Add(Landmark); LoadingPriorityTiers.Add(Building); LoadingPriorityTiers.Add(Prop);
+	}
 }
 
 void AGZGameMode::BeginPlay()
@@ -355,6 +380,11 @@ void AGZGameMode::BeginPlay()
 	ApplyRayTracingConfig();
 	ApplyDirectStorageConfig();
 	ApplyNaniteSeamFix();
+
+	// v5.2
+	ApplyLoadingPriorities();
+	ApplyPhysicsWindConfig();
+	SetRoadSurfaceType(EGZRoadSurfaceType::Asphalt);
 }
 
 void AGZGameMode::Tick(float DeltaSeconds)
@@ -363,6 +393,7 @@ void AGZGameMode::Tick(float DeltaSeconds)
 	UpdateDayNightCycle(DeltaSeconds);
 	UpdateWeatherTransition(DeltaSeconds);
 	UpdateRoadWetness(DeltaSeconds);
+	UpdatePuddles(DeltaSeconds);
 	UpdateVegetationWind(DeltaSeconds);
 
 	if (AdaptiveTransitionTimer > 0.0f)
@@ -406,6 +437,21 @@ void AGZGameMode::SetRoadWetnessTarget(float Target)
 void AGZGameMode::SetWindStrength(float Strength)
 {
 	WindStrength = FMath::Max(0.0f, Strength);
+}
+
+float AGZGameMode::GetEffectiveWindStrength() const
+{
+	if (WindStrength <= 0.01f)
+	{
+		return 0.0f;
+	}
+	float GustFactor = FMath::PerlinNoise1D(WindGustTimer * 0.3f) * WindParams.WindGustAmplitude;
+	return WindStrength * (1.0f + GustFactor);
+}
+
+void AGZGameMode::SetRoadSurfaceType(EGZRoadSurfaceType SurfaceType)
+{
+	CurrentRoadSurfaceType = SurfaceType;
 }
 
 EAppleSiliconChip AGZGameMode::DetectAppleSiliconChip() const
@@ -467,6 +513,11 @@ void AGZGameMode::ApplyChipSpecificSettings()
 		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Applied default quality (Unknown chip)"));
 		break;
 	}
+
+	// v5.2 Nanite sample precision per Apple Silicon chip (subtask 60)
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.QualityLevel"))->Set(QualitySettings.NaniteQualityLevel);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.MaxPixelsPerEdge"))->Set(1.0f / FMath::Max(1, QualitySettings.NaniteQualityLevel));
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.MinMaterialDisplacement"))->Set(0.5f / FMath::Max(1, QualitySettings.NaniteQualityLevel));
 
 	CurrentAdaptiveScreenPercentage = QualitySettings.ScreenPercentage;
 }
@@ -1159,7 +1210,7 @@ void AGZGameMode::ApplyGlassRefractionParams()
 
 void AGZGameMode::ApplyRefinedFresnelParams()
 {
-	// Refined curve: 0°=0.05, 60°=0.15 slow, 85°=0.55 fast, 90°=0.74 cap
+	// v7.1 refined curve: 0°=0.05, 60°=0.15 slow, 85°=0.55 fast, 90°=0.70 cap (~30% rear visibility)
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.Fresnel.View0"))->Set(FresnelParams.View0Reflect);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.Fresnel.View60"))->Set(FresnelParams.View60Reflect);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Glass.Fresnel.View85"))->Set(FresnelParams.View85Reflect);
@@ -1180,11 +1231,16 @@ void AGZGameMode::ApplyRefinedFresnelParams()
 }
 
 // ============================================================================
-// v5.0 Road Wetness State Machine
+// v5.2 Road Wetness State Machine
+// Subtasks 45-48: dry/transition/wet phases, sunny/cloudy cycles,
+// material-specific drying, sun/shade factor
 // ============================================================================
 void AGZGameMode::UpdateRoadWetness(float DeltaSeconds)
 {
 	if (RoadWetState == EGZRoadWetState::Dry && RoadWetnessTarget <= 0.01f) return;
+
+	const float SurfaceScale = ComputeRoadSurfaceDryScale();
+	const float SunFactor = ComputeSunFacingDryFactor();
 
 	switch (RoadWetState)
 	{
@@ -1217,7 +1273,9 @@ void AGZGameMode::UpdateRoadWetness(float DeltaSeconds)
 	case EGZRoadWetState::Drying:
 	{
 		float DryTime = (CurrentWeather == EGZWeatherType::Clear) ? RoadWetnessParams.DryTimeClear : RoadWetnessParams.DryTimeCloudy;
-		float DrySpeed = 1.0f / DryTime;
+		// Combine material drying scale and sun/shade exposure (subtask 47-48)
+		DryTime /= (SurfaceScale * SunFactor);
+		float DrySpeed = 1.0f / FMath::Max(DryTime, 1.0f);
 		RoadWetness -= DeltaSeconds * DrySpeed;
 		if (RoadWetness <= 0.0f)
 		{
@@ -1232,20 +1290,107 @@ void AGZGameMode::UpdateRoadWetness(float DeltaSeconds)
 	// Apply road reflectivity and roughness based on wetness
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Road.ReflectivityBoost"))->Set(RoadWetnessParams.WetReflectivityBoost * RoadWetness);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Road.RoughnessReduction"))->Set(RoadWetnessParams.WetRoughnessReduction * RoadWetness);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Road.PuddleReflectivityExtra"))->Set(RoadWetnessParams.PuddleReflectivityExtra * RoadWetness);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Road.SurfaceDryScale"))->Set(SurfaceScale);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Road.SunFacingDryFactor"))->Set(SunFactor);
+}
+
+float AGZGameMode::ComputeRoadSurfaceDryScale() const
+{
+	switch (CurrentRoadSurfaceType)
+	{
+	case EGZRoadSurfaceType::Cement:
+		return RoadWetnessParams.CementDryScale;
+	case EGZRoadSurfaceType::Brick:
+		return RoadWetnessParams.BrickDryScale;
+	case EGZRoadSurfaceType::Asphalt:
+	default:
+		return RoadWetnessParams.AsphaltDryScale;
+	}
+}
+
+float AGZGameMode::ComputeSunFacingDryFactor() const
+{
+	const float Hour = DayNight.TimeOfDay;
+	// Daylight roughly 06:00 - 18:00; noon = max sun exposure
+	if (Hour < 6.0f || Hour > 18.0f)
+	{
+		return RoadWetnessParams.ShadeFacingDrySpeedReduction;
+	}
+	const float NoonFactor = 1.0f - FMath::Abs(Hour - 12.0f) / 6.0f; // 0 at horizon, 1 at noon
+	return FMath::Lerp(RoadWetnessParams.ShadeFacingDrySpeedReduction,
+		RoadWetnessParams.SunFacingDrySpeedBoost,
+		NoonFactor);
 }
 
 // ============================================================================
-// v5.0 Vegetation Wind Dynamics
+// v5.2 Puddle generation & ripple physics (subtasks 49-51)
+// Low-elevation areas accumulate water; slope + wind drive ripple direction
+// ============================================================================
+void AGZGameMode::UpdatePuddles(float DeltaSeconds)
+{
+	if (RoadWetness <= 0.01f)
+	{
+		PuddleAmount = FMath::Max(0.0f, PuddleAmount - DeltaSeconds * RoadWetnessParams.PuddleEvaporationRate);
+		PuddleDepth = FMath::Max(0.0f, PuddleDepth - DeltaSeconds * RoadWetnessParams.PuddleEvaporationRate);
+		RippleIntensity = FMath::Max(0.0f, RippleIntensity - DeltaSeconds);
+	}
+	else
+	{
+		// Accumulate in low elevations (assume current camera elevation for prototype)
+		float CameraElevation = 0.0f;
+		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+		{
+			if (APawn* Pawn = PC->GetPawn())
+			{
+				CameraElevation = Pawn->GetActorLocation().Z;
+			}
+		}
+
+		float LowFactor = FMath::Clamp((RoadWetnessParams.LowElevationThreshold - CameraElevation) / FMath::Abs(RoadWetnessParams.LowElevationThreshold), 0.0f, 1.0f);
+		float TargetPuddle = RoadWetness * LowFactor;
+		PuddleAmount = FMath::Lerp(PuddleAmount, TargetPuddle, DeltaSeconds * 0.5f);
+		PuddleDepth = PuddleAmount * RoadWetnessParams.PuddleMaxDepth;
+
+		// Ripple intensity driven by wind and a synthetic slope drift
+		float WindRipple = WindStrength * RoadWetnessParams.RippleWindFactor;
+		float SlopeRipple = RoadWetnessParams.RippleSlopeFactor * 0.5f; // placeholder slope magnitude
+		float TargetRipple = FMath::Clamp(WindRipple + SlopeRipple, 0.0f, 1.0f) * PuddleAmount;
+		RippleIntensity = FMath::Lerp(RippleIntensity, TargetRipple, DeltaSeconds * 2.0f);
+
+		// Ripple direction follows wind azimuth (synthetic dominant wind direction)
+		float WindAzimuth = FMath::PerlinNoise1D(WindGustTimer * 0.1f) * PI;
+		RippleDirection = FVector2D(FMath::Cos(WindAzimuth), FMath::Sin(WindAzimuth));
+	}
+
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Road.PuddleAmount"))->Set(PuddleAmount);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Road.PuddleDepth"))->Set(PuddleDepth);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Road.RippleIntensity"))->Set(RippleIntensity);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Road.RippleDirX"))->Set(RippleDirection.X);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Road.RippleDirY"))->Set(RippleDirection.Y);
+}
+
+// ============================================================================
+// v5.2 Vegetation & Sign Wind Dynamics
+// Subtasks 52-57: NO preset keyframe animations; all motion is procedural
+// physics/shader driven. Metal vs cloth signs, trunk vs leaf layers, local
+// variation, gust impact, and max-angle clipping to prevent clipping.
+// Per-actor sign/banner/branch simulation is handled by UGZPhysicsWindComponent.
+// This function only publishes global wind parameters to shaders and CVars.
 // ============================================================================
 void AGZGameMode::UpdateVegetationWind(float DeltaSeconds)
 {
-	if (WindStrength <= 0.01f) return;
-
 	WindGustTimer += DeltaSeconds;
 
-	// Random wind gusts
-	float GustFactor = FMath::PerlinNoise1D(WindGustTimer * 0.3f) * WindParams.WindGustAmplitude;
-	float EffectiveWind = WindStrength * (1.0f + GustFactor);
+	// Even with zero wind we still push the max-angle and damping CVars so
+	// physics bodies know their constraints (subtask 57).
+	float EffectiveWind = 0.0f;
+	if (WindStrength > 0.01f)
+	{
+		// Random wind gusts (subtask 56)
+		float GustFactor = FMath::PerlinNoise1D(WindGustTimer * 0.3f) * WindParams.WindGustAmplitude;
+		EffectiveWind = WindStrength * (1.0f + GustFactor);
+	}
 
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vegetation.WindStrength"))->Set(EffectiveWind);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vegetation.BranchPeriodMin"))->Set(WindParams.BranchSwingPeriodMin);
@@ -1260,6 +1405,12 @@ void AGZGameMode::UpdateVegetationWind(float DeltaSeconds)
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Signs.AngleRange"))->Set(WindParams.SignSwingAngleRange);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Signs.PeriodMin"))->Set(WindParams.SignSwingPeriodMin);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Signs.PeriodMax"))->Set(WindParams.SignSwingPeriodMax);
+
+	// v5.2 Max swing angles to prevent model clipping (subtask 57)
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.PhysicsWind.MaxSignAngle"))->Set(PhysicsWindConfig.MaxSignSwingAngle);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.PhysicsWind.MaxBranchAngle"))->Set(PhysicsWindConfig.MaxTreeBranchAngle);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.PhysicsWind.MaxLeafAngle"))->Set(PhysicsWindConfig.MaxLeafAngle);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.PhysicsWind.Damping"))->Set(PhysicsWindConfig.Damping);
 }
 
 // ============================================================================
@@ -1331,8 +1482,10 @@ void AGZGameMode::ApplyDirectStorageConfig()
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.DirectStorage.PreloadPriority1Distance"))->Set(DirectStorageConfig.PreloadPriority1_Distance);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.DirectStorage.PreloadPriority2Distance"))->Set(DirectStorageConfig.PreloadPriority2_Distance);
 	IConsoleManager::Get().FindConsoleVariable(TEXT("r.DirectStorage.PreloadPriority3Distance"))->Set(DirectStorageConfig.PreloadPriority3_Distance);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.DirectStorage.AsyncIO"))->Set(1);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.DirectStorage.BypassOSCache"))->Set(1);
 
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("DirectStorage: enable=%d P1=%.0f P2=%.0f P3=%.0f"),
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("DirectStorage: enable=%d P1=%.0f P2=%.0f P3=%.0f asyncIO=1"),
 		DirectStorageConfig.bEnableDirectStorage, DirectStorageConfig.PreloadPriority1_Distance,
 		DirectStorageConfig.PreloadPriority2_Distance, DirectStorageConfig.PreloadPriority3_Distance);
 }
@@ -1399,6 +1552,54 @@ void AGZGameMode::ApplyNaniteSeamFix()
 
 	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("NaniteSeamFix: interpDist=%.3f maxGap=%.3f blend=%d"),
 		NaniteSeamFix.VertexInterpolationDistance, NaniteSeamFix.MaxSeamGap, NaniteSeamFix.bEnableSeamBlend);
+}
+
+// ============================================================================
+// v5.2 Physics Wind Config (subtask 52-57)
+// Replaces preset keyframe animations with real-time physics constraints.
+// Actual angular force application lives in actor/component tick using these CVars.
+// ============================================================================
+void AGZGameMode::ApplyPhysicsWindConfig()
+{
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.PhysicsWind.Enable"))->Set(PhysicsWindConfig.bEnablePhysicsWind ? 1 : 0);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.PhysicsWind.MaxSignAngle"))->Set(PhysicsWindConfig.MaxSignSwingAngle);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.PhysicsWind.MaxBranchAngle"))->Set(PhysicsWindConfig.MaxTreeBranchAngle);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.PhysicsWind.MaxLeafAngle"))->Set(PhysicsWindConfig.MaxLeafAngle);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.PhysicsWind.ForceMultiplier"))->Set(PhysicsWindConfig.PhysicsForceMultiplier);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.PhysicsWind.Damping"))->Set(PhysicsWindConfig.Damping);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("PhysicsWind: enable=%d sign=%.1f branch=%.1f leaf=%.1f force=%.0f damping=%.2f"),
+		PhysicsWindConfig.bEnablePhysicsWind, PhysicsWindConfig.MaxSignSwingAngle,
+		PhysicsWindConfig.MaxTreeBranchAngle, PhysicsWindConfig.MaxLeafAngle,
+		PhysicsWindConfig.PhysicsForceMultiplier, PhysicsWindConfig.Damping);
+}
+
+// ============================================================================
+// v5.2 Loading Priority Tiers (subtask 58-59)
+// Landmark > Building > Prop; 4-cell (512m) preload for priority 1.
+// ============================================================================
+void AGZGameMode::ApplyLoadingPriorities()
+{
+	// Subtask 58:远景预加载区块提升至4个128米区块 = 512 meters
+	DirectStorageConfig.PreloadPriority1_Distance = 512.0f;  // 4 cells
+	DirectStorageConfig.PreloadPriority2_Distance = 384.0f;  // 3 cells
+	DirectStorageConfig.PreloadPriority3_Distance = 256.0f;  // 2 cells
+	ApplyDirectStorageConfig();
+
+	// Subtask 59: three loading priority tiers
+	if (LoadingPriorityTiers.Num() >= 3)
+	{
+		IConsoleManager::Get().FindConsoleVariable(TEXT("r.Streaming.LandmarkPriority"))->Set(LoadingPriorityTiers[0].PriorityWeight);
+		IConsoleManager::Get().FindConsoleVariable(TEXT("r.Streaming.BuildingPriority"))->Set(LoadingPriorityTiers[1].PriorityWeight);
+		IConsoleManager::Get().FindConsoleVariable(TEXT("r.Streaming.PropPriority"))->Set(LoadingPriorityTiers[2].PriorityWeight);
+		IConsoleManager::Get().FindConsoleVariable(TEXT("r.Streaming.LandmarkCullScale"))->Set(LoadingPriorityTiers[0].CullDistanceScale);
+		IConsoleManager::Get().FindConsoleVariable(TEXT("r.Streaming.BuildingCullScale"))->Set(LoadingPriorityTiers[1].CullDistanceScale);
+		IConsoleManager::Get().FindConsoleVariable(TEXT("r.Streaming.PropCullScale"))->Set(LoadingPriorityTiers[2].CullDistanceScale);
+	}
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("LoadingPriorities: P1=%.0fm P2=%.0fm P3=%.0fm tiers=%d"),
+		DirectStorageConfig.PreloadPriority1_Distance, DirectStorageConfig.PreloadPriority2_Distance,
+		DirectStorageConfig.PreloadPriority3_Distance, LoadingPriorityTiers.Num());
 }
 
 // ============================================================================

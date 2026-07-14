@@ -15,7 +15,59 @@
 UGZAccountLoginManager::UGZAccountLoginManager()
 {
 	AccountsFilePath = FPaths::ProjectSavedDir() / TEXT("PlayerAccounts.json");
+
+	// Subtask 92: create EOS auth interface stub (real SDK linkage required).
+	EOSAuthInterface = NewObject<UGZEOSAuthInterface>();
+	if (EOSAuthInterface)
+	{
+		EOSAuthInterface->Initialize();
+	}
+
 	LoadAccountData();
+
+	// Subtask 104: attempt auto-login if a remembered account exists and is not expired.
+	TryAutoLogin();
+}
+
+bool UGZAccountLoginManager::IsGuestExpired() const
+{
+	if (!CurrentAccount.bIsGuest)
+	{
+		return false;
+	}
+	return FDateTime::Now() > CurrentAccount.GuestExpireTime;
+}
+
+void UGZAccountLoginManager::SetRememberAccount(bool bEnabled)
+{
+	CurrentAccount.bRememberAccount = bEnabled;
+	SaveAccountData();
+}
+
+void UGZAccountLoginManager::TryAutoLogin()
+{
+	for (const FGZPlayerAccount& Acc : AccountRegistry)
+	{
+		if (Acc.bAutoLogin && !Acc.bIsGuest)
+		{
+			CurrentAccount = Acc;
+			CurrentAccount.LastLogin = FDateTime::Now();
+			CurrentState = EGZLoginState::LoggedIn;
+			CurrentChannel = Acc.Email.IsEmpty() ? EGZLoginChannel::Phone : EGZLoginChannel::Email;
+			SaveAccountData();
+			UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Auto-login succeeded for PlayerID=%s"), *Acc.PlayerID);
+			return;
+		}
+
+		if (Acc.bIsGuest && Acc.GuestExpireTime > FDateTime::Now())
+		{
+			CurrentAccount = Acc;
+			CurrentState = EGZLoginState::LoggedIn;
+			CurrentChannel = EGZLoginChannel::Guest;
+			UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Auto-login restored guest PlayerID=%s"), *Acc.PlayerID);
+			return;
+		}
+	}
 }
 
 // ===== Validation =====
@@ -80,6 +132,28 @@ FString UGZAccountLoginManager::GenerateVerificationCode() const
 {
 	int32 Code = FMath::RandRange(100000, 999999);
 	return FString::Printf(TEXT("%06d"), Code);
+}
+
+bool UGZAccountLoginManager::IsVerificationCodeValid(const FString& Code) const
+{
+	if (CurrentVerificationCode.IsEmpty() || CurrentVerificationTarget.IsEmpty())
+	{
+		return false;
+	}
+	if (FDateTime::Now() > CurrentVerificationCodeExpiryTime)
+	{
+		return false;
+	}
+	return Code == CurrentVerificationCode;
+}
+
+bool UGZAccountLoginManager::IsPhoneCodeInCooldown() const
+{
+	if (PhoneCodeLastSentTime == FDateTime::MinValue())
+	{
+		return false;
+	}
+	return FDateTime::Now() < PhoneCodeLastSentTime + FTimespan::FromSeconds(PhoneCodeCooldown);
 }
 
 // ===== Email Login =====
@@ -168,13 +242,15 @@ void UGZAccountLoginManager::SendEmailVerificationCode(const FString& Email)
 
 	CurrentVerificationCode = GenerateVerificationCode();
 	CurrentVerificationTarget = Email;
+	CurrentVerificationCodeSentTime = FDateTime::Now();
+	CurrentVerificationCodeExpiryTime = FDateTime::Now() + FTimespan::FromSeconds(EmailCodeExpiry);
 	OnVerificationCodeSent.Broadcast(true);
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Email verification code sent to %s: %s"), *Email, *CurrentVerificationCode);
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Email verification code sent to %s: %s (expires in %.0fs)"), *Email, *CurrentVerificationCode, EmailCodeExpiry);
 }
 
 void UGZAccountLoginManager::VerifyEmailCode(const FString& Email, const FString& Code)
 {
-	if (Email == CurrentVerificationTarget && Code == CurrentVerificationCode)
+	if (Email == CurrentVerificationTarget && IsVerificationCodeValid(Code))
 	{
 		ResetVerificationFailures();
 		CurrentVerificationCode.Empty();
@@ -184,7 +260,7 @@ void UGZAccountLoginManager::VerifyEmailCode(const FString& Email, const FString
 	else
 	{
 		HandleVerificationFailure();
-		OnLoginResult.Broadcast(false, TEXT("验证码错误"));
+		OnLoginResult.Broadcast(false, TEXT("验证码错误或已过期"));
 	}
 }
 
@@ -221,7 +297,7 @@ void UGZAccountLoginManager::LoginWithPhone(const FString& PhoneNumber, const FS
 	CurrentState = EGZLoginState::LoggingIn;
 	CurrentChannel = EGZLoginChannel::Phone;
 
-	if (PhoneNumber == CurrentVerificationTarget && VerificationCode == CurrentVerificationCode)
+	if (PhoneNumber == CurrentVerificationTarget && IsVerificationCodeValid(VerificationCode))
 	{
 		ResetVerificationFailures();
 		FGZPlayerAccount* Existing = FindAccountByPhone(PhoneNumber);
@@ -266,6 +342,11 @@ void UGZAccountLoginManager::SendPhoneVerificationCode(const FString& PhoneNumbe
 		OnVerificationCodeSent.Broadcast(false);
 		return;
 	}
+	if (IsPhoneCodeInCooldown())
+	{
+		OnVerificationCodeSent.Broadcast(false);
+		return;
+	}
 	if (!ValidatePhone(PhoneNumber))
 	{
 		OnVerificationCodeSent.Broadcast(false);
@@ -274,13 +355,16 @@ void UGZAccountLoginManager::SendPhoneVerificationCode(const FString& PhoneNumbe
 
 	CurrentVerificationCode = GenerateVerificationCode();
 	CurrentVerificationTarget = PhoneNumber;
+	CurrentVerificationCodeSentTime = FDateTime::Now();
+	CurrentVerificationCodeExpiryTime = FDateTime::Now() + FTimespan::FromSeconds(PhoneCodeExpiry);
+	PhoneCodeLastSentTime = FDateTime::Now();
 	OnVerificationCodeSent.Broadcast(true);
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Phone verification code sent to %s: %s"), *PhoneNumber, *CurrentVerificationCode);
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Phone verification code sent to %s: %s (expires in %.0fs, cooldown %.0fs)"), *PhoneNumber, *CurrentVerificationCode, PhoneCodeExpiry, PhoneCodeCooldown);
 }
 
 void UGZAccountLoginManager::VerifyPhoneCode(const FString& PhoneNumber, const FString& Code)
 {
-	if (PhoneNumber == CurrentVerificationTarget && Code == CurrentVerificationCode)
+	if (PhoneNumber == CurrentVerificationTarget && IsVerificationCodeValid(Code))
 	{
 		ResetVerificationFailures();
 		CurrentVerificationCode.Empty();
@@ -290,7 +374,7 @@ void UGZAccountLoginManager::VerifyPhoneCode(const FString& PhoneNumber, const F
 	else
 	{
 		HandleVerificationFailure();
-		OnLoginResult.Broadcast(false, TEXT("验证码错误"));
+		OnLoginResult.Broadcast(false, TEXT("验证码错误或已过期"));
 	}
 }
 

@@ -51,6 +51,14 @@ enum class EGZSurfaceRoughness : uint8
 };
 
 UENUM(BlueprintType)
+enum class EGZRoadSurfaceType : uint8
+{
+	Asphalt		UMETA(DisplayName = "Asphalt"),
+	Cement		UMETA(DisplayName = "Cement"),
+	Brick		UMETA(DisplayName = "Brick"),
+};
+
+UENUM(BlueprintType)
 enum class EGZRoadWetState : uint8
 {
 	Dry				UMETA(DisplayName = "Dry"),
@@ -283,10 +291,24 @@ struct FRoadWetnessParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float WetTransitionTime = 30.0f;       // 30s to full wet
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float DryTimeClear = 480.0f;           // 480s clear
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float DryTimeCloudy = 900.0f;          // 900s cloudy
+
+	// v5.2 Material-specific drying multipliers (subtask 47)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float AsphaltDryScale = 1.00f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float CementDryScale = 1.20f;          // cement dries 20% slower
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float BrickDryScale = 0.85f;           // brick dries 15% faster (porous)
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float WetReflectivityBoost = 0.22f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float WetRoughnessReduction = 0.16f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float PuddleReflectivityExtra = 0.20f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float PuddleEvapTimeScale = 0.70f;      // 30% faster than road
+
+	// v5.2 Puddle generation & ripple (subtask 49-51)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float LowElevationThreshold = -200.0f;  // cm below road level
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float PuddleMaxDepth = 15.0f;           // cm
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float PuddleEvaporationRate = 0.30f;    // cm/s at full dry
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float RippleSlopeFactor = 0.50f;        // steeper slope -> stronger ripple drift
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float RippleWindFactor = 0.40f;         // wind -> larger ripples
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float SunFacingDrySpeedBoost = 1.40f;   // +40%
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ShadeFacingDrySpeedReduction = 0.80f; // -20%
 };
@@ -367,7 +389,7 @@ struct FRefinedFresnelParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float View0Reflect = 0.05f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float View60Reflect = 0.15f;      // Slow 0-60°
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float View85Reflect = 0.55f;      // Fast 60-85°
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) float View90Reflect = 0.74f;      // Cap at 90° (was 0.82)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float View90Reflect = 0.70f;      // v7.1 cap at 90° to retain ~30% rear visibility
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float SunHighlightShrink = 0.20f;  // 20% smaller highlight
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float SunHighlightBoost = 0.15f;   // 15% brighter
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bRoughnessBindsFresnel = true;
@@ -379,7 +401,7 @@ struct FGlassColorNeutrality
 	GENERATED_BODY()
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bRemoveBlueFilter = true;     // No blue tint
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float ThickBottomThreshold = 0.35f; // mm
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) float MaxColorShiftKelvin = 50.0f;  // Imperceptible
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float MaxColorShiftKelvin = 30.0f;  // v7.1 global shift <=30K
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float DuskColorShift = 30.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float EdgeThicknessColorFade = 0.05f;
 };
@@ -558,6 +580,35 @@ struct FNaniteSeamFix
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnableSeamBlend = true;
 };
 
+// ============================================================================
+// v5.2 Loading priority tiers (subtask 59)
+// ============================================================================
+USTRUCT(BlueprintType)
+struct FLoadingPriorityTier
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FString TierName = TEXT("Normal");
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float PriorityWeight = 1.0f;          // higher = load first
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float CullDistanceScale = 1.0f;       // streaming distance multiplier
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) int32 MinLOD = 0;
+};
+
+// ============================================================================
+// v5.2 Physics-driven wind config (subtask 52-57)
+// Replaces any preset keyframe animation with real-time physics forces
+// ============================================================================
+USTRUCT(BlueprintType)
+struct FPhysicsWindConfig
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) bool bEnablePhysicsWind = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float MaxSignSwingAngle = 15.0f;       // degrees, prevents clipping
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float MaxTreeBranchAngle = 8.0f;       // degrees
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float MaxLeafAngle = 25.0f;            // degrees
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float PhysicsForceMultiplier = 100.0f; // scales wind force on bodies
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) float Damping = 0.92f;                 // angular velocity decay
+};
+
 UCLASS()
 class GUANGZHOUOPENWORLD_API AGZGameMode : public AGameModeBase
 {
@@ -587,15 +638,23 @@ public:
 	UFUNCTION(BlueprintCallable) void ApplyNaniteSeamFix();
 	UFUNCTION(BlueprintCallable) void ApplyTrafficBehavior(EGZTrafficBehavior Behavior);
 	UFUNCTION(BlueprintCallable) void ApplyDLSSFSRConfig();
+	UFUNCTION(BlueprintCallable) void ApplyLoadingPriorities();
+	UFUNCTION(BlueprintCallable) void ApplyPhysicsWindConfig();
 
 	// v5.0 Road wetness
 	UFUNCTION(BlueprintPure) EGZRoadWetState GetRoadWetState() const { return RoadWetState; }
 	UFUNCTION(BlueprintPure) float GetRoadWetness() const { return RoadWetness; }
 	UFUNCTION(BlueprintCallable) void SetRoadWetnessTarget(float Target);
+	UFUNCTION(BlueprintCallable) void SetRoadSurfaceType(EGZRoadSurfaceType SurfaceType);
+	UFUNCTION(BlueprintPure) EGZRoadSurfaceType GetRoadSurfaceType() const { return CurrentRoadSurfaceType; }
 
 	// v5.0 Wind
 	UFUNCTION(BlueprintPure) float GetWindStrength() const { return WindStrength; }
+	UFUNCTION(BlueprintPure) float GetEffectiveWindStrength() const;
+	UFUNCTION(BlueprintPure) float GetWindGustTimer() const { return WindGustTimer; }
 	UFUNCTION(BlueprintCallable) void SetWindStrength(float Strength);
+	UFUNCTION(BlueprintPure) const FVegetationWindParams& GetWindParams() const { return WindParams; }
+	UFUNCTION(BlueprintPure) const FPhysicsWindConfig& GetPhysicsWindConfig() const { return PhysicsWindConfig; }
 
 protected:
 	void UpdateDayNightCycle(float DeltaSeconds);
@@ -620,6 +679,9 @@ protected:
 	void ApplyRefinedFresnelParams();
 	void UpdateRoadWetness(float DeltaSeconds);
 	void UpdateVegetationWind(float DeltaSeconds);
+	void UpdatePuddles(float DeltaSeconds);
+	float ComputeRoadSurfaceDryScale() const;
+	float ComputeSunFacingDryFactor() const;
 	FLinearColor KelvinToRGB(float Kelvin) const;
 	bool IsHourInRange(float Hour, float RangeStart, float RangeEnd) const;
 	float CosineBlendWeight(float T) const;
@@ -660,6 +722,7 @@ protected:
 
 	// v5.0 State
 	UPROPERTY() EGZRoadWetState RoadWetState = EGZRoadWetState::Dry;
+	UPROPERTY() EGZRoadSurfaceType CurrentRoadSurfaceType = EGZRoadSurfaceType::Asphalt;
 	UPROPERTY() float RoadWetness = 0.0f;
 	UPROPERTY() float RoadWetnessTarget = 0.0f;
 	UPROPERTY() float WindStrength = 0.0f;
@@ -667,6 +730,12 @@ protected:
 	UPROPERTY() float WeatherPhaseTimer = 0.0f;
 	UPROPERTY() int32 WeatherPhase = 0;
 	UPROPERTY() float CloudCoverThickness = 0.0f;
+
+	// v5.2 Puddle & ripple state (subtask 49-51)
+	UPROPERTY() float PuddleAmount = 0.0f;          // 0-1 saturation of low areas
+	UPROPERTY() float PuddleDepth = 0.0f;           // current depth cm
+	UPROPERTY() float RippleIntensity = 0.0f;       // 0-1 ripple strength
+	UPROPERTY() FVector2D RippleDirection = FVector2D::ZeroVector;
 
 	// v5.1 New configs
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FCloudTierLighting> CloudTiers;
@@ -678,6 +747,8 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) FWeatherPreTransition WeatherPreTransition;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) FWeatherTransitionStages WeatherStages;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) FNaniteSeamFix NaniteSeamFix;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FPhysicsWindConfig PhysicsWindConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TArray<FLoadingPriorityTier> LoadingPriorityTiers;
 
 	UPROPERTY() EAppleSiliconChip DetectedChip = EAppleSiliconChip::Unknown;
 	UPROPERTY() class ADirectionalLight* SunLight = nullptr;

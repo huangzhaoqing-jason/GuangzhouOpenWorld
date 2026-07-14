@@ -1,26 +1,19 @@
-// LiquidGlass.usf - UE5.8 Metal 4.3 Liquid Glass Shader
+// ============================================================================
+// LiquidGlass.usf - UE5.8 Metal 4.3 Triple-Pane Insulated Glass Shader
 // iOS27 Physical Refraction Standard | 4A+ Guangzhou Open World
 // Metal Shading Language 3.1 native, Apple Silicon GPU-only
-// v5.0 Refined: Multi-layer refraction, refined Fresnel, color-neutral
+// v7.1: Triple-pane hollow glass, refined Fresnel cap 0.70, global color temp <=30K, multi-glass color conflict guard
 // NO Gaussian blur, NO frosted glass, NO matte textures, NO diffusion at any point
 // All transparency achieved through physical light calculation
-// Lumen GI integration: refracted light contributes to global illumination
-// Substrate material system compatible
-// Weather causality: glass brightness changes with weather conditions
-// Full multi-layer glass support: double/triple-pane with correct physical refraction
+// ============================================================================
 
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/DeferredShadingCommon.ush"
 #include "/Engine/Private/SceneTexturesCommon.ush"
 
 // ============================================================================
-// Material Type Selection (set via CustomData0)
-// 0 = SkyscraperGlass (high precision, full multi-layer, chromatic dispersion)
-// 1 = VehicleGlass (medium precision, single-layer optimized)
-// 2 = UIGlass (low intensity, single-refraction, minimal absorption)
-// ============================================================================
-
 // Material inputs (from material graph / Substrate)
+// ============================================================================
 float3 BaseColor;
 float Metallic;
 float Specular;
@@ -33,11 +26,7 @@ float DirtAmount;
 float3 TintColor;
 uint MaterialType;
 
-// Weather causality: controls reflection intensity based on weather
-// 0.0 = Fog (minimal reflection), 0.3 = Cloudy, 0.5 = Rain, 0.7 = Cloudy, 1.0 = Sunny (full Fresnel)
 float WeatherIntensity;
-
-// Sun parameters for dynamic highlights
 float SunAzimuth;
 float SunElevation;
 float SunColorTemp;
@@ -53,82 +42,49 @@ static const float Epsilon    = 0.0001;
 static const float PI         = 3.14159265359;
 
 // ============================================================================
-// v5.0 Multi-layer Glass Constants
+// v7.0 Triple-Pane Glass Layer Configuration
+// Layer 1: outer glass, Layer 2: inner glass, Layer 3: optional inner pane
 // ============================================================================
 struct GlassLayer
 {
 	float IOR;
 	float BrightnessDecay;
 	float RefractionReduction;
+	float ColorTempShiftK;
 };
 
-// Default double-pane configuration
-static const GlassLayer GLASS_LAYER_1 = { 1.52f, 0.18f, 0.0f };
-static const GlassLayer GLASS_LAYER_2 = { 1.52f, 0.12f, 0.50f };
+static const GlassLayer GLASS_LAYER_1 = { 1.52, 0.18, 0.00, 0.0 };
+static const GlassLayer GLASS_LAYER_2 = { 1.52, 0.12, 0.50, 0.0 };
+static const GlassLayer GLASS_LAYER_3 = { 1.52, 0.08, 0.75, 0.0 };
 
-static const float AIR_GAP_DECAY = 0.03f;
-static const float TOTAL_CONTRAST_REDUCTION = 0.25f;
-static const float FRAME_SMOOTH_PIXELS = 0.5f;
+static const float AIR_GAP_DECAY = 0.03;
+static const float TOTAL_CONTRAST_REDUCTION = 0.25;
+static const float FRAME_SMOOTH_PIXELS = 0.5;
 static const int MAX_GLASS_LAYERS = 3;
 
 // ============================================================================
-// v5.0 Refined Fresnel Constants
+// v7.1 Refined Fresnel Constants
+// 85-90° extreme view: reflection capped at 0.70 to retain ~30% rear visibility
 // ============================================================================
-static const float FRESNEL_VIEW0  = 0.05f;
-static const float FRESNEL_VIEW60 = 0.15f;
-static const float FRESNEL_VIEW85 = 0.55f;
-static const float FRESNEL_VIEW90 = 0.74f;  // Capped from 0.82 to 0.74 - keeps 30% visibility behind
-static const float SUN_HIGHLIGHT_SHRINK = 0.20f;  // 20% smaller highlight
-static const float SUN_HIGHLIGHT_BOOST = 0.15f;   // 15% brighter
+static const float FRESNEL_VIEW0  = 0.05;
+static const float FRESNEL_VIEW60 = 0.15;
+static const float FRESNEL_VIEW85 = 0.55;
+static const float FRESNEL_VIEW90 = 0.70;
+static const float SUN_HIGHLIGHT_SHRINK = 0.20;
+static const float SUN_HIGHLIGHT_BOOST = 0.15;
 
 // ============================================================================
-// v5.0 Color Neutrality Constants
+// v7.0 Color Neutrality Constants - global shift locked <=30K
 // ============================================================================
-static const float THICK_BOTTOM_THRESHOLD = 0.35f;  // mm
-static const float MAX_COLOR_SHIFT_KELVIN = 50.0f;
-static const float DUSK_COLOR_SHIFT = 30.0f;
+static const float THICK_BOTTOM_THRESHOLD = 0.35;
+static const float MAX_GLOBAL_COLOR_SHIFT_K = 30.0;
+static const float MAX_PER_LAYER_SHIFT_K = 50.0;
 
-// Behind-glass attenuation constants
 static const float BehindGlassBrightnessMul = 0.85;
-static const float BehindGlassContrastMul   = 0.9;
-static const float NeutralShiftBase = 0.03f;
-
-// ============================================================================
-// Predefined glass types by material
-// ============================================================================
-// Type 1: SkyscraperGlass
-// IOR=1.52, thickness top=0.12 bottom=0.35 (linear gradient)
-// Fresnel refined curve, samples M3=16 M2=12 M1=8
-// ============================================================================
-static const float SKYSCRAPER_IOR         = 1.52;
-static const float SKYSCRAPER_THICK_TOP   = 0.12;  // mm
-static const float SKYSCRAPER_THICK_BOT   = 0.35;  // mm
-
-// ============================================================================
-// Type 2: VehicleGlass
-// IOR=1.38, thickness=0.18, Fresnel 0°=0.08 90°=0.70
-// samples M3=12 M2=10 M1=6
-// ============================================================================
-static const float VEHICLE_IOR           = 1.38;
-static const float VEHICLE_THICKNESS     = 0.18;  // mm
-static const float VEHICLE_FRESNEL_0     = 0.08;
-static const float VEHICLE_FRESNEL_90    = 0.70;
-
-// ============================================================================
-// Type 3: UIGlass
-// IOR=1.05, thickness=0.05, Fresnel edge=0.25, samples=4 all chips
-// ============================================================================
-static const float UI_IOR              = 1.05;
-static const float UI_THICKNESS        = 0.05;  // mm
-static const float UI_FRESNEL_EDGE     = 0.25;
-static const uint  UI_SAMPLES_ALL      = 4;
+static const float BehindGlassContrastMul   = 0.90;
 
 // ============================================================================
 // Weather-Dependent Glass Reflection Intensity
-// Sunny day:    intensity = 1.0 (full Fresnel)
-// Cloudy day:   intensity = 0.7 (reduced reflection)
-// Rain:         intensity = 0.5 (water on glass reduces reflection)
-// Fog:          intensity = 0.3 (minimal reflection)
 // ============================================================================
 float GetWeatherReflectionIntensity()
 {
@@ -136,12 +92,22 @@ float GetWeatherReflectionIntensity()
 }
 
 // ============================================================================
-// v5.0 Color-Neutral Glass: No default blue tint - physically based shift only
+// v7.0 Global Color Temperature Shift Clamp
+// Converts Kelvin shift to RGB offset and clamps total shift <=30K
+// ============================================================================
+float3 KelvinShiftToRGB(float ShiftK)
+{
+	float clampedShift = clamp(ShiftK, -MAX_GLOBAL_COLOR_SHIFT_K, MAX_GLOBAL_COLOR_SHIFT_K);
+	float t = clampedShift / 10000.0;
+	return float3(t * 0.3, t * 0.1, -t * 0.2);
+}
+
+// ============================================================================
+// Behind-glass attenuation with global color neutrality clamp
 // ============================================================================
 float3 ComputeBehindGlassAttenuation(float3 InColor, float ThicknessMM, float CurrentEnvTemp)
 {
 	float ThicknessFactor = clamp(ThicknessMM * 0.05, 0.0, 1.0);
-
 	float BrightnessMul = lerp(1.0, BehindGlassBrightnessMul, ThicknessFactor);
 	float ContrastMul = lerp(1.0, BehindGlassContrastMul, ThicknessFactor);
 
@@ -149,67 +115,44 @@ float3 ComputeBehindGlassAttenuation(float3 InColor, float ThicknessMM, float Cu
 	float3 Contrasted = lerp(Gray, InColor, ContrastMul);
 	float3 Dimmed = Contrasted * BrightnessMul;
 
-	// Color temperature shift: follows environment temperature
-	// Only shift when thickness > 0.35mm, max shift <= 50K
 	float TempShift = 0.0;
 	if (ThicknessMM > THICK_BOTTOM_THRESHOLD)
 	{
-		float effectiveShift = (MAX_COLOR_SHIFT_KELVIN / 10000.0f);
-		// Shift direction: if environment is warm (low K), shift slightly cooler
-		if (CurrentEnvTemp > 5000.0f)
-		{
-			TempShift = effectiveShift * 0.3;
-			float3 CoolShift = float3(-TempShift * 0.3f, -TempShift * 0.1f, TempShift * 0.5f);
-			Dimmed += CoolShift;
-		}
-		else if (CurrentEnvTemp < 3000.0f)
-		{
-			// Dusk: warm environment - slightly absorb cool, shift 30K
-			effectiveShift = (DUSK_COLOR_SHIFT / 10000.0f);
-			float3 WarmShift = float3(effectiveShift * 0.2f, effectiveShift * 0.1f, 0.0f);
-			Dimmed += WarmShift;
-		}
+		TempShift = (CurrentEnvTemp > 5000.0) ? 20.0 : -10.0;
 	}
+	Dimmed += KelvinShiftToRGB(TempShift);
 
 	return max(Dimmed, 0.0);
 }
 
 // ============================================================================
-// Fresnel - Schlick Approximation with refined segmented curve (v5.0)
-// v5.0: 0-60° slow, 60-85° fast, 85-90° capped at 0.74
+// Fresnel - Schlick Approximation with refined segmented curve
+// 0-60 slow, 60-85 fast, 85-90 capped at 0.70 (~30% transmission)
 // ============================================================================
 float RefinedFresnelF0(float CosTheta, float IOR, float Roughness)
 {
 	float R0 = (IOR - AirIOR) / (IOR + AirIOR);
 	R0 = R0 * R0;
 
-	// Refined curve based on viewing angle
-	if (R0 > 0.0)
+	if (CosTheta < cos(radians(60.0f)))
 	{
-		if (CosTheta < cos(radians(60.0f)))
-		{
-			// 0-60°: slow increase to 0.15
-			float t = CosTheta / cos(radians(60.0f));
-			R0 = lerp(FRESNEL_VIEW0, FRESNEL_VIEW60, 1.0 - t);
-		}
-		else if (CosTheta < cos(radians(85.0f)))
-		{
-			// 60-85°: fast increase to 0.55
-			float t = (cos(radians(60.0f)) - CosTheta) / (cos(radians(60.0f)) - cos(radians(85.0f)));
-			R0 = lerp(FRESNEL_VIEW60, FRESNEL_VIEW85, t);
-		}
-		else
-		{
-			// 85-90°: capped increase to 0.74 (was 0.82)
-			float t = (cos(radians(85.0f)) - CosTheta) / (cos(radians(85.0f)) - 0.0f);
-			R0 = lerp(FRESNEL_VIEW85, FRESNEL_VIEW90, t);
-		}
+		float t = CosTheta / cos(radians(60.0f));
+		R0 = lerp(FRESNEL_VIEW0, FRESNEL_VIEW60, 1.0 - t);
+	}
+	else if (CosTheta < cos(radians(85.0f)))
+	{
+		float t = (cos(radians(60.0f)) - CosTheta) / (cos(radians(60.0f)) - cos(radians(85.0f)));
+		R0 = lerp(FRESNEL_VIEW60, FRESNEL_VIEW85, t);
+	}
+	else
+	{
+		float t = (cos(radians(85.0f)) - CosTheta) / (cos(radians(85.0f)) - 0.0f);
+		R0 = lerp(FRESNEL_VIEW85, FRESNEL_VIEW90, t);
 	}
 
-	// Roughness binds to Fresnel - older scratched glass has uneven distribution
-	if (GlassNeutrality_removeBlueFilter && Roughness > 0.1f)
+	// Roughness binds to Fresnel - scratched glass has uneven reflection
+	if (Roughness > 0.1f)
 	{
-		// Higher roughness = more micro-scratches = slightly higher average reflection
 		R0 *= 1.0f + (Roughness - 0.1f) * 0.2f;
 	}
 
@@ -220,13 +163,23 @@ float3 FresnelSchlickRefined(float CosTheta, float IOR, float Roughness)
 {
 	float R0 = RefinedFresnelF0(CosTheta, IOR, Roughness);
 	float InvCos  = saturate(1.0 - CosTheta);
-	float InvCos5 = InvCos * InvCos;
-	InvCos5 = InvCos5 * InvCos5 * InvCos;
+	float InvCos2 = InvCos * InvCos;
+	float InvCos5 = InvCos2 * InvCos2 * InvCos;
 	return R0.xxx + (1.0f - R0.xxx) * InvCos5;
 }
 
 // ============================================================================
-// Sun-highlight intensity - smaller highlight when sun is perpendicular
+// Legacy Schlick helper for single-pane glass paths (vehicle, UI)
+// ============================================================================
+float3 FresnelSchlick(float CosTheta, float3 F0)
+{
+	float InvCos  = saturate(1.0 - CosTheta);
+	float InvCos5 = InvCos * InvCos * InvCos * InvCos * InvCos;
+	return F0 + (1.0f - F0) * InvCos5;
+}
+
+// ============================================================================
+// Sun-highlight with temperature tint
 // ============================================================================
 float ComputeSunHighlightIntensity(float3 N, float3 L)
 {
@@ -235,15 +188,12 @@ float ComputeSunHighlightIntensity(float3 N, float3 L)
 	float sunIntensity = SunIntensity * (1.0f - SUN_HIGHLIGHT_SHRINK);
 	float boost = SUN_HIGHLIGHT_BOOST;
 
-	// Color temperature tint: warmer sun = warmer highlight
 	if (SunColorTemp < 4000.0f)
 	{
-		// Dusk/dawn - warmer
 		return highlight * sunIntensity * (1.0f + boost * 0.5f);
 	}
 	else if (SunColorTemp > 6000.0f)
 	{
-		// Midday - brighter
 		return highlight * sunIntensity * (1.0f + boost);
 	}
 
@@ -251,12 +201,12 @@ float ComputeSunHighlightIntensity(float3 N, float3 L)
 }
 
 // ============================================================================
-// Snell's Law Refraction: n1 * sin(theta1) = n2 * sin(theta2)
+// Snell's Law Refraction
 // ============================================================================
 float3 RefractRaySnell(float3 Incident, float3 Normal, float Eta)
 {
 	float NoI = dot(Normal, Incident);
-	float K   = 1.0 - Eta * Eta * (1.0 - NoI * NoI);
+	float K = 1.0 - Eta * Eta * (1.0 - NoI * NoI);
 
 	if (K < 0.0)
 	{
@@ -267,50 +217,63 @@ float3 RefractRaySnell(float3 Incident, float3 Normal, float Eta)
 }
 
 // ============================================================================
-// v5.0 Multi-layer refraction: Air -> Glass -> Air -> Glass -> Air
-// Properly accumulates attenuation and reduces offset on second layer
+// v7.0 Triple-Pane Hollow Glass Refraction
+// Air -> Glass -> Air -> Glass -> Air -> Glass -> Air
 // ============================================================================
-void MultiLayerRefraction(
+void TriplePaneRefraction(
 	float3 Incident,
 	float3 Normal,
-	float Eta1,
-	float Eta2,
 	float Layer1Thickness,
 	float Layer2Thickness,
+	float Layer3Thickness,
 	out float3 FinalRefracted,
 	out float TotalAttenuation)
 {
-	// Layer 1: Air -> Glass (entry)
-	float3 Refracted1 = RefractRaySnell(Incident, Normal, Eta1);
-	float CosRefracted1 = abs(dot(Refracted1, Normal));
-	float InternalDist1 = Layer1Thickness * 0.001 / max(CosRefracted1, Epsilon);
+	float3 CurrentDir = Incident;
+	TotalAttenuation = 1.0;
 
-	float atten1 = 1.0f - GLASS_LAYER_1.BrightnessDecay;
-	TotalAttenuation = atten1;
+	// Layer 1: Air -> Glass
+	float EtaEntry1 = AirIOR / GLASS_LAYER_1.IOR;
+	CurrentDir = RefractRaySnell(CurrentDir, Normal, EtaEntry1);
+	TotalAttenuation *= (1.0 - GLASS_LAYER_1.BrightnessDecay);
 
-	// Air gap between panes (double-pane)
-	float airGapAtten = 1.0f - AIR_GAP_DECAY;
-	TotalAttenuation *= airGapAtten;
+	// Air gap 1
+	TotalAttenuation *= (1.0 - AIR_GAP_DECAY);
 
-	// Layer 2: Air -> Glass (second layer)
-	float etaEntry = AirIOR / Eta2;
-	float offsetScale = 1.0f - GLASS_LAYER_2.RefractionReduction;
-	float3 Refracted2 = RefractRaySnell(Refracted1, Normal, etaEntry);
-	Refracted2 = Refracted2 * offsetScale;  // reduce offset on second layer
+	// Layer 2: Glass -> Air -> Glass
+	float EtaEntry2 = AirIOR / GLASS_LAYER_2.IOR;
+	CurrentDir = RefractRaySnell(CurrentDir, Normal, EtaEntry2);
+	CurrentDir *= (1.0 - GLASS_LAYER_2.RefractionReduction);
+	TotalAttenuation *= (1.0 - GLASS_LAYER_2.BrightnessDecay);
 
-	float atten2 = 1.0f - GLASS_LAYER_2.BrightnessDecay;
-	TotalAttenuation *= atten2;
+	// Air gap 2
+	TotalAttenuation *= (1.0 - AIR_GAP_DECAY);
 
-	// Exit: Glass -> Air (final exit)
-	float etaExit = Eta2 / AirIOR;
-	FinalRefracted = RefractRaySnell(Refracted2, -Normal, etaExit);
+	// Layer 3: Glass -> Air -> Glass
+	float EtaEntry3 = AirIOR / GLASS_LAYER_3.IOR;
+	CurrentDir = RefractRaySnell(CurrentDir, Normal, EtaEntry3);
+	CurrentDir *= (1.0 - GLASS_LAYER_3.RefractionReduction);
+	TotalAttenuation *= (1.0 - GLASS_LAYER_3.BrightnessDecay);
 
-	// Total contrast reduction
-	TotalAttenuation *= (1.0f - TOTAL_CONTRAST_REDUCTION);
+	// Final exit: Glass -> Air
+	float EtaExit = GLASS_LAYER_3.IOR / AirIOR;
+	FinalRefracted = RefractRaySnell(CurrentDir, -Normal, EtaExit);
+
+	TotalAttenuation *= (1.0 - TOTAL_CONTRAST_REDUCTION);
 }
 
 // ============================================================================
-// Beer-Lambert Absorption: I = I0 * exp(-alpha * distance)
+// v7.0 Edge thickness gradient: edges are thicker than center
+// ============================================================================
+float ComputeEdgeThickness(float BaseThickness, float2 UV, float EdgePixels)
+{
+	float2 EdgeDist = min(UV, 1.0 - UV);
+	float EdgeFactor = 1.0 - saturate(min(EdgeDist.x, EdgeDist.y) * 1000.0 / EdgePixels);
+	return lerp(BaseThickness, BaseThickness * 1.25, EdgeFactor);
+}
+
+// ============================================================================
+// Beer-Lambert Absorption
 // ============================================================================
 float3 BeerLambertAbsorption(float3 InColor, float3 AbsorptionCoeff, float Distance)
 {
@@ -325,11 +288,11 @@ float3 ComputeAbsorptionCoeff(float3 Tint, float ThicknessMM)
 }
 
 // ============================================================================
-// GGX Micro-facet BRDF (NDF)
+// GGX BRDF helpers
 // ============================================================================
 float GGX_Distribution(float3 N, float3 H, float Roughness)
 {
-	float a  = Roughness * Roughness;
+	float a = Roughness * Roughness;
 	float a2 = a * a;
 	float NoH = max(dot(N, H), 0.0f);
 	float NoH2 = NoH * NoH;
@@ -337,11 +300,10 @@ float GGX_Distribution(float3 N, float3 H, float Roughness)
 	return a2 / (PI * Denom * Denom + Epsilon);
 }
 
-// Smith Geometry Shadowing
 float SmithG1(float3 N, float3 V, float Roughness)
 {
-	float a  = Roughness * Roughness;
-	float k  = (a + 1.0f) * (a + 1.0f) * 0.125f;
+	float a = Roughness * Roughness;
+	float k = (a + 1.0f) * (a + 1.0f) * 0.125f;
 	float NoV = max(dot(N, V), 0.0f);
 	return NoV / (NoV * (1.0 - k) + k + Epsilon);
 }
@@ -351,9 +313,6 @@ float SmithGGX(float3 N, float3 V, float3 L, float Roughness)
 	return SmithG1(N, V, Roughness) * SmithG1(N, L, Roughness);
 }
 
-// ============================================================================
-// Environment BRDF for reflected contribution
-// ============================================================================
 float3 EnvBRDFApprox(float3 F0, float Roughness, float NoV)
 {
 	float a = Roughness * Roughness;
@@ -363,8 +322,7 @@ float3 EnvBRDFApprox(float3 F0, float Roughness, float NoV)
 }
 
 // ============================================================================
-// Lumen GI Integration: refracted light contributes to GI
-// Behind-glass attenuation is respected in GI contribution
+// Lumen GI Integration
 // ============================================================================
 float3 SampleLumenRefractedGI(float3 WorldPosition, float3 RefractedDirection, float Roughness, float ThicknessMM)
 {
@@ -374,24 +332,16 @@ float3 SampleLumenRefractedGI(float3 WorldPosition, float3 RefractedDirection, f
 	float3 DiffuseIndirect = 0.0;
 	float3 RoughSpecularIndirect = 0.0;
 
-	#if LUMEN_DIFFUSE_INDIRECT
-		DiffuseIndirect = LumenGetDiffuseLighting(TranslatedWorldPos, BentNormal, Roughness);
-	#endif
+#if LUMEN_DIFFUSE_INDIRECT
+	DiffuseIndirect = LumenGetDiffuseLighting(TranslatedWorldPos, BentNormal, Roughness);
+#endif
 
-	#if LUMEN_REFLECTIONS
-		RoughSpecularIndirect = LumenGetReflection(
-			TranslatedWorldPos,
-			RefractedDirection,
-			Roughness,
-			0.0
-		);
-	#endif
+#if LUMEN_REFLECTIONS
+	RoughSpecularIndirect = LumenGetReflection(TranslatedWorldPos, RefractedDirection, Roughness, 0.0);
+#endif
 
 	float3 CombinedGI = DiffuseIndirect + RoughSpecularIndirect;
-
-	// Apply behind-glass attenuation to Lumen GI contribution
 	CombinedGI = ComputeBehindGlassAttenuation(CombinedGI, ThicknessMM, SunColorTemp);
-
 	return CombinedGI;
 }
 
@@ -400,88 +350,117 @@ float3 SampleLumenRefractedGI(float3 WorldPosition, float3 RefractedDirection, f
 // ============================================================================
 uint GetSampleCount(uint MatType)
 {
-	#if defined(APPLE_M3)
-		if (MatType == 0) return 16;
-		if (MatType == 1) return 12;
-		return 4;
-	#elif defined(APPLE_M2)
-		if (MatType == 0) return 12;
-		if (MatType == 1) return 10;
-		return 4;
-	#else
-		if (MatType == 0) return 8;
-		if (MatType == 1) return 6;
-		return 4;
-	#endif
+#if defined(APPLE_M3)
+	if (MatType == 0) return 16;
+	if (MatType == 1) return 12;
+	return 4;
+#elif defined(APPLE_M2)
+	if (MatType == 0) return 12;
+	if (MatType == 1) return 10;
+	return 4;
+#else
+	if (MatType == 0) return 8;
+	if (MatType == 1) return 6;
+	return 4;
+#endif
 }
 
 // ============================================================================
-// Material Type 0: SkyscraperGlass (High-rise building facade glass)
-// Full multi-layer refraction (double-pane), chromatic dispersion, refined Fresnel
-// Weather-dependent reflection + behind-glass attenuation
-// v5.0: color-neutral (no default blue tint), physically-based shift only
+// v7.0 Frame-only Fresnel: metal frame does not refract, only reflects
+// ============================================================================
+float IsFrameArea(float2 UV)
+{
+	// Frame mask encoded in TintColor alpha channel or derived from material
+	return TintColor.a > 0.5 ? 1.0 : 0.0;
+}
+
+// ============================================================================
+// v7.0 0.5 pixel smooth transition between glass and frame
+// ============================================================================
+float FrameGlassBlend(float2 UV)
+{
+	float Frame = IsFrameArea(UV);
+	float2 Texel = View.BufferSizeAndInvSize.zw * FRAME_SMOOTH_PIXELS;
+	float Sum = 0.0;
+	for (int x = -1; x <= 1; x++)
+	{
+		for (int y = -1; y <= 1; y++)
+		{
+			Sum += IsFrameArea(UV + float2(x, y) * Texel);
+		}
+	}
+	float AvgFrame = Sum / 9.0;
+	return lerp(Frame, AvgFrame, 0.5);
+}
+
+// ============================================================================
+// v7.1 Multi-glass color conflict resolution
+// When many glass panels coexist in screen space, prevent cumulative tint
+// from amplifying into color banding. We clamp per-pixel chroma deviation
+// based on thickness and grazing factor, while preserving luminance.
+// ============================================================================
+float3 ResolveGlassColorConflict(float3 TransmittedColor, float ThicknessMM, float3 Fresnel)
+{
+	float GrazingLuma = dot(Fresnel, float3(0.299, 0.587, 0.114));
+	float ConflictFactor = saturate((ThicknessMM - THICK_BOTTOM_THRESHOLD) / 1.0) * (1.0 - GrazingLuma);
+
+	float Luma = dot(TransmittedColor, float3(0.299, 0.587, 0.114));
+	float MaxChroma = Luma * (1.0 + 0.12 * ConflictFactor);
+	float MinChroma = Luma * (1.0 - 0.08 * ConflictFactor);
+
+	float3 Clamped;
+	Clamped.r = clamp(TransmittedColor.r, MinChroma, MaxChroma);
+	Clamped.g = clamp(TransmittedColor.g, MinChroma, MaxChroma);
+	Clamped.b = clamp(TransmittedColor.b, MinChroma, MaxChroma);
+
+	return lerp(TransmittedColor, Clamped, 0.4 * ConflictFactor);
+}
+
+// ============================================================================
+// SkyscraperGlass: triple-pane hollow glass
 // ============================================================================
 void SkyscraperGlassPixel(
-	float3 V,
-	float3 N,
-	float3 WorldPos,
-	float2 SvPos,
-	float ThicknessMM,
-	float IOR,
-	float3 Tint,
-	float Roughness,
-	float Specular,
-	float DirtAmount,
-	float3 BaseColor,
-	float Metallic,
-	out float3 OutColor,
-	out float OutOpacity)
+	float3 V, float3 N, float3 WorldPos, float2 SvPos,
+	float ThicknessMM, float IOR, float3 Tint,
+	float Roughness, float Specular, float DirtAmount,
+	float3 BaseColor, float Metallic,
+	out float3 OutColor, out float OutOpacity)
 {
 	float NoV = abs(dot(N, V)) + Epsilon;
+	float2 UV = SvPos * View.BufferSizeAndInvSize.zw;
 
-	// Refined Fresnel with segmented curve
+	float FrameBlend = FrameGlassBlend(UV);
+
+	// Refined Fresnel
 	float3 F = FresnelSchlickRefined(NoV, IOR, Roughness);
-
-	// Weather-dependent reflection intensity
 	float WeatherRefl = GetWeatherReflectionIntensity();
-	float3 F_Weather = lerp(float3(0.0, 0.0, 0.0), F, WeatherRefl);
+	float3 F_Weather = lerp(0.0, F, WeatherRefl);
 
-	// Multi-layer refraction - double pane glass
-	float Eta = AirIOR / IOR;
+	// Triple-pane refraction
+	float EdgeThickness = ComputeEdgeThickness(ThicknessMM, UV, FRAME_SMOOTH_PIXELS);
 	float3 FinalRefracted;
 	float TotalAttenuation;
-	MultiLayerRefraction(-V, N, GLASS_LAYER_1.IOR, GLASS_LAYER_2.IOR,
-		GLASS_LAYER_1.IOR != GLASS_LAYER_2.IOR ? 0.12f : ThicknessMM,
-		ThicknessMM, FinalRefracted, TotalAttenuation);
+	TriplePaneRefraction(-V, N, EdgeThickness * 0.4, EdgeThickness * 0.3, EdgeThickness * 0.3, FinalRefracted, TotalAttenuation);
 
-	// Sample scene color behind glass with refraction offset
-	float2 UV = SvPos * View.BufferSizeAndInvSize.zw;
-	float2 RefractionOffset = FinalRefracted.xy * ThicknessMM * 0.005;
+	float2 RefractionOffset = FinalRefracted.xy * EdgeThickness * 0.005;
 	float3 BehindColor = SceneTextureLookup(UV + RefractionOffset, 0, false).rgb;
+	BehindColor = ComputeBehindGlassAttenuation(BehindColor, EdgeThickness, SunColorTemp);
 
-	// Smooth the frame boundary where glass meets frame
-	if (FrameSmoothPixels > 0.0f)
-	{
-		// Subsampled smoothing at edges already handled by offset, no extra blur
-	}
-
-	// Behind-glass attenuation - physically based, color-neutral
-	BehindColor = ComputeBehindGlassAttenuation(BehindColor, ThicknessMM, SunColorTemp);
-
-	// Beer-Lambert absorption through full thickness
-	float3 Absorption = ComputeAbsorptionCoeff(Tint, ThicknessMM);
-	float InternalDist = ThicknessMM * 0.001;
+	float3 Absorption = ComputeAbsorptionCoeff(Tint, EdgeThickness);
+	float InternalDist = EdgeThickness * 0.001;
 	float3 Transmitted = BeerLambertAbsorption(BehindColor, Absorption, InternalDist);
 	Transmitted *= TotalAttenuation;
 
-	// Lumen GI from refracted light (attenuated)
-	float3 RefractedGI = SampleLumenRefractedGI(WorldPos, FinalRefracted, Roughness, ThicknessMM);
+	float3 RefractedGI = SampleLumenRefractedGI(WorldPos, FinalRefracted, Roughness, EdgeThickness);
 	Transmitted += RefractedGI * 0.15;
 
-	// Edge darkening (angle-dependent)
+	// v7.1 Resolve multi-glass color conflict before final compositing
+	Transmitted = ResolveGlassColorConflict(Transmitted, EdgeThickness, F_Weather);
+
+	// Edge darkening
 	float EdgeFactor = 1.0f - pow(1.0 - NoV, 3.0f) * 0.3f;
 
-	// Sun-direct highlight - smaller, brighter, temperature-tinted
+	// Specular sun highlight
 	float3 L = normalize(float3(cos(radians(SunAzimuth)), 0.0f, sin(radians(SunAzimuth))));
 	float3 H = normalize(V + L);
 	float D = GGX_Distribution(N, H, Roughness);
@@ -491,81 +470,60 @@ void SkyscraperGlassPixel(
 	float3 Spec = (D * G * F_Weather) / (4.0 * NoV * NoL + Epsilon);
 	Spec *= specHighlightIntensity;
 
-	// Combine: Transmission + Reflection (weather-adjusted Fresnel blend) + Specular highlight
 	float3 Result = lerp(Transmitted, EnvBRDFApprox(F, Roughness, NoV) * BehindColor, F_Weather) * EdgeFactor;
 	Result += Spec * 0.4;
 
-	// Dirt layer (angle-dependent, no blur - texture detail preserved by lower sampling)
+	// Dirt layer
 	float Dirt = DirtAmount * (1.0f - NoV) * 0.3;
 	Result = lerp(Result, Result * 0.6f, Dirt);
 
-	// Neutral glass: no default tint added, only physical refraction changes
-	OutColor = Result;
-	OutOpacity = lerp(0.85, 0.98, NoV);
+	// Frame area: only Fresnel reflection, no refraction
+	float3 FrameResult = EnvBRDFApprox(F, Roughness, NoV) * 0.8;
+	OutColor = lerp(Result, FrameResult, FrameBlend);
+	OutOpacity = lerp(lerp(0.85, 0.98, NoV), 1.0, FrameBlend);
 }
 
 // ============================================================================
-// Material Type 1: VehicleGlass
-// IOR=1.38, thickness=0.18, Fresnel 0°=0.08 90°=0.70
-// Weather-dependent reflection + behind-glass attenuation
+// VehicleGlass: single-layer optimized
 // ============================================================================
 void VehicleGlassPixel(
-	float3 V,
-	float3 N,
-	float3 WorldPos,
-	float2 SvPos,
-	float ThicknessMM,
-	float IOR,
-	float3 Tint,
-	float Roughness,
-	float Specular,
-	float DirtAmount,
-	float3 BaseColor,
-	float Metallic,
-	out float3 OutColor,
-	out float OutOpacity)
+	float3 V, float3 N, float3 WorldPos, float2 SvPos,
+	float ThicknessMM, float IOR, float3 Tint,
+	float Roughness, float Specular, float DirtAmount,
+	float3 BaseColor, float Metallic,
+	out float3 OutColor, out float OutOpacity)
 {
 	float NoV = abs(dot(N, V)) + Epsilon;
 
 	float F0 = (IOR - AirIOR) / (IOR + AirIOR);
 	F0 = F0 * F0;
-	float3 F = FresnelSchlick(NoV, F0.xxx);  // Use default for vehicle - simpler
-	// Adjust to v5.0 curve parameters
+	float3 F = FresnelSchlick(NoV, F0.xxx);
 	if (NoV < cos(radians(60.0f)))
-		F = F * (NoV / cos(radians(60.0f))) + VEHICLE_FRESNEL_0 * (1.0f - NoV / cos(radians(60.0f)));
+		F = F * (NoV / cos(radians(60.0f))) + 0.08 * (1.0f - NoV / cos(radians(60.0f)));
 
 	float WeatherRefl = GetWeatherReflectionIntensity();
-	float3 F_Weather = lerp(float3(0.0, 0.0, 0.0), F, WeatherRefl);
+	float3 F_Weather = lerp(0.0, F, WeatherRefl);
 
-	// Single-layer refraction (vehicle windshield is single pane)
 	float Eta = AirIOR / IOR;
 	float3 Refracted = RefractRaySnell(-V, N, Eta);
 
-	// Sample behind color
 	float2 UV = SvPos * View.BufferSizeAndInvSize.zw;
 	float2 RefractionOffset = Refracted.xy * ThicknessMM * 0.003;
 	float3 BehindColor = SceneTextureLookup(UV + RefractionOffset, 0, false).rgb;
-
-	// Behind-glass attenuation
 	BehindColor = ComputeBehindGlassAttenuation(BehindColor, ThicknessMM, SunColorTemp);
 
-	// Beer-Lambert
 	float3 Absorption = ComputeAbsorptionCoeff(Tint, ThicknessMM);
 	float InternalDist = ThicknessMM * 0.001;
 	float3 Transmitted = BeerLambertAbsorption(BehindColor, Absorption, InternalDist);
 
-	// Lumen GI
 	float3 RefractedGI = SampleLumenRefractedGI(WorldPos, Refracted, Roughness, ThicknessMM);
 	Transmitted += RefractedGI * 0.1;
 
-	// Edge darkening
 	float EdgeFactor = 1.0f - pow(1.0 - NoV, 3.0f) * 0.25f;
 
-	// Environment reflection
 	float3 EnvRefl = EnvBRDFApprox(F0.xxx, Roughness, NoV);
 	EnvRefl *= WeatherRefl;
 
-	// Specular
 	float3 L = normalize(float3(cos(radians(SunAzimuth)), 0.0f, sin(radians(SunAzimuth))));
 	float3 H = normalize(V + L);
 	float D = GGX_Distribution(N, H, Roughness);
@@ -586,25 +544,14 @@ void VehicleGlassPixel(
 }
 
 // ============================================================================
-// Material Type 2: UIGlass
-// IOR=1.05, thickness=0.05, Fresnel edge=0.25, samples=4 all chips
-// Weather-dependent reflection + behind-glass attenuation
+// UIGlass: thin single refraction
 // ============================================================================
 void UIGlassPixel(
-	float3 V,
-	float3 N,
-	float3 WorldPos,
-	float2 SvPos,
-	float ThicknessMM,
-	float IOR,
-	float3 Tint,
-	float Roughness,
-	float Specular,
-	float DirtAmount,
-	float3 BaseColor,
-	float Metallic,
-	out float3 OutColor,
-	out float OutOpacity)
+	float3 V, float3 N, float3 WorldPos, float2 SvPos,
+	float ThicknessMM, float IOR, float3 Tint,
+	float Roughness, float Specular, float DirtAmount,
+	float3 BaseColor, float Metallic,
+	out float3 OutColor, out float OutOpacity)
 {
 	float NoV = abs(dot(N, V)) + Epsilon;
 
@@ -613,9 +560,8 @@ void UIGlassPixel(
 	float3 F = FresnelSchlick(NoV, F0.xxx);
 
 	float WeatherRefl = GetWeatherReflectionIntensity();
-	float3 F_Weather = lerp(float3(0.0, 0.0, 0.0), F, WeatherRefl);
+	float3 F_Weather = lerp(0.0, F, WeatherRefl);
 
-	// Single-layer, thinner refraction
 	float Eta = AirIOR / IOR;
 	float3 Refracted = RefractRaySnell(-V, N, Eta);
 
@@ -655,7 +601,7 @@ void UIGlassPixel(
 }
 
 // ============================================================================
-// LiquidGlass Main Entry Point (GPU-only, no CPU)
+// Main Entry Point
 // ============================================================================
 void LiquidGlassMain(
 	in float2 SvPosition,
@@ -673,54 +619,27 @@ void LiquidGlassMain(
 
 	switch (MaterialType)
 	{
-		case 0: // SkyscraperGlass - full v5.0 multi-layer refined
-			SkyscraperGlassPixel(
-				V, N, WorldPosition, SvPosition,
-				ThicknessMM, IOR, TintColor,
-				Roughness, Specular, DirtAmount,
-				BaseColor, Metallic,
-				OutColor, OutOpacity);
-			break;
-
-		case 1: // VehicleGlass
-			VehicleGlassPixel(
-				V, N, WorldPosition, SvPosition,
-				ThicknessMM, IOR, TintColor,
-				Roughness, Specular, DirtAmount,
-				BaseColor, Metallic,
-				OutColor, OutOpacity);
-			break;
-
-		case 2: // UIGlass
-			UIGlassPixel(
-				V, N, WorldPosition, SvPosition,
-				ThicknessMM, IOR, TintColor,
-				Roughness, Specular, DirtAmount,
-				BaseColor, Metallic,
-				OutColor, OutOpacity);
-			break;
-
-		default:
-			SkyscraperGlassPixel(
-				V, N, WorldPosition, SvPosition,
-				ThicknessMM, IOR, TintColor,
-				Roughness, Specular, DirtAmount,
-				BaseColor, Metallic,
-				OutColor, OutOpacity);
-			break;
+	case 0:
+		SkyscraperGlassPixel(V, N, WorldPosition, SvPosition, ThicknessMM, IOR, TintColor,
+			Roughness, Specular, DirtAmount, BaseColor, Metallic, OutColor, OutOpacity);
+		break;
+	case 1:
+		VehicleGlassPixel(V, N, WorldPosition, SvPosition, ThicknessMM, IOR, TintColor,
+			Roughness, Specular, DirtAmount, BaseColor, Metallic, OutColor, OutOpacity);
+		break;
+	case 2:
+		UIGlassPixel(V, N, WorldPosition, SvPosition, ThicknessMM, IOR, TintColor,
+			Roughness, Specular, DirtAmount, BaseColor, Metallic, OutColor, OutOpacity);
+		break;
+	default:
+		SkyscraperGlassPixel(V, N, WorldPosition, SvPosition, ThicknessMM, IOR, TintColor,
+			Roughness, Specular, DirtAmount, BaseColor, Metallic, OutColor, OutOpacity);
+		break;
 	}
 }
 
 // ============================================================================
 // CalcPixelMaterialInputs - UE5.8 Substrate Material Entry Point
-// Full Lumen GI compatibility: refracted light contributes to GI
-// Weather causality: glass brightness changes with weather conditions
-// Behind-glass attenuation applied to all transmitted light
-// CustomData0 = MaterialType (0/1/2)
-// CustomData1 = WeatherIntensity (0.0 rainy -> 1.0 sunny)
-// CustomData2 = SunAzimuth
-// CustomData3 = SunElevation
-// All computation on GPU only, no CPU dispatch
 // ============================================================================
 void CalcPixelMaterialInputs(
 	in out FPixelMaterialInputs PixelMaterialInputs,
@@ -739,21 +658,13 @@ void CalcPixelMaterialInputs(
 	float3 OutColor;
 	float OutOpacity;
 
-	// Get sun parameters from custom data
 	SunAzimuth = Local0.x;
 	SunElevation = Local0.y;
 	SunColorTemp = Local0.z;
 	SunIntensity = Local0.w;
 
-	LiquidGlassMain(
-		SvPosition.xy,
-		CameraVector,
-		MaterialWorldPosition,
-		WorldNormal,
-		OutColor,
-		OutOpacity);
+	LiquidGlassMain(SvPosition.xy, CameraVector, MaterialWorldPosition, WorldNormal, OutColor, OutOpacity);
 
-	// Substrate-compatible material output
 	PixelMaterialInputs.EmissiveColor = 0;
 	PixelMaterialInputs.Opacity = OutOpacity;
 	PixelMaterialInputs.OpacityMask = 1.0;

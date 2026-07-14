@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "SystemSettings/GZSystemSettings.h"
 #include "GZMainMenuWidget.generated.h"
 
 UENUM(BlueprintType)
@@ -69,10 +70,34 @@ public:
 	void OnQuitGame();
 
 	UFUNCTION(BlueprintCallable, Category = "MainMenu")
+	void OnConfirmQuit();
+
+	UFUNCTION(BlueprintCallable, Category = "MainMenu")
+	void OnCancelQuit();
+
+	UFUNCTION(BlueprintCallable, Category = "MainMenu")
 	void OnCharacterSelect();
+
+	UFUNCTION(BlueprintCallable, Category = "MainMenu")
+	void OnOpenSettingsPanel();
+
+	UFUNCTION(BlueprintCallable, Category = "MainMenu")
+	void OnCloseSubWidget();
+
+	UFUNCTION(BlueprintCallable, Category = "MainMenu")
+	void OnRequestJoinRoomByID(const FString& RoomID);
+
+	UFUNCTION(BlueprintCallable, Category = "MainMenu")
+	void OnHostRoom(int32 MaxPlayers, bool bPrivate);
 
 	UFUNCTION(BlueprintPure, Category = "MainMenu")
 	bool HasSaveData() const;
+
+	UFUNCTION(BlueprintPure, Category = "MainMenu")
+	bool IsSubWidgetVisible() const { return ActiveSubWidget != nullptr; }
+
+	UFUNCTION(BlueprintPure, Category = "MainMenu")
+	bool IsQuitConfirmationVisible() const { return bQuitConfirmationVisible; }
 
 	UFUNCTION(BlueprintPure, Category = "MainMenu")
 	TArray<FString> GetSaveSlotDisplayNames() const;
@@ -98,4 +123,31 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "MainMenu")
 	int32 Currency = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "MainMenu")
+	bool bQuitConfirmationVisible = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "MainMenu")
+	FString CurrentRoomID;
+
+	static constexpr int32 MaxRoomPlayers = 32;
+
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "MainMenu")
+	TSubclassOf<class UUserWidget> CharacterSelectWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "MainMenu")
+	TSubclassOf<class UUserWidget> SettingsPanelWidgetClass;
+
+	UPROPERTY(BlueprintReadOnly, Category = "MainMenu")
+	TObjectPtr<class UUserWidget> ActiveSubWidget = nullptr;
+
+	UFUNCTION()
+	void OnSettingsPanelClosed();
+
+	UFUNCTION()
+	void OnCharacterSelected(int32 SelectedIndex);
+
+	UFUNCTION()
+	void HandleGameStateChanged();
 };

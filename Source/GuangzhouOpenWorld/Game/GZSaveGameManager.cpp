@@ -151,3 +151,61 @@ FString UGZSaveGameManager::GetSaveSlotName(int32 SlotIndex) const
 {
 	return FString::Printf(TEXT("GZSaveSlot_%d"), SlotIndex);
 }
+
+FString UGZSaveGameManager::GetBackupSlotName(int32 SlotIndex) const
+{
+	return FString::Printf(TEXT("GZSaveSlot_%d_Backup"), SlotIndex);
+}
+
+void UGZSaveGameManager::BackupSave(int32 SlotIndex)
+{
+	if (SlotIndex < 0 || SlotIndex >= MaxSaveSlots) return;
+	if (!DoesSaveExist(SlotIndex)) return;
+
+	FString SourceSlot = GetSaveSlotName(SlotIndex);
+	FString BackupSlot = GetBackupSlotName(SlotIndex);
+	UGZSaveGame* Loaded = Cast<UGZSaveGame>(UGameplayStatics::LoadGameFromSlot(SourceSlot, SlotIndex));
+	if (Loaded)
+	{
+		UGameplayStatics::SaveGameToSlot(Loaded, BackupSlot, SlotIndex);
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Backup created for slot %d"), SlotIndex);
+	}
+}
+
+void UGZSaveGameManager::RollbackSave(int32 SlotIndex)
+{
+	if (SlotIndex < 0 || SlotIndex >= MaxSaveSlots) return;
+
+	FString BackupSlot = GetBackupSlotName(SlotIndex);
+	UGZSaveGame* Loaded = Cast<UGZSaveGame>(UGameplayStatics::LoadGameFromSlot(BackupSlot, SlotIndex));
+	if (Loaded)
+	{
+		CurrentSave = Loaded;
+		UGameplayStatics::SaveGameToSlot(Loaded, GetSaveSlotName(SlotIndex), SlotIndex);
+		OnLoadCompleted.Broadcast(true);
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Rolled back slot %d from backup"), SlotIndex);
+	}
+	else
+	{
+		OnLoadCompleted.Broadcast(false);
+	}
+}
+
+void UGZSaveGameManager::RetryCloudLoad(int32 SlotIndex)
+{
+	if (RetryCount >= MaxCloudRetries)
+	{
+		OnLoadCompleted.Broadcast(false);
+		LastCloudLoadErrorSlot = SlotIndex;
+		RetryCount = 0;
+		UE_LOG(LogGuangzhouOpenWorld, Error, TEXT("Cloud load failed after %d retries for slot %d"), MaxCloudRetries, SlotIndex);
+		return;
+	}
+
+	RetryCount++;
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Retrying cloud load slot %d, attempt %d/%d"), SlotIndex, RetryCount, MaxCloudRetries);
+
+	// In a real EOS-backed build this would call EOS PlayerDataStorage ReadFile.
+	// Here we fall back to local slot load as a graceful degradation.
+	LoadGame(SlotIndex);
+}

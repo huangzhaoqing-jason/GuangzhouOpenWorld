@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
+#include "Network/EOSSystem/GZEOSAuthInterface.h"
 #include "GZAccountLoginManager.generated.h"
 
 UENUM(BlueprintType)
@@ -132,6 +133,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Account|Guest")
 	void BindGuestToPhone(const FString& PhoneNumber);
 
+	UFUNCTION(BlueprintPure, Category = "Account|Guest")
+	bool CanGuestUseOnline() const { return false; }
+
+	UFUNCTION(BlueprintPure, Category = "Account|Guest")
+	bool CanGuestUseCloudSave() const { return false; }
+
 	// ===== Account Binding =====
 	UFUNCTION(BlueprintCallable, Category = "Account|Binding")
 	void BindEmailToPhoneAccount(const FString& Email);
@@ -149,6 +156,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Account")
 	void SetAutoLogin(bool bEnabled);
 
+	UFUNCTION(BlueprintCallable, Category = "Account")
+	void SetRememberAccount(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, Category = "Account")
+	void TryAutoLogin();
+
 	UFUNCTION(BlueprintPure, Category = "Account")
 	bool IsLoggedIn() const { return CurrentState == EGZLoginState::LoggedIn; }
 
@@ -156,7 +169,14 @@ public:
 	bool IsGuest() const { return CurrentAccount.bIsGuest; }
 
 	UFUNCTION(BlueprintPure, Category = "Account")
+	bool IsGuestExpired() const;
+
+	UFUNCTION(BlueprintPure, Category = "Account")
 	EGZLoginState GetLoginState() const { return CurrentState; }
+
+	/** Returns the EOS auth interface stub. Real EOS SDK linkage required for cloud/encryption. */
+	UFUNCTION(BlueprintPure, Category = "Account|EOS")
+	UGZEOSAuthInterface* GetEOSAuthInterface() const { return EOSAuthInterface; }
 
 	UFUNCTION(BlueprintPure, Category = "Account")
 	EGZLoginChannel GetLoginChannel() const { return CurrentChannel; }
@@ -223,12 +243,21 @@ private:
 	FString AccountsFilePath;
 	FString CurrentVerificationCode;
 	FString CurrentVerificationTarget;
+	FDateTime CurrentVerificationCodeSentTime;
+	FDateTime CurrentVerificationCodeExpiryTime;
+	FDateTime PhoneCodeLastSentTime;
 	EGZLoginChannel CurrentChannel = EGZLoginChannel::None;
 	EGZLoginState CurrentState = EGZLoginState::LoggedOut;
 	FGZPlayerAccount CurrentAccount;
 	TArray<FGZPlayerAccount> AccountRegistry;
 	FTimerHandle PhoneCodeTimerHandle;
 	FTimerHandle EmailCodeTimerHandle;
+
+	UPROPERTY()
+	UGZEOSAuthInterface* EOSAuthInterface = nullptr;
 	float PhoneCodeRemaining = 0.0f;
 	float EmailCodeRemaining = 0.0f;
+
+	bool IsVerificationCodeValid(const FString& Code) const;
+	bool IsPhoneCodeInCooldown() const;
 };

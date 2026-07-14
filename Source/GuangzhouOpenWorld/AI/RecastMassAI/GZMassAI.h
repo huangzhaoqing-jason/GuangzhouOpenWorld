@@ -281,6 +281,89 @@ struct FGZPoliceTactics
 	bool bSurround = false;
 };
 
+USTRUCT(BlueprintType)
+struct FTrafficVehicleState
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 AgentID = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float CurrentSpeed = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TargetSpeed = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float BrakingDistance = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TurnRadius = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bHeadlightsOn = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bTailLightsOn = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bInTunnel = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float WaterSplashTimer = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float WaterSplashIntensity = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float DecelerationBuffer = 0.4f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsCongested = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector CongestionLocation = FVector::ZeroVector;
+};
+
+UENUM(BlueprintType)
+enum class EGZPlayerEquipment : uint8
+{
+	Unarmed		UMETA(DisplayName = "Unarmed"),
+	Melee		UMETA(DisplayName = "Melee"),
+	Pistol		UMETA(DisplayName = "Pistol"),
+	Rifle		UMETA(DisplayName = "Rifle"),
+	HeavyWeapon	UMETA(DisplayName = "Heavy Weapon"),
+	Vehicle		UMETA(DisplayName = "Vehicle"),
+};
+
+USTRUCT(BlueprintType)
+struct FHostileAdaptation
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EGZPlayerEquipment PlayerEquipment = EGZPlayerEquipment::Unarmed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bUseLongRange = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bUseCoverMore = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bFlankFrequently = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bUseVehicles = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float EngagementDistance = 1000.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float AccuracyMultiplier = 1.0f;
+};
+
 UCLASS(BlueprintType)
 class GUANGZHOUOPENWORLD_API UGZMassAI : public UObject
 {
@@ -342,6 +425,17 @@ private:
 	void UpdateAgentWeatherStates(float DeltaTime);
 	void ReduceOutdoorDensity(float OutdoorFraction);
 
+	// v5.3 Traffic vehicle physics & lights (subtasks 77-82)
+	void UpdateVehiclePhysics(float DeltaTime, EGZWeatherType Weather);
+	void UpdateTrafficCongestion(float DeltaTime);
+	void UpdateVehicleLights(float DeltaTime, float HourOfDay);
+	void TriggerVehicleWaterSplash(int32 AgentID, float Intensity);
+	FTrafficVehicleState GetVehicleState(int32 AgentID) const;
+
+	// v5.3 Hostile adaptation to player equipment (subtask 86)
+	void UpdateHostileAdaptation(EGZPlayerEquipment Equipment);
+	FHostileAdaptation GetHostileAdaptation() const { return CurrentHostileAdaptation; }
+
 	UPROPERTY()
 	TMap<int32, FGZAgentIdentity> Agents;
 
@@ -371,6 +465,12 @@ private:
 
 	UPROPERTY()
 	TArray<FNPCDensityByTime> TimeDensityTable;
+
+	UPROPERTY()
+	TMap<int32, FTrafficVehicleState> VehicleStates;
+
+	UPROPERTY()
+	FHostileAdaptation CurrentHostileAdaptation;
 
 	float RushHourDensityMultiplier = 1.0f;
 	float NightSparseDensityMultiplier = 0.2f;
@@ -410,4 +510,17 @@ private:
 	static constexpr float FogSlowdownMultiplier = 0.7f;
 	static constexpr float StormOutdoorFraction = 0.05f;
 	static constexpr float ShelterSearchRadius = 5000.0f;
+
+	// v5.3 Vehicle physics constants (subtasks 77-82)
+	static constexpr float BaseDecelerationBuffer = 0.4f;
+	static constexpr float MinTurnRadius = 300.0f;
+	static constexpr float TurnRadiusSpeedFactor = 10.0f;
+	static constexpr float RainBrakingExtension = 15.0f;
+	static constexpr float RainTurnRadiusIncrease = 10.0f;
+	static constexpr float TunnelLightThreshold = 0.15f;
+	static constexpr float NightLightHourStart = 18.0f;
+	static constexpr float NightLightHourEnd = 6.0f;
+	static constexpr float CongestionRadius = 800.0f;
+	static constexpr float CongestionSpeedThreshold = 200.0f;
+	static constexpr int32 CongestionMinVehicles = 4;
 };
