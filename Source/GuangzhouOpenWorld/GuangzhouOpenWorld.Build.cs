@@ -48,6 +48,7 @@ public class GuangzhouOpenWorld : ModuleRules
 			"Renderer",
 			"RHI",
 			"MetalRHI",
+			"CoreAudio",
 			"AudioMixer",
 			"AudioMixerCore",
 			"SignalProcessing",

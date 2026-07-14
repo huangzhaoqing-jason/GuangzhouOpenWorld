@@ -1,5 +1,6 @@
 #include "Game/GZGameMode.h"
 #include "GuangzhouOpenWorld.h"
+#include "Adapter/GZCVarAdapter.h"
 #include "Engine/DirectionalLight.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Engine/SkyLight.h"
@@ -265,6 +266,9 @@ AGZGameMode::AGZGameMode()
 void AGZGameMode::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// 统一注册全部自定义控制台变量（带空值保护），保留原有 CVar 定义
+	GZRegisterAllCustomCVars();
 
 	DetectedChip = DetectAppleSiliconChip();
 	ApplyChipSpecificSettings();

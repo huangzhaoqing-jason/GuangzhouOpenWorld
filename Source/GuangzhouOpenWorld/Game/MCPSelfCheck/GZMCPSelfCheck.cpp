@@ -2,6 +2,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformMisc.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
 #include "Misc/DateTime.h"
@@ -83,12 +84,20 @@ void UGZMCPSelfCheck::RunFullCheck()
 			continue;
 		}
 
-		// Phase 3
-		RunPhase(Phase3, EGZCheckPhase::RenderSimulation);
-		if (!AllPhasePassed(EGZCheckPhase::RenderSimulation))
+		// Phase 3: 云端渲染模拟，不可用时自动跳过，其余三层正常执行
+		const bool bRenderSimAvailable = IsCloudRenderSimulationAvailable();
+		if (bRenderSimAvailable)
 		{
-			FixPhaseItems(EGZCheckPhase::RenderSimulation);
-			continue;
+			RunPhase(Phase3, EGZCheckPhase::RenderSimulation);
+			if (!AllPhasePassed(EGZCheckPhase::RenderSimulation))
+			{
+				FixPhaseItems(EGZCheckPhase::RenderSimulation);
+				continue;
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("[MCP Self-Check] Cloud render simulation unavailable, skipping Phase 3 (RenderSimulation)"));
 		}
 
 		// Phase 4
@@ -132,10 +141,17 @@ void UGZMCPSelfCheck::RunPhaseCheck(EGZCheckPhase Phase)
 		CheckNullPointerSafety();
 		break;
 	case EGZCheckPhase::RenderSimulation:
-		CheckShaderSyntax();
-		CheckCVarRegistration();
-		CheckRenderPipelineOrder();
-		CheckMaterialCompatibility();
+		if (IsCloudRenderSimulationAvailable())
+		{
+			CheckShaderSyntax();
+			CheckCVarRegistration();
+			CheckRenderPipelineOrder();
+			CheckMaterialCompatibility();
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("[MCP Self-Check] Cloud render simulation unavailable, skipping Phase 3 checks"));
+		}
 		break;
 	case EGZCheckPhase::FeatureMatch:
 		CheckLoginSystem();
@@ -242,6 +258,12 @@ void UGZMCPSelfCheck::SaveReport()
 FString UGZMCPSelfCheck::GetReportPath() const
 {
 	return ReportDir / FString::Printf(TEXT("OptimizationReport_v%d.json"), ReportCounter);
+}
+
+bool UGZMCPSelfCheck::IsCloudRenderSimulationAvailable() const
+{
+	const FString EnvVar = FPlatformMisc::GetEnvironmentVariable(TEXT("GZ_ENABLE_CLOUD_RENDER_SIM"));
+	return EnvVar == TEXT("1");
 }
 
 void UGZMCPSelfCheck::AddCheckItem(const FGZCheckItem& Item)

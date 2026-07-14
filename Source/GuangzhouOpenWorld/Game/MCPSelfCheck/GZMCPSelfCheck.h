@@ -111,6 +111,10 @@ private:
 	FGZCheckItem* FindCheckItem(const FString& RuleName);
 	void SaveReport();
 	FString GetReportPath() const;
+
+	// 云端渲染模拟可用性判断：不可用则自动跳过第三层自检，其余三层完整保留
+	bool IsCloudRenderSimulationAvailable() const;
+
 	FString ReportDir;
 	int32 ReportCounter;
 };
