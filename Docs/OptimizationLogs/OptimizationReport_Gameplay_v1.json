@@ -1,0 +1,130 @@
+{
+  "reportNumber": 1,
+  "generatedAt": "2026-07-14T13:28:52.999703+00:00",
+  "totalChecks": 13,
+  "passed": 13,
+  "failed": 0,
+  "fixed": 0,
+  "iterations": 1,
+  "allPassed": true,
+  "summary": "Gameplay MCP self-check: 13/13 passed",
+  "checks": [
+    {
+      "ruleName": "CityEventSystem_TickEvents",
+      "description": "Verify CityEventSystem_TickEvents",
+      "phase": "FeatureMatch",
+      "result": "Passed",
+      "errorDetails": "",
+      "fixDescription": "",
+      "retryCount": 0
+    },
+    {
+      "ruleName": "CityEventSystem_TrySpawnEvent",
+      "description": "Verify CityEventSystem_TrySpawnEvent",
+      "phase": "FeatureMatch",
+      "result": "Passed",
+      "errorDetails": "",
+      "fixDescription": "",
+      "retryCount": 0
+    },
+    {
+      "ruleName": "CityEventSystem_CleanupExpiredEvents",
+      "description": "Verify CityEventSystem_CleanupExpiredEvents",
+      "phase": "FeatureMatch",
+      "result": "Passed",
+      "errorDetails": "",
+      "fixDescription": "",
+      "retryCount": 0
+    },
+    {
+      "ruleName": "CityEventSystem_PickRandomEventLocation",
+      "description": "Verify CityEventSystem_PickRandomEventLocation",
+      "phase": "FeatureMatch",
+      "result": "Passed",
+      "errorDetails": "",
+      "fixDescription": "",
+      "retryCount": 0
+    },
+    {
+      "ruleName": "CityEventSystem_IsEventTypeOnCooldown",
+      "description": "Verify CityEventSystem_IsEventTypeOnCooldown",
+      "phase": "FeatureMatch",
+      "result": "Passed",
+      "errorDetails": "",
+      "fixDescription": "",
+      "retryCount": 0
+    },
+    {
+      "ruleName": "DualCharacterSystem_Save",
+      "description": "Verify DualCharacterSystem_Save",
+      "phase": "FeatureMatch",
+      "result": "Passed",
+      "errorDetails": "",
+      "fixDescription": "",
+      "retryCount": 0
+    },
+    {
+      "ruleName": "DualCharacterSystem_Load",
+      "description": "Verify DualCharacterSystem_Load",
+      "phase": "FeatureMatch",
+      "result": "Passed",
+      "errorDetails": "",
+      "fixDescription": "",
+      "retryCount": 0
+    },
+    {
+      "ruleName": "DualCharacterSystem_Switch",
+      "description": "Verify DualCharacterSystem_Switch",
+      "phase": "FeatureMatch",
+      "result": "Passed",
+      "errorDetails": "",
+      "fixDescription": "",
+      "retryCount": 0
+    },
+    {
+      "ruleName": "SceneInteractionSystem_CheckShopState",
+      "description": "Verify SceneInteractionSystem_CheckShopState",
+      "phase": "FeatureMatch",
+      "result": "Passed",
+      "errorDetails": "",
+      "fixDescription": "",
+      "retryCount": 0
+    },
+    {
+      "ruleName": "SceneInteractionSystem_TryEnterIndoor",
+      "description": "Verify SceneInteractionSystem_TryEnterIndoor",
+      "phase": "FeatureMatch",
+      "result": "Passed",
+      "errorDetails": "",
+      "fixDescription": "",
+      "retryCount": 0
+    },
+    {
+      "ruleName": "SceneInteractionSystem_TryExitIndoor",
+      "description": "Verify SceneInteractionSystem_TryExitIndoor",
+      "phase": "FeatureMatch",
+      "result": "Passed",
+      "errorDetails": "",
+      "fixDescription": "",
+      "retryCount": 0
+    },
+    {
+      "ruleName": "SceneInteractionSystem_UpdateActiveShop",
+      "description": "Verify SceneInteractionSystem_UpdateActiveShop",
+      "phase": "FeatureMatch",
+      "result": "Passed",
+      "errorDetails": "",
+      "fixDescription": "",
+      "retryCount": 0
+    },
+    {
+      "ruleName": "BuildCs_Gameplay_Path",
+      "description": "Verify BuildCs_Gameplay_Path",
+      "phase": "FeatureMatch",
+      "result": "Passed",
+      "errorDetails": "",
+      "fixDescription": "",
+      "retryCount": 0
+    }
+  ]
+}

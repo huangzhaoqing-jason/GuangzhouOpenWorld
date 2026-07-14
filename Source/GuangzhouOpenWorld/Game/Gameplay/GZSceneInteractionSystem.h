@@ -27,6 +27,12 @@ public:
 	bool TryExitIndoor();
 
 	UFUNCTION(BlueprintCallable)
+	void UpdateActiveShop(FVector PlayerLocation, EGZCityDistrict PlayerDistrict);
+
+	UFUNCTION(BlueprintPure)
+	int32 GetActiveShopIndex() const { return ActiveShopIndex; }
+
+	UFUNCTION(BlueprintCallable)
 	bool RunLayer1_APICompliance();
 
 	UFUNCTION(BlueprintCallable)

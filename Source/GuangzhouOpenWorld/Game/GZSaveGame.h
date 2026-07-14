@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
+#include "Game/GZGameMode.h"
 #include "GZPlayerController.h"
 #include "GZSaveGame.generated.h"
 
@@ -189,4 +190,10 @@ public:
 
 	UPROPERTY(SaveGame)
 	int32 SaveVersion = 1;
+
+	UPROPERTY(SaveGame)
+	TArray<FDualCharacterData> DualCharacterData;
+
+	UPROPERTY(SaveGame)
+	int32 ActiveCharacterIndex = 0;
 };

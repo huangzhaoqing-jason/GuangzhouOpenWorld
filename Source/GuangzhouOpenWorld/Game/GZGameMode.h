@@ -866,6 +866,9 @@ USTRUCT(BlueprintType)
 struct FShopInteractionConfig
 {
 	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FString ShopName;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) FVector Location = FVector::ZeroVector;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) EGZCityDistrict District = EGZCityDistrict::TianheCBD;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float OpenHour = 8.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float CloseHour = 22.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) float RainCloseChance = 0.30f;

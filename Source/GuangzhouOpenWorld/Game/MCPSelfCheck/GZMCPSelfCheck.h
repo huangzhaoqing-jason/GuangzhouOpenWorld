@@ -95,6 +95,7 @@ public:
 	void CheckTrafficSystem();
 	void CheckGlassSystem();
 	void CheckTSRSystem();
+	void CheckGameplaySystems();
 
 	UPROPERTY(BlueprintAssignable) FOnPhaseComplete OnPhaseComplete;
 	UPROPERTY(BlueprintAssignable) FOnAllChecksPassed OnAllChecksPassed;

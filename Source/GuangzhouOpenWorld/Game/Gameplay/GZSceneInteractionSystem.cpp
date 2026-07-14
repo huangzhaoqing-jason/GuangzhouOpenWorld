@@ -1,4 +1,5 @@
 #include "GZSceneInteractionSystem.h"
+#include "Game/GZGameMode.h"
 
 UGZSceneInteractionSystem::UGZSceneInteractionSystem()
 {
@@ -13,7 +14,27 @@ void UGZSceneInteractionSystem::Initialize()
 	ActiveShopIndex = INDEX_NONE;
 	ShopConfigs.Empty();
 
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("SceneInteractionSystem initialized."));
+	if (UWorld* World = GetWorld())
+	{
+		if (AGZGameMode* GM = Cast<AGZGameMode>(World->GetAuthGameMode()))
+		{
+			ShopConfigs = GM->ShopConfigs;
+		}
+	}
+
+	if (ShopConfigs.Num() == 0)
+	{
+		FShopInteractionConfig DefaultShop;
+		DefaultShop.ShopName = TEXT("Default Store");
+		DefaultShop.OpenHour = 8.0f;
+		DefaultShop.CloseHour = 22.0f;
+		DefaultShop.RainCloseChance = 0.30f;
+		DefaultShop.InteractionRadius = 250.0f;
+		DefaultShop.bIndoorLightingSwitch = true;
+		ShopConfigs.Add(DefaultShop);
+	}
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("SceneInteractionSystem initialized with %d shop configs."), ShopConfigs.Num());
 }
 
 bool UGZSceneInteractionSystem::CheckShopState(float Hour, EGZWeatherStateDetailed Weather)
@@ -50,6 +71,12 @@ bool UGZSceneInteractionSystem::TryEnterIndoor()
 		return false;
 	}
 
+	if (!ShopConfigs.IsValidIndex(ActiveShopIndex))
+	{
+		UE_LOG(LogGuangzhouOpenWorld, Warning, TEXT("TryEnterIndoor: no active shop nearby."));
+		return false;
+	}
+
 	bIsIndoor = true;
 	return true;
 }
@@ -65,26 +92,62 @@ bool UGZSceneInteractionSystem::TryExitIndoor()
 	return true;
 }
 
+void UGZSceneInteractionSystem::UpdateActiveShop(FVector PlayerLocation, EGZCityDistrict PlayerDistrict)
+{
+	int32 BestIndex = INDEX_NONE;
+	float BestDistanceSq = MAX_FLT;
+
+	for (int32 i = 0; i < ShopConfigs.Num(); ++i)
+	{
+		const FShopInteractionConfig& Config = ShopConfigs[i];
+		if (Config.District != PlayerDistrict)
+		{
+			continue;
+		}
+
+		const float DistanceSq = FVector::DistSquared(PlayerLocation, Config.Location);
+		const float RadiusSq = FMath::Square(Config.InteractionRadius);
+		if (DistanceSq <= RadiusSq && DistanceSq < BestDistanceSq)
+		{
+			BestDistanceSq = DistanceSq;
+			BestIndex = i;
+		}
+	}
+
+	ActiveShopIndex = BestIndex;
+}
+
 bool UGZSceneInteractionSystem::RunLayer1_APICompliance()
 {
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("SceneInteractionSystem Layer1 APICompliance passed."));
-	return true;
+	return ShopConfigs.Num() > 0;
 }
 
 bool UGZSceneInteractionSystem::RunLayer2_Syntax()
 {
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("SceneInteractionSystem Layer2 Syntax passed."));
+	for (const FShopInteractionConfig& Config : ShopConfigs)
+	{
+		if (Config.OpenHour < 0.0f || Config.CloseHour > 24.0f || Config.CloseHour <= Config.OpenHour)
+		{
+			return false;
+		}
+		if (Config.InteractionRadius <= 0.0f)
+		{
+			return false;
+		}
+	}
 	return true;
 }
 
 bool UGZSceneInteractionSystem::RunLayer3_Parameters()
 {
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("SceneInteractionSystem Layer3 Parameters passed."));
-	return true;
+	return ShopConfigs.IsValidIndex(ActiveShopIndex) || ActiveShopIndex == INDEX_NONE;
 }
 
 bool UGZSceneInteractionSystem::RunLayer4_FunctionalRules()
 {
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("SceneInteractionSystem Layer4 FunctionalRules passed."));
+	if (bIsIndoor && !ShopConfigs.IsValidIndex(ActiveShopIndex))
+	{
+		return false;
+	}
 	return true;
 }

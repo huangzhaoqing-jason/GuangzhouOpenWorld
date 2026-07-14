@@ -1,4 +1,6 @@
 #include "GZDualCharacterSystem.h"
+#include "Kismet/GameplayStatics.h"
+#include "Game/GZSaveGame.h"
 
 UGZDualCharacterSystem::UGZDualCharacterSystem()
 {
@@ -52,34 +54,82 @@ int32 UGZDualCharacterSystem::GetActiveCharacterIndex() const
 
 void UGZDualCharacterSystem::SaveDualCharacterData()
 {
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Saving dual character data. Active index: %d"), ActiveCharacterIndex);
+	UGZSaveGame* SaveGame = Cast<UGZSaveGame>(UGameplayStatics::CreateSaveGameObject(UGZSaveGame::StaticClass()));
+	if (!SaveGame)
+	{
+		UE_LOG(LogGuangzhouOpenWorld, Warning, TEXT("SaveDualCharacterData: failed to create save game object."));
+		return;
+	}
+
+	SaveGame->DualCharacterData = CharacterData;
+	SaveGame->ActiveCharacterIndex = ActiveCharacterIndex;
+
+	const bool bSuccess = UGameplayStatics::SaveGameToSlot(SaveGame, TEXT("DualCharacterData"), 0);
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("SaveDualCharacterData: active index %d, save %s"),
+		ActiveCharacterIndex, bSuccess ? TEXT("succeeded") : TEXT("failed"));
 }
 
 void UGZDualCharacterSystem::LoadDualCharacterData()
 {
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Loading dual character data."));
+	if (!UGameplayStatics::DoesSaveGameExist(TEXT("DualCharacterData"), 0))
+	{
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("LoadDualCharacterData: no save slot found, keeping defaults."));
+		return;
+	}
+
+	UGZSaveGame* SaveGame = Cast<UGZSaveGame>(UGameplayStatics::LoadGameFromSlot(TEXT("DualCharacterData"), 0));
+	if (!SaveGame)
+	{
+		UE_LOG(LogGuangzhouOpenWorld, Warning, TEXT("LoadDualCharacterData: failed to load save game."));
+		return;
+	}
+
+	if (SaveGame->DualCharacterData.Num() > 0)
+	{
+		CharacterData = SaveGame->DualCharacterData;
+		ActiveCharacterIndex = FMath::Clamp(SaveGame->ActiveCharacterIndex, 0, CharacterData.Num() - 1);
+
+		for (int32 i = 0; i < CharacterData.Num(); ++i)
+		{
+			CharacterData[i].bIsActive = (i == ActiveCharacterIndex);
+		}
+	}
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("LoadDualCharacterData: restored %d characters, active index %d."),
+		CharacterData.Num(), ActiveCharacterIndex);
 }
 
 bool UGZDualCharacterSystem::RunLayer1_APICompliance()
 {
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("DualCharacterSystem Layer1 APICompliance: PASSED"));
-	return true;
+	return CharacterData.Num() >= 2;
 }
 
 bool UGZDualCharacterSystem::RunLayer2_Syntax()
 {
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("DualCharacterSystem Layer2 Syntax: PASSED"));
+	for (const FDualCharacterData& Data : CharacterData)
+	{
+		if (Data.CharacterName.IsEmpty())
+		{
+			return false;
+		}
+	}
 	return true;
 }
 
 bool UGZDualCharacterSystem::RunLayer3_Parameters()
 {
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("DualCharacterSystem Layer3 Parameters: PASSED"));
-	return true;
+	return CharacterData.IsValidIndex(ActiveCharacterIndex);
 }
 
 bool UGZDualCharacterSystem::RunLayer4_FunctionalRules()
 {
-	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("DualCharacterSystem Layer4 FunctionalRules: PASSED"));
-	return true;
+	if (!CharacterData.IsValidIndex(ActiveCharacterIndex))
+	{
+		return false;
+	}
+
+	const EGZCharacterRole ActiveRole = CharacterData[ActiveCharacterIndex].Role;
+	return ActiveRole == EGZCharacterRole::DeliveryDriver
+		|| ActiveRole == EGZCharacterRole::UrbanExplorer
+		|| ActiveRole == EGZCharacterRole::PrivateDetective;
 }

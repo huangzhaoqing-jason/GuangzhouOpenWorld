@@ -73,6 +73,13 @@ public class GuangzhouOpenWorld : ModuleRules
 			"DeveloperSettings",
 		});
 
+		PublicIncludePaths.AddRange(new string[]
+		{
+			"Game",
+			"Game/Gameplay",
+			"Game/MCPSelfCheck",
+		});
+
 		if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			PublicIncludePaths.AddRange(new string[]
@@ -82,6 +89,7 @@ public class GuangzhouOpenWorld : ModuleRules
 				"Source/GuangzhouOpenWorld/Game/GameMainMenu",
 				"Source/GuangzhouOpenWorld/Game/SystemSettings",
 				"Source/GuangzhouOpenWorld/Game/MCPSelfCheck",
+				"Source/GuangzhouOpenWorld/Game/Gameplay",
 				"Source/GuangzhouOpenWorld/Physics/JoltPhysicsModule",
 				"Source/GuangzhouOpenWorld/Physics/PhysicsWind",
 				"Source/GuangzhouOpenWorld/AI/RecastMassAI",
@@ -97,6 +105,7 @@ public class GuangzhouOpenWorld : ModuleRules
 				"Source/GuangzhouOpenWorld/Game/GameMainMenu",
 				"Source/GuangzhouOpenWorld/Game/SystemSettings",
 				"Source/GuangzhouOpenWorld/Game/MCPSelfCheck",
+				"Source/GuangzhouOpenWorld/Game/Gameplay",
 				"Source/GuangzhouOpenWorld/Physics/JoltPhysicsModule",
 				"Source/GuangzhouOpenWorld/Physics/PhysicsWind",
 				"Source/GuangzhouOpenWorld/AI/RecastMassAI",

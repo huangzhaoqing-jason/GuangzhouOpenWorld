@@ -29,7 +29,7 @@ void UGZMCPSelfCheck::RunFullCheck()
 	// Phase 3: Render Simulation
 	auto Phase3 = { &UGZMCPSelfCheck::CheckShaderSyntax, &UGZMCPSelfCheck::CheckCVarRegistration, &UGZMCPSelfCheck::CheckRenderPipelineOrder, &UGZMCPSelfCheck::CheckMaterialCompatibility };
 	// Phase 4: Feature Match
-	auto Phase4 = { &UGZMCPSelfCheck::CheckLoginSystem, &UGZMCPSelfCheck::CheckMainMenuFeatures, &UGZMCPSelfCheck::CheckSettingsPanel, &UGZMCPSelfCheck::CheckSaveSystem, &UGZMCPSelfCheck::CheckWeatherSystem, &UGZMCPSelfCheck::CheckNPCSystem, &UGZMCPSelfCheck::CheckTrafficSystem, &UGZMCPSelfCheck::CheckGlassSystem, &UGZMCPSelfCheck::CheckTSRSystem };
+	auto Phase4 = { &UGZMCPSelfCheck::CheckLoginSystem, &UGZMCPSelfCheck::CheckMainMenuFeatures, &UGZMCPSelfCheck::CheckSettingsPanel, &UGZMCPSelfCheck::CheckSaveSystem, &UGZMCPSelfCheck::CheckWeatherSystem, &UGZMCPSelfCheck::CheckNPCSystem, &UGZMCPSelfCheck::CheckTrafficSystem, &UGZMCPSelfCheck::CheckGlassSystem, &UGZMCPSelfCheck::CheckTSRSystem, &UGZMCPSelfCheck::CheckGameplaySystems };
 
 	auto RunPhase = [this](auto& Checks, EGZCheckPhase Phase)
 	{
@@ -163,6 +163,7 @@ void UGZMCPSelfCheck::RunPhaseCheck(EGZCheckPhase Phase)
 		CheckTrafficSystem();
 		CheckGlassSystem();
 		CheckTSRSystem();
+		CheckGameplaySystems();
 		break;
 	default:
 		break;
@@ -523,6 +524,8 @@ void UGZMCPSelfCheck::CheckIncludePaths()
 			TEXT("Source/GuangzhouOpenWorld/Game/AccountLogin"),
 			TEXT("Source/GuangzhouOpenWorld/Game/GameMainMenu"),
 			TEXT("Source/GuangzhouOpenWorld/Game/SystemSettings"),
+			TEXT("Source/GuangzhouOpenWorld/Game/MCPSelfCheck"),
+			TEXT("Source/GuangzhouOpenWorld/Game/Gameplay"),
 			TEXT("Source/GuangzhouOpenWorld/Physics/JoltPhysicsModule"),
 			TEXT("Source/GuangzhouOpenWorld/AI/RecastMassAI"),
 			TEXT("Source/GuangzhouOpenWorld/Scene/RenderingSystem"),
@@ -2405,6 +2408,108 @@ void UGZMCPSelfCheck::CheckTSRSystem()
 		Item.ErrorDetails = Errors;
 		Item.FixDescription = TEXT("Ensure 7 TSR distance tiers with texture sharpening and frame weight config");
 		UE_LOG(LogTemp, Warning, TEXT("[MCP Self-Check] TSR System: FAILED - %s"), *Errors);
+	}
+
+	AddCheckItem(Item);
+}
+
+void UGZMCPSelfCheck::CheckGameplaySystems()
+{
+	FGZCheckItem Item;
+	Item.RuleName = TEXT("Gameplay_Systems");
+	Item.Description = TEXT("Verify CityEventSystem, DualCharacterSystem, SceneInteractionSystem headers and Build.cs Gameplay path");
+	Item.Phase = EGZCheckPhase::FeatureMatch;
+	Item.Result = EGZCheckResult::Pending;
+	Item.RetryCount = 0;
+
+	bool bAllValid = true;
+	FString Errors;
+
+	FString CityEventHeaderPath = FPaths::ProjectDir() / TEXT("Source/GuangzhouOpenWorld/Game/Gameplay/GZCityEventSystem.h");
+	FString CityEventCppPath = FPaths::ProjectDir() / TEXT("Source/GuangzhouOpenWorld/Game/Gameplay/GZCityEventSystem.cpp");
+	FString DualHeaderPath = FPaths::ProjectDir() / TEXT("Source/GuangzhouOpenWorld/Game/Gameplay/GZDualCharacterSystem.h");
+	FString DualCppPath = FPaths::ProjectDir() / TEXT("Source/GuangzhouOpenWorld/Game/Gameplay/GZDualCharacterSystem.cpp");
+	FString SceneHeaderPath = FPaths::ProjectDir() / TEXT("Source/GuangzhouOpenWorld/Game/Gameplay/GZSceneInteractionSystem.h");
+	FString SceneCppPath = FPaths::ProjectDir() / TEXT("Source/GuangzhouOpenWorld/Game/Gameplay/GZSceneInteractionSystem.cpp");
+	FString BuildCsPath = FPaths::ProjectDir() / TEXT("Source/GuangzhouOpenWorld/GuangzhouOpenWorld.Build.cs");
+
+	auto CheckFileExists = [&bAllValid, &Errors](const FString& FilePath, const FString& Name)
+	{
+		if (!IFileManager::Get().FileExists(*FilePath))
+		{
+			bAllValid = false;
+			Errors += FString::Printf(TEXT("%s not found; "), *Name);
+		}
+	};
+
+	CheckFileExists(CityEventHeaderPath, TEXT("GZCityEventSystem.h"));
+	CheckFileExists(CityEventCppPath, TEXT("GZCityEventSystem.cpp"));
+	CheckFileExists(DualHeaderPath, TEXT("GZDualCharacterSystem.h"));
+	CheckFileExists(DualCppPath, TEXT("GZDualCharacterSystem.cpp"));
+	CheckFileExists(SceneHeaderPath, TEXT("GZSceneInteractionSystem.h"));
+	CheckFileExists(SceneCppPath, TEXT("GZSceneInteractionSystem.cpp"));
+
+	auto CheckHeaderContains = [&bAllValid, &Errors](const FString& FilePath, const FString& Token, const FString& Description)
+	{
+		if (!IFileManager::Get().FileExists(*FilePath))
+		{
+			return;
+		}
+
+		FString Content;
+		if (!FFileHelper::LoadFileToString(Content, *FilePath))
+		{
+			return;
+		}
+
+		if (!Content.Contains(Token))
+		{
+			bAllValid = false;
+			Errors += FString::Printf(TEXT("%s missing; "), *Description);
+		}
+	};
+
+	CheckHeaderContains(CityEventHeaderPath, TEXT("TickEvents"), TEXT("CityEventSystem TickEvents"));
+	CheckHeaderContains(CityEventHeaderPath, TEXT("TrySpawnEvent"), TEXT("CityEventSystem TrySpawnEvent"));
+	CheckHeaderContains(CityEventHeaderPath, TEXT("CleanupExpiredEvents"), TEXT("CityEventSystem CleanupExpiredEvents"));
+	CheckHeaderContains(CityEventHeaderPath, TEXT("PickRandomEventLocation"), TEXT("CityEventSystem PickRandomEventLocation"));
+	CheckHeaderContains(CityEventHeaderPath, TEXT("IsEventTypeOnCooldown"), TEXT("CityEventSystem IsEventTypeOnCooldown"));
+
+	CheckHeaderContains(DualHeaderPath, TEXT("SaveDualCharacterData"), TEXT("DualCharacterSystem SaveDualCharacterData"));
+	CheckHeaderContains(DualHeaderPath, TEXT("LoadDualCharacterData"), TEXT("DualCharacterSystem LoadDualCharacterData"));
+	CheckHeaderContains(DualHeaderPath, TEXT("SwitchToCharacter"), TEXT("DualCharacterSystem SwitchToCharacter"));
+
+	CheckHeaderContains(SceneHeaderPath, TEXT("CheckShopState"), TEXT("SceneInteractionSystem CheckShopState"));
+	CheckHeaderContains(SceneHeaderPath, TEXT("TryEnterIndoor"), TEXT("SceneInteractionSystem TryEnterIndoor"));
+	CheckHeaderContains(SceneHeaderPath, TEXT("TryExitIndoor"), TEXT("SceneInteractionSystem TryExitIndoor"));
+	CheckHeaderContains(SceneHeaderPath, TEXT("UpdateActiveShop"), TEXT("SceneInteractionSystem UpdateActiveShop"));
+
+	FString BuildCsContent;
+	if (FFileHelper::LoadFileToString(BuildCsContent, *BuildCsPath))
+	{
+		if (!BuildCsContent.Contains(TEXT("Game/Gameplay")))
+		{
+			bAllValid = false;
+			Errors += TEXT("Build.cs missing Game/Gameplay include path; ");
+		}
+	}
+	else
+	{
+		bAllValid = false;
+		Errors += TEXT("Cannot read Build.cs; ");
+	}
+
+	if (bAllValid)
+	{
+		Item.Result = EGZCheckResult::Passed;
+		UE_LOG(LogTemp, Log, TEXT("[MCP Self-Check] Gameplay Systems: PASSED"));
+	}
+	else
+	{
+		Item.Result = EGZCheckResult::Failed;
+		Item.ErrorDetails = Errors;
+		Item.FixDescription = TEXT("Ensure gameplay system headers expose required methods and Build.cs includes Game/Gameplay");
+		UE_LOG(LogTemp, Warning, TEXT("[MCP Self-Check] Gameplay Systems: FAILED - %s"), *Errors);
 	}
 
 	AddCheckItem(Item);
