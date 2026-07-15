@@ -84,34 +84,34 @@ public class GuangzhouOpenWorld : ModuleRules
 		{
 			PublicIncludePaths.AddRange(new string[]
 			{
-				"Source/GuangzhouOpenWorld/Game",
-				"Source/GuangzhouOpenWorld/Game/AccountLogin",
-				"Source/GuangzhouOpenWorld/Game/GameMainMenu",
-				"Source/GuangzhouOpenWorld/Game/SystemSettings",
-				"Source/GuangzhouOpenWorld/Game/MCPSelfCheck",
-				"Source/GuangzhouOpenWorld/Game/Gameplay",
-				"Source/GuangzhouOpenWorld/Physics/JoltPhysicsModule",
-				"Source/GuangzhouOpenWorld/Physics/PhysicsWind",
-				"Source/GuangzhouOpenWorld/AI/RecastMassAI",
-				"Source/GuangzhouOpenWorld/Scene/RenderingSystem",
-				"Source/GuangzhouOpenWorld/Audio/SoLoudSystem",
-				"Source/GuangzhouOpenWorld/Network/EOSSystem",
+				"Game",
+				"Game/AccountLogin",
+				"Game/GameMainMenu",
+				"Game/SystemSettings",
+				"Game/MCPSelfCheck",
+				"Game/Gameplay",
+				"Physics/JoltPhysicsModule",
+				"Physics/PhysicsWind",
+				"AI/RecastMassAI",
+				"Scene/RenderingSystem",
+				"Audio/SoLoudSystem",
+				"Network/EOSSystem",
 			});
 
 			PrivateIncludePaths.AddRange(new string[]
 			{
-				"Source/GuangzhouOpenWorld/Game",
-				"Source/GuangzhouOpenWorld/Game/AccountLogin",
-				"Source/GuangzhouOpenWorld/Game/GameMainMenu",
-				"Source/GuangzhouOpenWorld/Game/SystemSettings",
-				"Source/GuangzhouOpenWorld/Game/MCPSelfCheck",
-				"Source/GuangzhouOpenWorld/Game/Gameplay",
-				"Source/GuangzhouOpenWorld/Physics/JoltPhysicsModule",
-				"Source/GuangzhouOpenWorld/Physics/PhysicsWind",
-				"Source/GuangzhouOpenWorld/AI/RecastMassAI",
-				"Source/GuangzhouOpenWorld/Scene/RenderingSystem",
-				"Source/GuangzhouOpenWorld/Audio/SoLoudSystem",
-				"Source/GuangzhouOpenWorld/Network/EOSSystem",
+				"Game",
+				"Game/AccountLogin",
+				"Game/GameMainMenu",
+				"Game/SystemSettings",
+				"Game/MCPSelfCheck",
+				"Game/Gameplay",
+				"Physics/JoltPhysicsModule",
+				"Physics/PhysicsWind",
+				"AI/RecastMassAI",
+				"Scene/RenderingSystem",
+				"Audio/SoLoudSystem",
+				"Network/EOSSystem",
 			});
 
 			PublicFrameworks.AddRange(new string[]

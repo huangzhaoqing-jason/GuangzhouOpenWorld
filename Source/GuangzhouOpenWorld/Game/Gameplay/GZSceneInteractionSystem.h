@@ -33,6 +33,15 @@ public:
 	int32 GetActiveShopIndex() const { return ActiveShopIndex; }
 
 	UFUNCTION(BlueprintCallable)
+	void SetActiveShopIndex(int32 Index);
+
+	UFUNCTION(BlueprintPure)
+	bool IsIndoor() const { return bIsIndoor; }
+
+	UFUNCTION(BlueprintCallable)
+	void SetIndoor(bool bIndoor);
+
+	UFUNCTION(BlueprintCallable)
 	bool RunLayer1_APICompliance();
 
 	UFUNCTION(BlueprintCallable)

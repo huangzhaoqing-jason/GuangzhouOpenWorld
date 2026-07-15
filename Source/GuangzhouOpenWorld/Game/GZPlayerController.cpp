@@ -1,5 +1,10 @@
 #include "Game/GZPlayerController.h"
 #include "Game/GZGameMode.h"
+#include "Game/Gameplay/GZGameplaySystemManager.h"
+#include "Game/Gameplay/GZSceneInteractionSystem.h"
+#include "Game/Gameplay/GZDualCharacterSystem.h"
+#include "Game/Gameplay/GZProfessionSystem.h"
+#include "Game/Gameplay/GZVehicleModificationSystem.h"
 #include "GuangzhouOpenWorld.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -34,6 +39,17 @@ void AGZPlayerController::BeginPlay()
 	}
 
 	InitializeWeapons();
+	InitializeGameplayManager();
+}
+
+void AGZPlayerController::InitializeGameplayManager()
+{
+	GameplaySystemManager = NewObject<UGZGameplaySystemManager>(this);
+	if (GameplaySystemManager)
+	{
+		GameplaySystemManager->RegisterComponent();
+		GameplaySystemManager->InitializeSystems();
+	}
 }
 
 void AGZPlayerController::Tick(float DeltaSeconds)
@@ -103,6 +119,30 @@ void AGZPlayerController::SetupInputComponent()
 		if (SwitchWeapon5Action)
 		{
 			EnhancedInput->BindAction(SwitchWeapon5Action, ETriggerEvent::Started, this, &AGZPlayerController::SwitchWeaponAction, 4);
+		}
+		if (InteractAction_Input)
+		{
+			EnhancedInput->BindAction(InteractAction_Input, ETriggerEvent::Started, this, &AGZPlayerController::InteractAction);
+		}
+		if (ToggleIndoorAction_Input)
+		{
+			EnhancedInput->BindAction(ToggleIndoorAction_Input, ETriggerEvent::Started, this, &AGZPlayerController::ToggleIndoorAction);
+		}
+		if (SwitchCharacterAction_Input)
+		{
+			EnhancedInput->BindAction(SwitchCharacterAction_Input, ETriggerEvent::Started, this, &AGZPlayerController::SwitchCharacterAction);
+		}
+		if (SwitchProfessionAction_Input)
+		{
+			EnhancedInput->BindAction(SwitchProfessionAction_Input, ETriggerEvent::Started, this, &AGZPlayerController::SwitchProfessionAction);
+		}
+		if (EnterExitVehicleAction_Input)
+		{
+			EnhancedInput->BindAction(EnterExitVehicleAction_Input, ETriggerEvent::Started, this, &AGZPlayerController::EnterExitVehicleAction);
+		}
+		if (OpenVehicleModMenuAction_Input)
+		{
+			EnhancedInput->BindAction(OpenVehicleModMenuAction_Input, ETriggerEvent::Started, this, &AGZPlayerController::OpenVehicleModMenuAction);
 		}
 	}
 }
@@ -415,5 +455,91 @@ void AGZPlayerController::SwitchWeaponAction(int32 WeaponIndex)
 	if (WeaponIndex >= 0 && WeaponIndex < WeaponInventory.Num())
 	{
 		SwitchWeapon(WeaponInventory[WeaponIndex].Type);
+	}
+}
+
+void AGZPlayerController::InteractAction()
+{
+	if (!GameplaySystemManager) return;
+
+	if (UGZSceneInteractionSystem* SceneInteraction = GameplaySystemManager->GetSceneInteractionSystem())
+	{
+		if (SceneInteraction->TryEnterIndoor())
+		{
+			UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Player entered indoor."));
+		}
+		else
+		{
+			UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Player interacted with active shop or no shop nearby."));
+		}
+	}
+}
+
+void AGZPlayerController::ToggleIndoorAction()
+{
+	if (!GameplaySystemManager) return;
+
+	if (UGZSceneInteractionSystem* SceneInteraction = GameplaySystemManager->GetSceneInteractionSystem())
+	{
+		if (SceneInteraction->TryExitIndoor())
+		{
+			UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Player exited indoor."));
+		}
+	}
+}
+
+void AGZPlayerController::SwitchCharacterAction()
+{
+	if (!GameplaySystemManager) return;
+
+	if (UGZDualCharacterSystem* DualSystem = GameplaySystemManager->GetDualCharacterSystem())
+	{
+		const int32 CurrentIndex = DualSystem->GetActiveCharacterIndex();
+		const int32 NextIndex = (CurrentIndex == 0) ? 1 : 0;
+		DualSystem->SwitchToCharacter(NextIndex);
+		DualSystem->SaveDualCharacterData();
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Switched to character %d"), NextIndex);
+	}
+}
+
+void AGZPlayerController::SwitchProfessionAction()
+{
+	if (!GameplaySystemManager) return;
+
+	if (UGZProfessionSystem* ProfessionSystem = GameplaySystemManager->GetProfessionSystem())
+	{
+		const EGZCharacterRole CurrentRole = ProfessionSystem->GetProfessionConfig(ProfessionSystem->GetCurrentRole()).Role;
+		EGZCharacterRole NextRole = EGZCharacterRole::UrbanExplorer;
+		switch (CurrentRole)
+		{
+		case EGZCharacterRole::UrbanExplorer: NextRole = EGZCharacterRole::DeliveryDriver; break;
+		case EGZCharacterRole::DeliveryDriver: NextRole = EGZCharacterRole::PrivateDetective; break;
+		case EGZCharacterRole::PrivateDetective: NextRole = EGZCharacterRole::UrbanExplorer; break;
+		}
+		ProfessionSystem->SetPlayerProfession(NextRole);
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Switched profession to %d"), (int32)NextRole);
+	}
+}
+
+void AGZPlayerController::EnterExitVehicleAction()
+{
+	if (bInVehicle)
+	{
+		ExitVehicle();
+	}
+	else
+	{
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("EnterVehicle requires a nearby vehicle actor; use overlap/Blueprint to call EnterVehicle(Vehicle)."));
+	}
+}
+
+void AGZPlayerController::OpenVehicleModMenuAction()
+{
+	if (!GameplaySystemManager) return;
+
+	if (UGZVehicleModificationSystem* VehicleModSystem = GameplaySystemManager->GetVehicleModificationSystem())
+	{
+		VehicleModSystem->ApplyModification(EGZVehicleModPart::Engine);
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Applied engine modification."));
 	}
 }

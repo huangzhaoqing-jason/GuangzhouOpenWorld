@@ -85,6 +85,20 @@ void UGZVehicleModificationSystem::ResetAllMods()
 	Initialize();
 }
 
+void UGZVehicleModificationSystem::LoadFromSaveData(const TMap<EGZVehicleModPart, float>& InAppliedLevels)
+{
+	Initialize();
+
+	for (const auto& Pair : InAppliedLevels)
+	{
+		const int32 TargetLevel = FMath::FloorToInt(FMath::Clamp(Pair.Value, 0.0f, 3.0f));
+		for (int32 i = 0; i < TargetLevel; ++i)
+		{
+			ApplyModification(Pair.Key);
+		}
+	}
+}
+
 bool UGZVehicleModificationSystem::RunLayer1_APICompliance()
 {
 	return ModConfigs.Num() == 4;

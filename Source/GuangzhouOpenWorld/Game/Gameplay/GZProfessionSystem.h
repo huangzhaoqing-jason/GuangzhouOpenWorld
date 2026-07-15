@@ -26,6 +26,9 @@ public:
 	UFUNCTION(BlueprintPure)
 	float GetNPCReactionModifier() const;
 
+	UFUNCTION(BlueprintPure)
+	EGZCharacterRole GetCurrentRole() const { return CurrentRole; }
+
 	// MCP 4-layer self-check functions
 	UFUNCTION(BlueprintCallable)
 	bool RunLayer1_APICompliance();

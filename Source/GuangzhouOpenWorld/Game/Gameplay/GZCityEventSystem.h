@@ -39,6 +39,9 @@ public:
 	UFUNCTION(BlueprintPure) int32 GetActiveEventCount() const { return ActiveEvents.Num(); }
 	UFUNCTION(BlueprintPure) const TArray<FActiveCityEvent>& GetActiveEvents() const { return ActiveEvents; }
 
+	UFUNCTION(BlueprintCallable)
+	void LoadActiveEvents(const TArray<FActiveCityEvent>& InActiveEvents);
+
 	UFUNCTION(BlueprintCallable) bool RunLayer1_APICompliance();
 	UFUNCTION(BlueprintCallable) bool RunLayer2_Syntax();
 	UFUNCTION(BlueprintCallable) bool RunLayer3_Parameters();

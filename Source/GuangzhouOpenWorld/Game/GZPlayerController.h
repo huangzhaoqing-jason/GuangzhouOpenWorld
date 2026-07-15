@@ -125,10 +125,32 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lighting")
 	void DetectAndUpdateLightingZone();
 
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
+	void InteractAction();
+
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
+	void ToggleIndoorAction();
+
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
+	void SwitchCharacterAction();
+
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
+	void SwitchProfessionAction();
+
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
+	void EnterExitVehicleAction();
+
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
+	void OpenVehicleModMenuAction();
+
+	UFUNCTION(BlueprintPure, Category = "Gameplay")
+	class UGZGameplaySystemManager* GetGameplaySystemManager() const { return GameplaySystemManager; }
+
 protected:
 	void UpdateWantedDecay(float DeltaSeconds);
 	void UpdateReload(float DeltaSeconds);
 	void InitializeWeapons();
+	void InitializeGameplayManager();
 	void MoveForward(float Value);
 	void MoveRight(float Value);
 	void Turn(float Value);
@@ -224,4 +246,25 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Input")
 	class UInputAction* SwitchWeapon5Action = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Input")
+	class UInputAction* InteractAction_Input = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Input")
+	class UInputAction* ToggleIndoorAction_Input = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Input")
+	class UInputAction* SwitchCharacterAction_Input = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Input")
+	class UInputAction* SwitchProfessionAction_Input = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Input")
+	class UInputAction* EnterExitVehicleAction_Input = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Input")
+	class UInputAction* OpenVehicleModMenuAction_Input = nullptr;
+
+	UPROPERTY()
+	class UGZGameplaySystemManager* GameplaySystemManager = nullptr;
 };

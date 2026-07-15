@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
 #include "Game/GZGameMode.h"
+#include "Game/Gameplay/GZCityEventSystem.h"
 #include "GZPlayerController.h"
 #include "GZSaveGame.generated.h"
 
@@ -196,4 +197,19 @@ public:
 
 	UPROPERTY(SaveGame)
 	int32 ActiveCharacterIndex = 0;
+
+	UPROPERTY(SaveGame)
+	EGZCharacterRole SavedProfessionRole = EGZCharacterRole::UrbanExplorer;
+
+	UPROPERTY(SaveGame)
+	TMap<EGZVehicleModPart, float> SavedVehicleModLevels;
+
+	UPROPERTY(SaveGame)
+	TArray<FActiveCityEvent> SavedActiveCityEvents;
+
+	UPROPERTY(SaveGame)
+	int32 SavedActiveShopIndex = INDEX_NONE;
+
+	UPROPERTY(SaveGame)
+	bool bSavedIsIndoor = false;
 };

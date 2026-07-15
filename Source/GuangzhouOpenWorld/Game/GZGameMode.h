@@ -975,6 +975,8 @@ public:
 	UFUNCTION(BlueprintPure) bool IsIndoor() const { return bIsIndoor; }
 	UFUNCTION(BlueprintCallable) void SetIndoor(bool bIndoor);
 
+	UFUNCTION(BlueprintCallable) void RunMCPSelfCheck();
+
 protected:
 	void UpdateDayNightCycle(float DeltaSeconds);
 	void UpdateWeatherTransition(float DeltaSeconds);
@@ -1117,4 +1119,6 @@ protected:
 	UPROPERTY() float CloudShadowOffset = 0.0f;
 	UPROPERTY() bool bIsIndoor = false;
 	UPROPERTY() int32 ActiveCharacterIndex = 0;
+
+	UPROPERTY() class UGZMCPSelfCheck* MCPSelfCheck = nullptr;
 };

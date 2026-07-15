@@ -1,6 +1,7 @@
 #include "Game/GZGameMode.h"
 #include "GuangzhouOpenWorld.h"
 #include "Adapter/GZCVarAdapter.h"
+#include "Game/MCPSelfCheck/GZMCPSelfCheck.h"
 #include "Engine/DirectionalLight.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Engine/SkyLight.h"
@@ -378,7 +379,8 @@ AGZGameMode::AGZGameMode()
 		FCityEventConfig Neighbor; Neighbor.EventType = EGZCityEventType::NeighborInteraction; Neighbor.PreferredDistrict = EGZCityDistrict::YuexiuOldTown; Neighbor.SpawnChance = 0.04f; Neighbor.MinCooldown = 60.0f; Neighbor.MaxRadius = 20000.0f;
 		FCityEventConfig Help; Help.EventType = EGZCityEventType::HelpRequest; Help.PreferredDistrict = EGZCityDistrict::HaizhuWaterfront; Help.SpawnChance = 0.02f; Help.MinCooldown = 120.0f; Help.MaxRadius = 40000.0f;
 		FCityEventConfig Conflict; Conflict.EventType = EGZCityEventType::RandomConflict; Conflict.PreferredDistrict = EGZCityDistrict::PanyuSuburb; Conflict.SpawnChance = 0.015f; Conflict.MinCooldown = 180.0f; Conflict.MaxRadius = 35000.0f;
-		CityEventConfigs.Add(Commercial); CityEventConfigs.Add(Neighbor); CityEventConfigs.Add(Help); CityEventConfigs.Add(Conflict);
+		FCityEventConfig Street; Street.EventType = EGZCityEventType::StreetPerformance; Street.PreferredDistrict = EGZCityDistrict::YuexiuOldTown; Street.SpawnChance = 0.03f; Street.MinCooldown = 75.0f; Street.MaxRadius = 25000.0f;
+		CityEventConfigs.Add(Commercial); CityEventConfigs.Add(Neighbor); CityEventConfigs.Add(Help); CityEventConfigs.Add(Conflict); CityEventConfigs.Add(Street);
 	}
 
 	VehicleModConfigs.Empty();
@@ -392,16 +394,19 @@ AGZGameMode::AGZGameMode()
 
 	ShopConfigs.Empty();
 	{
-		FShopInteractionConfig Shop; Shop.OpenHour = 8.0f; Shop.CloseHour = 22.0f; Shop.RainCloseChance = 0.30f; Shop.InteractionRadius = 250.0f; Shop.bIndoorLightingSwitch = true;
-		ShopConfigs.Add(Shop);
+		FShopInteractionConfig Mall; Mall.ShopName = TEXT("Tianhe Mall"); Mall.District = EGZCityDistrict::TianheCBD; Mall.Location = FVector(50000.0f, 50000.0f, 0.0f); Mall.OpenHour = 8.0f; Mall.CloseHour = 22.0f; Mall.RainCloseChance = 0.30f; Mall.InteractionRadius = 300.0f; Mall.bIndoorLightingSwitch = true;
+		FShopInteractionConfig Cafe; Cafe.ShopName = TEXT("Old Town Cafe"); Cafe.District = EGZCityDistrict::YuexiuOldTown; Cafe.Location = FVector(-50000.0f, 50000.0f, 0.0f); Cafe.OpenHour = 7.0f; Cafe.CloseHour = 23.0f; Cafe.RainCloseChance = 0.20f; Cafe.InteractionRadius = 250.0f; Cafe.bIndoorLightingSwitch = true;
+		FShopInteractionConfig Market; Market.ShopName = TEXT("Waterfront Market"); Market.District = EGZCityDistrict::HaizhuWaterfront; Market.Location = FVector(-50000.0f, -50000.0f, 0.0f); Market.OpenHour = 6.0f; Market.CloseHour = 21.0f; Market.RainCloseChance = 0.50f; Market.InteractionRadius = 400.0f; Market.bIndoorLightingSwitch = true;
+		FShopInteractionConfig Garage; Garage.ShopName = TEXT("Suburb Garage"); Garage.District = EGZCityDistrict::PanyuSuburb; Garage.Location = FVector(50000.0f, -50000.0f, 0.0f); Garage.OpenHour = 9.0f; Garage.CloseHour = 20.0f; Garage.RainCloseChance = 0.25f; Garage.InteractionRadius = 350.0f; Garage.bIndoorLightingSwitch = true;
+		ShopConfigs.Add(Mall); ShopConfigs.Add(Cafe); ShopConfigs.Add(Market); ShopConfigs.Add(Garage);
 	}
 
 	AnomalyConfigs.Empty();
 	{
-		FAnomalyPointConfig Light; Light.Type = EGZAnomalyType::LightFlicker; Light.District = EGZCityDistrict::TianheCBD; Light.TriggerRadius = 1000.0f; Light.Duration = 30.0f;
-		FAnomalyPointConfig Fog; Fog.Type = EGZAnomalyType::FogPocket; Fog.District = EGZCityDistrict::YuexiuOldTown; Fog.TriggerRadius = 1500.0f; Fog.Duration = 45.0f;
-		FAnomalyPointConfig Shadow; Shadow.Type = EGZAnomalyType::ShadowFigure; Shadow.District = EGZCityDistrict::HaizhuWaterfront; Shadow.TriggerRadius = 800.0f; Shadow.Duration = 20.0f;
-		FAnomalyPointConfig Reflection; Reflection.Type = EGZAnomalyType::ReflectionGlitch; Reflection.District = EGZCityDistrict::HaizhuWaterfront; Reflection.TriggerRadius = 1200.0f; Reflection.Duration = 35.0f;
+		FAnomalyPointConfig Light; Light.Type = EGZAnomalyType::LightFlicker; Light.District = EGZCityDistrict::TianheCBD; Light.Location = FVector(52000.0f, 52000.0f, 0.0f); Light.TriggerRadius = 1000.0f; Light.Duration = 30.0f;
+		FAnomalyPointConfig Fog; Fog.Type = EGZAnomalyType::FogPocket; Fog.District = EGZCityDistrict::YuexiuOldTown; Fog.Location = FVector(-52000.0f, 52000.0f, 0.0f); Fog.TriggerRadius = 1500.0f; Fog.Duration = 45.0f;
+		FAnomalyPointConfig Shadow; Shadow.Type = EGZAnomalyType::ShadowFigure; Shadow.District = EGZCityDistrict::HaizhuWaterfront; Shadow.Location = FVector(-52000.0f, -52000.0f, 0.0f); Shadow.TriggerRadius = 800.0f; Shadow.Duration = 20.0f;
+		FAnomalyPointConfig Reflection; Reflection.Type = EGZAnomalyType::ReflectionGlitch; Reflection.District = EGZCityDistrict::PanyuSuburb; Reflection.Location = FVector(52000.0f, -52000.0f, 0.0f); Reflection.TriggerRadius = 1200.0f; Reflection.Duration = 35.0f;
 		AnomalyConfigs.Add(Light); AnomalyConfigs.Add(Fog); AnomalyConfigs.Add(Shadow); AnomalyConfigs.Add(Reflection);
 	}
 
@@ -558,6 +563,9 @@ void AGZGameMode::BeginPlay()
 	ApplyMetallicMaterialRTParams();
 	ApplyGlassOverlapBlendParams();
 	ApplyDetailedWeatherStateParams(CurrentDetailedWeather);
+
+	// 启动 MCP 四层自检并生成运行时报告
+	RunMCPSelfCheck();
 }
 
 void AGZGameMode::Tick(float DeltaSeconds)
@@ -2064,4 +2072,15 @@ void AGZGameMode::UpdateCloudShadows(float DeltaSeconds)
 void AGZGameMode::UpdateDistrictProfiles()
 {
 	// Placeholder for per-frame district blend updates; currently applied on district change.
+}
+
+void AGZGameMode::RunMCPSelfCheck()
+{
+	MCPSelfCheck = NewObject<UGZMCPSelfCheck>(this);
+	if (MCPSelfCheck)
+	{
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Starting MCP four-layer self-check..."));
+		MCPSelfCheck->RunFullCheck();
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("MCP self-check completed. AllPassed=%d"), MCPSelfCheck->IsAllPassed());
+	}
 }

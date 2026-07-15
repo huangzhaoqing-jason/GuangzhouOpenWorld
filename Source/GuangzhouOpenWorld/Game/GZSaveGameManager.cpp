@@ -1,8 +1,14 @@
 #include "Game/GZSaveGameManager.h"
 #include "Game/GZGameMode.h"
 #include "Game/GZPlayerController.h"
+#include "Game/Gameplay/GZGameplaySystemManager.h"
+#include "Game/Gameplay/GZProfessionSystem.h"
+#include "Game/Gameplay/GZVehicleModificationSystem.h"
+#include "Game/Gameplay/GZCityEventSystem.h"
+#include "Game/Gameplay/GZSceneInteractionSystem.h"
 #include "GuangzhouOpenWorld.h"
 #include "Kismet/GameplayStatics.h"
+#include "Engine/World.h"
 
 UGZSaveGameManager::UGZSaveGameManager()
 {
@@ -12,25 +18,31 @@ void UGZSaveGameManager::SaveGame(int32 SlotIndex, const FString& SaveName)
 {
 	if (SlotIndex < 0 || SlotIndex >= MaxSaveSlots) return;
 
-	UGZSaveGame* Save = Cast<UGZSaveGame>(UGameplayStatics::CreateSaveGameObject(UGZSaveGame::StaticClass()));
+	AGZPlayerController* PC = nullptr;
+	AGZGameMode* GM = nullptr;
+	if (UWorld* World = GetWorld())
+	{
+		PC = Cast<AGZPlayerController>(World->GetFirstPlayerController());
+		GM = Cast<AGZGameMode>(World->GetAuthGameMode());
+	}
+
+	CollectPlayerState(PC, GM);
+
+	UGZSaveGame* Save = CurrentSave;
+	if (!Save)
+	{
+		Save = Cast<UGZSaveGame>(UGameplayStatics::CreateSaveGameObject(UGZSaveGame::StaticClass()));
+	}
 	if (!Save) return;
 
 	Save->SaveSlotName = GetSaveSlotName(SlotIndex);
 	Save->SaveIndex = SlotIndex;
 	Save->SaveDateTime = FDateTime::Now();
 	Save->SaveDisplayName = SaveName;
-
-	if (CurrentSave)
-	{
-		Save->PlayerData = CurrentSave->PlayerData;
-		Save->MissionData = CurrentSave->MissionData;
-		Save->SettingsData = CurrentSave->SettingsData;
-		Save->TotalPlayTime = CurrentSave->TotalPlayTime;
-	}
+	CurrentSave = Save;
 
 	if (UGameplayStatics::SaveGameToSlot(Save, Save->SaveSlotName, Save->SaveIndex))
 	{
-		CurrentSave = Save;
 		OnSaveCompleted.Broadcast(true);
 	}
 	else
@@ -48,6 +60,16 @@ void UGZSaveGameManager::LoadGame(int32 SlotIndex)
 	if (Loaded)
 	{
 		CurrentSave = Loaded;
+
+		AGZPlayerController* PC = nullptr;
+		AGZGameMode* GM = nullptr;
+		if (UWorld* World = GetWorld())
+		{
+			PC = Cast<AGZPlayerController>(World->GetFirstPlayerController());
+			GM = Cast<AGZGameMode>(World->GetAuthGameMode());
+		}
+
+		ApplyPlayerState(PC, GM);
 		OnLoadCompleted.Broadcast(true);
 	}
 	else
@@ -123,6 +145,36 @@ void UGZSaveGameManager::CollectPlayerState(AGZPlayerController* PC, AGZGameMode
 		CurrentSave->PlayerData.TimeOfDay = GM->GetTimeOfDay();
 		CurrentSave->PlayerData.CurrentWeather = GM->GetCurrentWeather();
 	}
+
+	if (UGZGameplaySystemManager* GSM = PC->GetGameplaySystemManager())
+	{
+		if (UGZProfessionSystem* ProfessionSystem = GSM->GetProfessionSystem())
+		{
+			CurrentSave->SavedProfessionRole = ProfessionSystem->GetCurrentRole();
+		}
+
+		if (UGZVehicleModificationSystem* VehicleModSystem = GSM->GetVehicleModificationSystem())
+		{
+			CurrentSave->SavedVehicleModLevels = VehicleModSystem->GetAppliedLevels();
+		}
+
+		if (UGZCityEventSystem* CityEventSystem = GSM->GetCityEventSystem())
+		{
+			CurrentSave->SavedActiveCityEvents = CityEventSystem->GetActiveEvents();
+		}
+
+		if (UGZSceneInteractionSystem* SceneInteractionSystem = GSM->GetSceneInteractionSystem())
+		{
+			CurrentSave->SavedActiveShopIndex = SceneInteractionSystem->GetActiveShopIndex();
+			CurrentSave->bSavedIsIndoor = SceneInteractionSystem->IsIndoor();
+		}
+
+		if (UGZDualCharacterSystem* DualSystem = GSM->GetDualCharacterSystem())
+		{
+			CurrentSave->DualCharacterData = DualSystem->GetCharacterData();
+			CurrentSave->ActiveCharacterIndex = DualSystem->GetActiveCharacterIndex();
+		}
+	}
 }
 
 void UGZSaveGameManager::ApplyPlayerState(AGZPlayerController* PC, AGZGameMode* GM)
@@ -144,6 +196,36 @@ void UGZSaveGameManager::ApplyPlayerState(AGZPlayerController* PC, AGZGameMode* 
 	{
 		GM->SetTimeOfDay(CurrentSave->PlayerData.TimeOfDay);
 		GM->SetWeather(CurrentSave->PlayerData.CurrentWeather);
+	}
+
+	if (UGZGameplaySystemManager* GSM = PC->GetGameplaySystemManager())
+	{
+		if (UGZProfessionSystem* ProfessionSystem = GSM->GetProfessionSystem())
+		{
+			ProfessionSystem->SetPlayerProfession(CurrentSave->SavedProfessionRole);
+		}
+
+		if (UGZVehicleModificationSystem* VehicleModSystem = GSM->GetVehicleModificationSystem())
+		{
+			VehicleModSystem->LoadFromSaveData(CurrentSave->SavedVehicleModLevels);
+		}
+
+		if (UGZCityEventSystem* CityEventSystem = GSM->GetCityEventSystem())
+		{
+			CityEventSystem->LoadActiveEvents(CurrentSave->SavedActiveCityEvents);
+		}
+
+		if (UGZSceneInteractionSystem* SceneInteractionSystem = GSM->GetSceneInteractionSystem())
+		{
+			SceneInteractionSystem->SetActiveShopIndex(CurrentSave->SavedActiveShopIndex);
+			SceneInteractionSystem->SetIndoor(CurrentSave->bSavedIsIndoor);
+		}
+
+		if (UGZDualCharacterSystem* DualSystem = GSM->GetDualCharacterSystem())
+		{
+			DualSystem->SetCharacterData(CurrentSave->DualCharacterData, CurrentSave->ActiveCharacterIndex);
+			DualSystem->SaveDualCharacterData();
+		}
 	}
 }
 

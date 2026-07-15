@@ -117,6 +117,16 @@ void UGZSceneInteractionSystem::UpdateActiveShop(FVector PlayerLocation, EGZCity
 	ActiveShopIndex = BestIndex;
 }
 
+void UGZSceneInteractionSystem::SetActiveShopIndex(int32 Index)
+{
+	ActiveShopIndex = ShopConfigs.IsValidIndex(Index) ? Index : INDEX_NONE;
+}
+
+void UGZSceneInteractionSystem::SetIndoor(bool bIndoor)
+{
+	bIsIndoor = bIndoor;
+}
+
 bool UGZSceneInteractionSystem::RunLayer1_APICompliance()
 {
 	return ShopConfigs.Num() > 0;

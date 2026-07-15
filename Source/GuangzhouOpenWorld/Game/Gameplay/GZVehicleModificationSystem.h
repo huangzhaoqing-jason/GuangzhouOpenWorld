@@ -19,6 +19,12 @@ public:
 	UFUNCTION(BlueprintPure) FVehicleModConfig GetCurrentModConfig(EGZVehicleModPart Part) const;
 	UFUNCTION(BlueprintCallable) void ResetAllMods();
 
+	UFUNCTION(BlueprintPure)
+	TMap<EGZVehicleModPart, float> GetAppliedLevels() const { return AppliedLevels; }
+
+	UFUNCTION(BlueprintCallable)
+	void LoadFromSaveData(const TMap<EGZVehicleModPart, float>& InAppliedLevels);
+
 	UFUNCTION(BlueprintCallable) bool RunLayer1_APICompliance();
 	UFUNCTION(BlueprintCallable) bool RunLayer2_Syntax();
 	UFUNCTION(BlueprintCallable) bool RunLayer3_Parameters();

@@ -164,6 +164,22 @@ bool UGZCityEventSystem::DismissEvent(int32 EventId)
 	return false;
 }
 
+void UGZCityEventSystem::LoadActiveEvents(const TArray<FActiveCityEvent>& InActiveEvents)
+{
+	ActiveEvents = InActiveEvents;
+	for (FActiveCityEvent& Event : ActiveEvents)
+	{
+		Event.bExpired = false;
+	}
+
+	int32 MaxId = 0;
+	for (const FActiveCityEvent& Event : ActiveEvents)
+	{
+		MaxId = FMath::Max(MaxId, Event.EventId);
+	}
+	NextEventId = FMath::Max(NextEventId, MaxId + 1);
+}
+
 bool UGZCityEventSystem::RunLayer1_APICompliance()
 {
 	return EventConfigs.Num() > 0;

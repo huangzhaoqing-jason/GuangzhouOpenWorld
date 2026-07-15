@@ -52,6 +52,17 @@ int32 UGZDualCharacterSystem::GetActiveCharacterIndex() const
 	return ActiveCharacterIndex;
 }
 
+void UGZDualCharacterSystem::SetCharacterData(const TArray<FDualCharacterData>& Data, int32 ActiveIndex)
+{
+	CharacterData = Data;
+	ActiveCharacterIndex = CharacterData.IsValidIndex(ActiveIndex) ? ActiveIndex : 0;
+
+	for (int32 i = 0; i < CharacterData.Num(); ++i)
+	{
+		CharacterData[i].bIsActive = (i == ActiveCharacterIndex);
+	}
+}
+
 void UGZDualCharacterSystem::SaveDualCharacterData()
 {
 	UGZSaveGame* SaveGame = Cast<UGZSaveGame>(UGameplayStatics::CreateSaveGameObject(UGZSaveGame::StaticClass()));

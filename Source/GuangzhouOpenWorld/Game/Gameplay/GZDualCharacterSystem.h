@@ -23,6 +23,12 @@ public:
 	UFUNCTION(BlueprintPure)
 	int32 GetActiveCharacterIndex() const;
 
+	UFUNCTION(BlueprintPure)
+	const TArray<FDualCharacterData>& GetCharacterData() const { return CharacterData; }
+
+	UFUNCTION(BlueprintCallable)
+	void SetCharacterData(const TArray<FDualCharacterData>& Data, int32 ActiveIndex);
+
 	UFUNCTION(BlueprintCallable)
 	void SaveDualCharacterData();
 
