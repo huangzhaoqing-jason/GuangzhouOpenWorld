@@ -1,0 +1,21 @@
+# Swift Package Manager
+MacApp/.build/
+*.xcodeproj
+*.xcworkspace
+
+# UE5
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+Build/
+*.sln
+.vs/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

@@ -72,7 +72,7 @@ public class GuangzhouOpenWorld : ModuleRules
 			"Game/MCPSelfCheck",
 			"Scene/GSRendering",
 			"Editor/GSAssetPipeline",
-			"UI/LiquidGlass",
+			"Bridge",
 		});
 
 		if (Target.Platform == UnrealTargetPlatform.Mac)
@@ -91,6 +91,7 @@ public class GuangzhouOpenWorld : ModuleRules
 				"Scene/RenderingSystem",
 				"Audio/SoLoudSystem",
 				"Network/EOSSystem",
+				"Bridge",
 			});
 
 			PrivateIncludePaths.AddRange(new string[]
@@ -107,6 +108,7 @@ public class GuangzhouOpenWorld : ModuleRules
 				"Scene/RenderingSystem",
 				"Audio/SoLoudSystem",
 				"Network/EOSSystem",
+				"Bridge",
 			});
 
 			PublicDependencyModuleNames.AddRange(new string[]

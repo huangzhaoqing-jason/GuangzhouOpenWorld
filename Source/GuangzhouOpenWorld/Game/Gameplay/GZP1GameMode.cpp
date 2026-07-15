@@ -4,9 +4,8 @@
 #include "AI/RecastMassAI/GZNPCMemoryTagSystem.h"
 #include "Game/Gameplay/GZVerticalPathSystem.h"
 #include "Physics/JoltPhysicsModule/GZPhysicsInteractionSystem.h"
-#include "UI/LiquidGlass/GZLiquidGlassPresenter.h"
 #include "Scene/GSRendering/GZGSEnvironmentBridge.h"
-#include "Scene/GSRendering/GZGSRendererIntegration.h"
+#include "Scene/GSRendering/GZSparkRendererBridge.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
@@ -27,7 +26,7 @@ void AGZP1GameMode::BeginPlay()
 
 	InitializeP1Systems();
 	BuildP1SliceData();
-	BindGSToPlayerCamera();
+	BindSparkToPlayerCamera();
 }
 
 void AGZP1GameMode::Tick(float DeltaSeconds)
@@ -51,7 +50,7 @@ void AGZP1GameMode::Tick(float DeltaSeconds)
 		PhysicsInteraction->TickObjects(DeltaSeconds);
 	}
 
-	// 同步环境变量到 GS 渲染桥：湿度、风速、光照、降雨
+	// 同步环境变量到 Spark 2.0 渲染桥：湿度、风速、光照、降雨
 	if (EnvironmentBridge)
 	{
 		const float WindSpeed = 2.0f + Wetness01 * 6.0f;
@@ -60,14 +59,13 @@ void AGZP1GameMode::Tick(float DeltaSeconds)
 		const float TimeOfDay = 12.0f;
 		EnvironmentBridge->SetEnvironment(Wetness01, WindSpeed, LightIntensity, RainIntensity, TimeOfDay);
 
-		if (GSRenderer)
+		if (SparkRenderer)
 		{
-			GSRenderer->SetEnvironmentParameters(Wetness01, WindSpeed, LightIntensity, RainIntensity);
+			SparkRenderer->SetEnvironmentParameters(Wetness01, WindSpeed, LightIntensity, RainIntensity);
 		}
 	}
 
 	TickMission(DeltaSeconds);
-	UpdatePresenter(DeltaSeconds);
 }
 
 void AGZP1GameMode::InitializeP1Systems()
@@ -87,15 +85,11 @@ void AGZP1GameMode::InitializeP1Systems()
 	PhysicsInteraction = NewObject<UGZPhysicsInteractionSystem>(this);
 	PhysicsInteraction->Initialize(-981.0f);
 
-	Presenter = NewObject<UGZLiquidGlassPresenter>(this);
-	Presenter->Initialize();
-
 	EnvironmentBridge = NewObject<UGZGSEnvironmentBridge>(this);
 	EnvironmentBridge->Initialize();
 
-	GSRenderer = NewObject<UGZGSRendererIntegration>(this);
-	GSRenderer->Initialize();
-	GSRenderer->LoadNativePlugin();
+	SparkRenderer = NewObject<UGZSparkRendererBridge>(this);
+	SparkRenderer->Initialize();
 }
 
 void AGZP1GameMode::ApplyPerformanceFallback()
@@ -252,83 +246,9 @@ void AGZP1GameMode::TickMission(float DeltaSeconds)
 	}
 }
 
-void AGZP1GameMode::UpdatePresenter(float DeltaSeconds)
+void AGZP1GameMode::BindSparkToPlayerCamera()
 {
-	if (!Presenter)
-	{
-		return;
-	}
-
-	const FVector PlayerLoc = GetPlayerPawnLocation();
-
-	// 速度：从玩家 Pawn 速度读取，无 Pawn 时归零
-	float Speed = 0.0f;
-	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-	{
-		if (APawn* Pawn = PC->GetPawn())
-		{
-			Speed = Pawn->GetVelocity().Size();
-		}
-	}
-	Presenter->SetSpeed(Speed);
-
-	// 引导方向：当前任务目标
-	FVector GuideDir = FVector::ZeroVector;
-	switch (MissionState)
-	{
-	case EP1MissionState::Drive:
-		GuideDir = (MissionDriveTarget - PlayerLoc).GetSafeNormal();
-		break;
-	case EP1MissionState::Explore:
-	case EP1MissionState::Conflict:
-		GuideDir = (MissionArcadeCenter - PlayerLoc).GetSafeNormal();
-		break;
-	case EP1MissionState::Interact:
-		GuideDir = (MissionShopLocation - PlayerLoc).GetSafeNormal();
-		break;
-	default:
-		break;
-	}
-
-	if (!GuideDir.IsNearlyZero())
-	{
-		Presenter->SetGuidanceDirection(GuideDir);
-	}
-	else
-	{
-		Presenter->ClearGuidance();
-	}
-
-	// 冲突阶段
-	if (NPCMemory && MissionNPCId != INDEX_NONE)
-	{
-		Presenter->SetConflictStage(MissionNPCId, NPCMemory->GetNPCStage(MissionNPCId));
-	}
-
-	// 交互提示
-	if (MissionState == EP1MissionState::Interact && !bMissionObjectThrown)
-	{
-		Presenter->SetInteractionPrompt(FText::FromString(TEXT("拾取并投掷木箱")));
-	}
-	else
-	{
-		Presenter->ClearInteractionPrompt();
-	}
-
-	// 湿滑警告：低速在湿滑路面上打滑的简化提示
-	if (Speed > 100.0f && Wetness01 > 0.3f)
-	{
-		Presenter->SetSkidWarning(true);
-	}
-	else
-	{
-		Presenter->SetSkidWarning(false);
-	}
-}
-
-void AGZP1GameMode::BindGSToPlayerCamera()
-{
-	if (!GSRenderer)
+	if (!SparkRenderer)
 	{
 		return;
 	}
@@ -346,8 +266,8 @@ void AGZP1GameMode::BindGSToPlayerCamera()
 		return;
 	}
 
-	GSRenderer->SetupPostProcessBridge(Camera);
-	GSRenderer->ApplySharedPostProcess(Camera);
+	SparkRenderer->BindPlayerCamera(Camera);
+	SparkRenderer->SyncPostProcessWithUI(Camera);
 }
 
 FVector AGZP1GameMode::GetPlayerPawnLocation() const

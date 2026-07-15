@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "Bridge/GZSwiftUIBridge.h"
 #include "GZGameMode.generated.h"
 
 UENUM(BlueprintType)
@@ -984,7 +985,12 @@ public:
 
 	UFUNCTION(BlueprintCallable) void RunMCPSelfCheck();
 
+	UFUNCTION(BlueprintPure, Category = "SwiftUI Bridge")
+	UGZSwiftUIBridge* GetSwiftUIBridge() const { return SwiftUIBridge; }
+
 protected:
+	UFUNCTION()
+	void OnSwiftUICommandReceived(const FUE5Command& Command);
 	void UpdateDayNightCycle(float DeltaSeconds);
 	void UpdateWeatherTransition(float DeltaSeconds);
 	void UpdateLightingFromZone(EGZLightingZone Zone);
@@ -1128,4 +1134,7 @@ protected:
 	UPROPERTY() int32 ActiveCharacterIndex = 0;
 
 	UPROPERTY() class UGZMCPSelfCheck* MCPSelfCheck = nullptr;
+
+	UPROPERTY()
+	UGZSwiftUIBridge* SwiftUIBridge = nullptr;
 };

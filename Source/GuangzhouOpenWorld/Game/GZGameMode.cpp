@@ -566,6 +566,12 @@ void AGZGameMode::BeginPlay()
 
 	// 启动 MCP 四层自检并生成运行时报告
 	RunMCPSelfCheck();
+
+	// 初始化 SwiftUI APP 桥接
+	SwiftUIBridge = NewObject<UGZSwiftUIBridge>(this);
+	SwiftUIBridge->Initialize();
+	SwiftUIBridge->OnCommandReceived.AddDynamic(this, &AGZGameMode::OnSwiftUICommandReceived);
+	SwiftUIBridge->SendEvent(TEXT("GameModeReady"), TEXT("{}"));
 }
 
 void AGZGameMode::Tick(float DeltaSeconds)
@@ -610,6 +616,29 @@ void AGZGameMode::Tick(float DeltaSeconds)
 	UpdateFloodState(DeltaSeconds);
 	UpdateCloudShadows(DeltaSeconds);
 	ApplyDetailedWeatherStateParams(CurrentDetailedWeather);
+
+	// 向 SwiftUI APP 同步状态事件
+	if (SwiftUIBridge)
+	{
+		FVector PlayerLocation = FVector::ZeroVector;
+		float VehicleSpeedKmh = 0.0f;
+		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+		{
+			if (APawn* Pawn = PC->GetPawn())
+			{
+				PlayerLocation = Pawn->GetActorLocation();
+				VehicleSpeedKmh = Pawn->GetVelocity().Size() * 0.036f;
+			}
+		}
+
+		const FString Payload = FString::Printf(
+			TEXT("{\"timeOfDay\":%.2f,\"weather\":%d,\"district\":%d,\"playerX\":%.0f,\"playerY\":%.0f,\"playerZ\":%.0f,\"speedKmh\":%.1f,\"wetness\":%.2f,\"wind\":%.2f}"),
+			DayNight.TimeOfDay, (int32)CurrentDetailedWeather, (int32)CurrentDistrict,
+			PlayerLocation.X, PlayerLocation.Y, PlayerLocation.Z,
+			VehicleSpeedKmh, RoadWetness, GetEffectiveWindStrength());
+
+		SwiftUIBridge->SendEvent(TEXT("GameState"), Payload);
+	}
 }
 
 void AGZGameMode::SetRoadWetnessTarget(float Target)
@@ -2082,5 +2111,48 @@ void AGZGameMode::RunMCPSelfCheck()
 		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Starting MCP four-layer self-check..."));
 		MCPSelfCheck->RunFullCheck();
 		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("MCP self-check completed. AllPassed=%d"), MCPSelfCheck->IsAllPassed());
+	}
+}
+
+void AGZGameMode::OnSwiftUICommandReceived(const FUE5Command& Command)
+{
+	switch (Command.Type)
+	{
+	case EUE5CommandType::StartGame:
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("[GameMode] SwiftUI StartGame"));
+		break;
+	case EUE5CommandType::PauseGame:
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("[GameMode] SwiftUI PauseGame"));
+		break;
+	case EUE5CommandType::ResumeGame:
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("[GameMode] SwiftUI ResumeGame"));
+		break;
+	case EUE5CommandType::QuitToMenu:
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("[GameMode] SwiftUI QuitToMenu"));
+		break;
+	case EUE5CommandType::SetGraphicsQuality:
+		QualitySettings.ScreenPercentage = 65.0f + Command.IntValue * 10.0f;
+		ApplyAutoQualityPreset();
+		break;
+	case EUE5CommandType::SetMasterVolume:
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("[GameMode] SetMasterVolume %.2f"), Command.FloatValue);
+		break;
+	case EUE5CommandType::SetLanguage:
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("[GameMode] SetLanguage %s"), *Command.StringValue);
+		break;
+	case EUE5CommandType::SetMouseSensitivity:
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("[GameMode] SetMouseSensitivity %.2f"), Command.FloatValue);
+		break;
+	case EUE5CommandType::TeleportPlayer:
+		if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+		{
+			if (APawn* Pawn = PC->GetPawn())
+			{
+				Pawn->SetActorLocation(Command.VectorValue);
+			}
+		}
+		break;
+	default:
+		break;
 	}
 }
