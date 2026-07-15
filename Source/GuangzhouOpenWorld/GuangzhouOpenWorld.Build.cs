@@ -62,8 +62,6 @@ public class GuangzhouOpenWorld : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
-			"SoLoud",
-			"JoltPhysics",
 			"DeveloperSettings",
 		});
 
@@ -116,21 +114,27 @@ public class GuangzhouOpenWorld : ModuleRules
 				"MetalRHI",
 			});
 
-		PublicFrameworks.AddRange(new string[]
-			{
-				"Metal",
-				"MetalKit",
-				"CoreAudio",
-				"AudioToolbox",
-				"GameController",
-				"CoreHaptics",
-			});
+		PrivateDependencyModuleNames.AddRange(new string[]
+		{
+			"SoLoud",
+			"JoltPhysics",
+		});
 
-			PublicDefinitions.Add("METAL_4_3=1");
-			PublicDefinitions.Add("APPLE_SILICON_UMA=1");
-			PublicDefinitions.Add("SOLOUD_2026=1");
-			PublicDefinitions.Add("JOLT_6_0_1=1");
-			PublicDefinitions.Add("UE5_8=1");
+		PublicFrameworks.AddRange(new string[]
+		{
+			"Metal",
+			"MetalKit",
+			"CoreAudio",
+			"AudioToolbox",
+			"GameController",
+			"CoreHaptics",
+		});
+
+		PublicDefinitions.Add("METAL_4_3=1");
+		PublicDefinitions.Add("APPLE_SILICON_UMA=1");
+		PublicDefinitions.Add("SOLOUD_2026=1");
+		PublicDefinitions.Add("JOLT_6_0_1=1");
+		PublicDefinitions.Add("UE5_8=1");
 		}
 
 		if (Target.bBuildEditor)
