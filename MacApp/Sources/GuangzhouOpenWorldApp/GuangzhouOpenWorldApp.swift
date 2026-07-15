@@ -1,13 +1,23 @@
 #if os(macOS)
 import SwiftUI
+
 @main
 struct GuangzhouOpenWorldApp: App {
     @StateObject private var appState = AppState()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            GameMainUI()
                 .environmentObject(appState)
+                .onChange(of: scenePhase) { _, newPhase in
+                    // 生命周期同步：进入后台自动释放资源
+                    if newPhase == .background {
+                        appState.isGameVisible = false
+                    } else if newPhase == .active {
+                        appState.isGameVisible = true
+                    }
+                }
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1920, height: 1080)

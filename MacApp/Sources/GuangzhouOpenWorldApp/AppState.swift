@@ -15,7 +15,8 @@ final class AppState: ObservableObject {
 
     @Published var phase: AppPhase = .launch
     @Published var isTransitioning: Bool = false
-    @Published var selectedMenuItem: MenuItem? = .play
+    @Published var isGameVisible: Bool = true
+    @Published var uiState = GZUIState()
 
     /// 全局命名空间，供 matchGeometryEffect 跨页面共享元素动画
     let transitionNamespace = Namespace().wrappedValue
