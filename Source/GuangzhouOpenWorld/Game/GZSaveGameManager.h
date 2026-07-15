@@ -70,12 +70,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Save")
 	void BackupSave(int32 SlotIndex);
 
+	UFUNCTION(BlueprintCallable, Category = "Save")
+	bool ValidateSaveIntegrity(int32 SlotIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Save")
+	bool RollbackToBackupIfCorrupt(int32 SlotIndex);
+
 	UPROPERTY(BlueprintReadOnly, Category = "Save")
 	int32 LastCloudLoadErrorSlot = -1;
 
 private:
 	FString GetSaveSlotName(int32 SlotIndex) const;
 	FString GetBackupSlotName(int32 SlotIndex) const;
+	FString GetChecksumFilePath(const FString& SlotName) const;
+	FString ComputeSaveChecksum(UGZSaveGame* Save) const;
+	bool WriteChecksum(const FString& SlotName, const FString& Checksum);
+	bool ReadChecksum(const FString& SlotName, FString& OutChecksum) const;
 	int32 MaxSaveSlots = 8;
 	int32 SinglePlayerSlotCount = 8;
 	float AutoSaveTimer = 0.0f;

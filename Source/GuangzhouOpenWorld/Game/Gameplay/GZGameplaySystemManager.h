@@ -63,6 +63,12 @@ public:
 	class UGZAnomalySystem* GetAnomalySystem() const { return AnomalySystem; }
 
 	UFUNCTION(BlueprintPure, Category = "Gameplay")
+	class UGZMassAIDistrictController* GetDistrictAIController() const { return DistrictAIController; }
+
+	UFUNCTION(BlueprintPure, Category = "Gameplay")
+	class UGZMetalShaderCache* GetMetalShaderCache() const { return MetalShaderCache; }
+
+	UFUNCTION(BlueprintPure, Category = "Gameplay")
 	EGZCityDistrict DetectDistrictByLocation(FVector Location) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Gameplay")
@@ -92,6 +98,12 @@ protected:
 
 	UPROPERTY()
 	class UGZAnomalySystem* AnomalySystem = nullptr;
+
+	UPROPERTY()
+	class UGZMassAIDistrictController* DistrictAIController = nullptr;
+
+	UPROPERTY()
+	class UGZMetalShaderCache* MetalShaderCache = nullptr;
 
 	UPROPERTY()
 	class AGZGameMode* CachedGameMode = nullptr;

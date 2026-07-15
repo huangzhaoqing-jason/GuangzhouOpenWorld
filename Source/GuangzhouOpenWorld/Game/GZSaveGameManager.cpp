@@ -9,6 +9,10 @@
 #include "GuangzhouOpenWorld.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
+#include "Misc/SecureHash.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Serialization/BufferArchive.h"
 
 UGZSaveGameManager::UGZSaveGameManager()
 {
@@ -43,6 +47,8 @@ void UGZSaveGameManager::SaveGame(int32 SlotIndex, const FString& SaveName)
 
 	if (UGameplayStatics::SaveGameToSlot(Save, Save->SaveSlotName, Save->SaveIndex))
 	{
+		WriteChecksum(Save->SaveSlotName, ComputeSaveChecksum(Save));
+		BackupSave(SlotIndex);
 		OnSaveCompleted.Broadcast(true);
 	}
 	else
@@ -59,6 +65,22 @@ void UGZSaveGameManager::LoadGame(int32 SlotIndex)
 	UGZSaveGame* Loaded = Cast<UGZSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, SlotIndex));
 	if (Loaded)
 	{
+		FString ExpectedChecksum;
+		if (ReadChecksum(SlotName, ExpectedChecksum))
+		{
+			FString ActualChecksum = ComputeSaveChecksum(Loaded);
+			if (!ActualChecksum.Equals(ExpectedChecksum, ESearchCase::IgnoreCase))
+			{
+				UE_LOG(LogGuangzhouOpenWorld, Error, TEXT("Save slot %d checksum mismatch; attempting rollback"), SlotIndex);
+				if (RollbackToBackupIfCorrupt(SlotIndex))
+				{
+					return;
+				}
+				OnLoadCompleted.Broadcast(false);
+				return;
+			}
+		}
+
 		CurrentSave = Loaded;
 
 		AGZPlayerController* PC = nullptr;
@@ -250,6 +272,7 @@ void UGZSaveGameManager::BackupSave(int32 SlotIndex)
 	if (Loaded)
 	{
 		UGameplayStatics::SaveGameToSlot(Loaded, BackupSlot, SlotIndex);
+		WriteChecksum(BackupSlot, ComputeSaveChecksum(Loaded));
 		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Backup created for slot %d"), SlotIndex);
 	}
 }
@@ -290,4 +313,87 @@ void UGZSaveGameManager::RetryCloudLoad(int32 SlotIndex)
 	// In a real EOS-backed build this would call EOS PlayerDataStorage ReadFile.
 	// Here we fall back to local slot load as a graceful degradation.
 	LoadGame(SlotIndex);
+}
+
+FString UGZSaveGameManager::GetChecksumFilePath(const FString& SlotName) const
+{
+	return FPaths::ProjectSavedDir() / TEXT("SaveGames") / (SlotName + TEXT(".chk"));
+}
+
+FString UGZSaveGameManager::ComputeSaveChecksum(UGZSaveGame* Save) const
+{
+	if (!Save) return FString();
+	FBufferArchive Archive;
+	Save->Serialize(Archive);
+	FMD5Hash Hash = FMD5Hash::HashBuffer(Archive.GetData(), (int32)Archive.Num());
+	return Hash.ToString();
+}
+
+bool UGZSaveGameManager::WriteChecksum(const FString& SlotName, const FString& Checksum)
+{
+	FString Path = GetChecksumFilePath(SlotName);
+	return FFileHelper::SaveStringToFile(Checksum, *Path);
+}
+
+bool UGZSaveGameManager::ReadChecksum(const FString& SlotName, FString& OutChecksum) const
+{
+	FString Path = GetChecksumFilePath(SlotName);
+	return FFileHelper::LoadFileToString(OutChecksum, *Path);
+}
+
+bool UGZSaveGameManager::ValidateSaveIntegrity(int32 SlotIndex)
+{
+	if (!DoesSaveExist(SlotIndex)) return false;
+
+	FString SlotName = GetSaveSlotName(SlotIndex);
+	UGZSaveGame* Loaded = Cast<UGZSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, SlotIndex));
+	if (!Loaded) return false;
+
+	FString ExpectedChecksum;
+	if (!ReadChecksum(SlotName, ExpectedChecksum)) return false;
+
+	FString ActualChecksum = ComputeSaveChecksum(Loaded);
+	return ActualChecksum.Equals(ExpectedChecksum, ESearchCase::IgnoreCase);
+}
+
+bool UGZSaveGameManager::RollbackToBackupIfCorrupt(int32 SlotIndex)
+{
+	FString BackupSlot = GetBackupSlotName(SlotIndex);
+	if (!UGameplayStatics::DoesSaveGameExist(BackupSlot, SlotIndex))
+	{
+		UE_LOG(LogGuangzhouOpenWorld, Error, TEXT("No backup available for slot %d"), SlotIndex);
+		return false;
+	}
+
+	UGZSaveGame* Loaded = Cast<UGZSaveGame>(UGameplayStatics::LoadGameFromSlot(BackupSlot, SlotIndex));
+	if (!Loaded)
+	{
+		UE_LOG(LogGuangzhouOpenWorld, Error, TEXT("Failed to load backup for slot %d"), SlotIndex);
+		return false;
+	}
+
+	FString BackupChecksum;
+	if (!ReadChecksum(BackupSlot, BackupChecksum) || !ComputeSaveChecksum(Loaded).Equals(BackupChecksum, ESearchCase::IgnoreCase))
+	{
+		UE_LOG(LogGuangzhouOpenWorld, Error, TEXT("Backup checksum invalid for slot %d"), SlotIndex);
+		return false;
+	}
+
+	CurrentSave = Loaded;
+	FString MainSlot = GetSaveSlotName(SlotIndex);
+	UGameplayStatics::SaveGameToSlot(Loaded, MainSlot, SlotIndex);
+	WriteChecksum(MainSlot, BackupChecksum);
+
+	AGZPlayerController* PC = nullptr;
+	AGZGameMode* GM = nullptr;
+	if (UWorld* World = GetWorld())
+	{
+		PC = Cast<AGZPlayerController>(World->GetFirstPlayerController());
+		GM = Cast<AGZGameMode>(World->GetAuthGameMode());
+	}
+	ApplyPlayerState(PC, GM);
+	OnLoadCompleted.Broadcast(true);
+
+	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("Rolled back slot %d from backup after corruption"), SlotIndex);
+	return true;
 }

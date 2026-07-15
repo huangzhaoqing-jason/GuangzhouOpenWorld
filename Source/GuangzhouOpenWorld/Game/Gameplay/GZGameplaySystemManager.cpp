@@ -7,6 +7,8 @@
 #include "GZVehicleModificationSystem.h"
 #include "GZNPCLifecycleSystem.h"
 #include "GZAnomalySystem.h"
+#include "AI/RecastMassAI/GZMassAIDistrictController.h"
+#include "Scene/RenderingSystem/GZMetalShaderCache.h"
 #include "Game/GZPlayerController.h"
 #include "Game/GZGameMode.h"
 
@@ -43,6 +45,8 @@ void UGZGameplaySystemManager::InitializeSystems()
 	VehicleModificationSystem = NewObject<UGZVehicleModificationSystem>(this);
 	NPCLifecycleSystem = NewObject<UGZNPCLifecycleSystem>(this);
 	AnomalySystem = NewObject<UGZAnomalySystem>(this);
+	DistrictAIController = NewObject<UGZMassAIDistrictController>(this);
+	MetalShaderCache = NewObject<UGZMetalShaderCache>(this);
 
 	if (CityEventSystem) { CityEventSystem->Initialize(); }
 	if (DualCharacterSystem)
@@ -56,6 +60,8 @@ void UGZGameplaySystemManager::InitializeSystems()
 	if (VehicleModificationSystem) { VehicleModificationSystem->Initialize(); }
 	if (NPCLifecycleSystem) { NPCLifecycleSystem->Initialize(); }
 	if (AnomalySystem) { AnomalySystem->Initialize(); }
+	if (DistrictAIController) { DistrictAIController->Initialize(); }
+	if (MetalShaderCache) { MetalShaderCache->Initialize(); }
 
 	if (DistrictBoundaries.Num() == 0)
 	{
@@ -103,11 +109,24 @@ void UGZGameplaySystemManager::UpdateSystems(float DeltaSeconds)
 	if (DistrictUpdateTimer >= DistrictUpdateInterval)
 	{
 		DistrictUpdateTimer = 0.0f;
-		CurrentDistrict = DetectDistrictByLocation(PlayerLocation);
+		EGZCityDistrict NewDistrict = DetectDistrictByLocation(PlayerLocation);
+		if (NewDistrict != CurrentDistrict)
+		{
+			CurrentDistrict = NewDistrict;
+			if (MetalShaderCache)
+			{
+				MetalShaderCache->LoadLibraryForDistrict(CurrentDistrict);
+			}
+		}
 		if (CachedGameMode)
 		{
 			CachedGameMode->SetCurrentDistrict(CurrentDistrict);
 		}
+	}
+
+	if (DistrictAIController)
+	{
+		DistrictAIController->TickDistrictAI(DeltaSeconds, CurrentDistrict, PlayerLocation);
 	}
 
 	const float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
