@@ -73,6 +73,9 @@ public class GuangzhouOpenWorld : ModuleRules
 			"Game",
 			"Game/Gameplay",
 			"Game/MCPSelfCheck",
+			"Scene/GSRendering",
+			"Editor/GSAssetPipeline",
+			"UI/LiquidGlass",
 		});
 
 		if (Target.Platform == UnrealTargetPlatform.Mac)
@@ -124,6 +127,16 @@ public class GuangzhouOpenWorld : ModuleRules
 			PublicDefinitions.Add("SOLOUD_2026=1");
 			PublicDefinitions.Add("JOLT_6_0_1=1");
 			PublicDefinitions.Add("UE5_8=1");
+		}
+
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.AddRange(new string[]
+			{
+				"UnrealEd",
+				"AssetTools",
+				"EditorStyle",
+			});
 		}
 
 		OptimizeCode = CodeOptimization.InShippingBuildsOnly;
