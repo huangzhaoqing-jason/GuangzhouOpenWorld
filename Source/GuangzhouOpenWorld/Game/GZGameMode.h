@@ -106,7 +106,14 @@ enum class EGZCityDistrict : uint8
 	TianheCBD		UMETA(DisplayName = "Tianhe CBD"),
 	YuexiuOldTown	UMETA(DisplayName = "Yuexiu Old Town"),
 	HaizhuWaterfront UMETA(DisplayName = "Haizhu Waterfront"),
+	HaizhuInnovation UMETA(DisplayName = "Haizhu Innovation"),
 	PanyuSuburb		UMETA(DisplayName = "Panyu Suburb"),
+	PanyuUniversity	UMETA(DisplayName = "Panyu University"),
+	BaiyunSuburban	UMETA(DisplayName = "Baiyun Suburban"),
+	HuangpuPort		UMETA(DisplayName = "Huangpu Port"),
+	NanshaNewArea	UMETA(DisplayName = "Nansha New Area"),
+	LiwanXiguan		UMETA(DisplayName = "Liwan Xiguan"),
+	ZhujiangRiver	UMETA(DisplayName = "Zhujiang River"),
 };
 
 UENUM(BlueprintType)

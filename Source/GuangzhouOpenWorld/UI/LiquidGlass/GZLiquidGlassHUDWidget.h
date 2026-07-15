@@ -21,6 +21,9 @@ public:
 	class UGZLiquidGlassPresenter* GetPresenter() const { return Presenter; }
 
 protected:
+	UFUNCTION()
+	void OnPresenterStateUpdatedInternal();
+
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
 	class UGZLiquidGlassPresenter* Presenter = nullptr;
 

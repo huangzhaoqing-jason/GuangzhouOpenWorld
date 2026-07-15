@@ -13,6 +13,7 @@ void UGZLiquidGlassPresenter::Initialize()
 	bShowInteractionPrompt = false;
 	GuidanceDirection = FVector::ZeroVector;
 	bShowGuidance = false;
+	ConflictStages.Empty();
 }
 
 void UGZLiquidGlassPresenter::SetSpeed(float NewSpeed)
@@ -29,10 +30,30 @@ void UGZLiquidGlassPresenter::SetSkidWarning(bool bActive)
 
 void UGZLiquidGlassPresenter::SetConflictStage(int32 NPCId, EGZNPCConflictStage Stage)
 {
-	// 只保留最高阶段用于弱提示，避免HUD堆叠
-	if (Stage > HighestConflictStage)
+	ConflictStages.Add(NPCId, Stage);
+	RecalculateHighestConflictStage();
+}
+
+void UGZLiquidGlassPresenter::UnregisterConflict(int32 NPCId)
+{
+	ConflictStages.Remove(NPCId);
+	RecalculateHighestConflictStage();
+}
+
+void UGZLiquidGlassPresenter::RecalculateHighestConflictStage()
+{
+	EGZNPCConflictStage NewHighest = EGZNPCConflictStage::Calm;
+	for (const TPair<int32, EGZNPCConflictStage>& Pair : ConflictStages)
 	{
-		HighestConflictStage = Stage;
+		if (Pair.Value > NewHighest)
+		{
+			NewHighest = Pair.Value;
+		}
+	}
+
+	if (NewHighest != HighestConflictStage)
+	{
+		HighestConflictStage = NewHighest;
 		NotifyChanged();
 	}
 }

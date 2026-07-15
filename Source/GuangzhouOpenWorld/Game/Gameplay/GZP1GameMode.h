@@ -46,6 +46,12 @@ public:
 	class UGZLiquidGlassPresenter* GetPresenter() const { return Presenter; }
 
 	UFUNCTION(BlueprintPure)
+	class UGZGSEnvironmentBridge* GetEnvironmentBridge() const { return EnvironmentBridge; }
+
+	UFUNCTION(BlueprintPure)
+	class UGZGSRendererIntegration* GetGSRenderer() const { return GSRenderer; }
+
+	UFUNCTION(BlueprintPure)
 	EP1MissionState GetMissionState() const { return MissionState; }
 
 protected:
@@ -54,6 +60,7 @@ protected:
 	void BuildP1SliceData();
 	void TickMission(float DeltaSeconds);
 	void UpdatePresenter(float DeltaSeconds);
+	void BindGSToPlayerCamera();
 
 	FVector GetPlayerPawnLocation() const;
 
@@ -74,6 +81,12 @@ protected:
 
 	UPROPERTY()
 	class UGZLiquidGlassPresenter* Presenter = nullptr;
+
+	UPROPERTY()
+	class UGZGSEnvironmentBridge* EnvironmentBridge = nullptr;
+
+	UPROPERTY()
+	class UGZGSRendererIntegration* GSRenderer = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, Category = "P1 Slice")
 	FVector MissionDriveTarget = FVector(20000.0f, 0.0f, 0.0f);

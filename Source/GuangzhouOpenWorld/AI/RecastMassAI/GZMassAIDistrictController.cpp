@@ -19,7 +19,7 @@ void UGZMassAIDistrictController::Initialize()
 	SetDistrictBudget(EGZCityDistrict::PanyuUniversity,  192, 0.50f, 9000.0f);
 	SetDistrictBudget(EGZCityDistrict::HuangpuPort,      160, 0.66f, 9000.0f);
 	SetDistrictBudget(EGZCityDistrict::NanshaNewArea,    96,  1.00f, 7000.0f);
-	SetDistrictBudget(EGZCityDistrict::PearlRiver,       64,  1.00f, 6000.0f);
+	SetDistrictBudget(EGZCityDistrict::ZhujiangRiver,    64,  1.00f, 6000.0f);
 
 	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("MassAI District Controller initialized with %d districts"), DistrictBudgets.Num());
 }

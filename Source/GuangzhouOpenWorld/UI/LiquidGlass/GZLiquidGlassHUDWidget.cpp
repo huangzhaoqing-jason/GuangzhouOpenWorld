@@ -17,22 +17,26 @@ void UGZLiquidGlassHUDWidget::NativeConstruct()
 void UGZLiquidGlassHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
-
-#if !PLATFORM_LINUX
-	if (Presenter)
-	{
-		OnPresenterStateUpdated();
-	}
-#endif
 }
 
 void UGZLiquidGlassHUDWidget::BindPresenter(UGZLiquidGlassPresenter* InPresenter)
 {
 #if !PLATFORM_LINUX
+	if (Presenter)
+	{
+		Presenter->OnStateChanged.RemoveAll(this);
+	}
+
 	Presenter = InPresenter;
 	if (Presenter)
 	{
-		OnPresenterStateUpdated();
+		Presenter->OnStateChanged.AddDynamic(this, &UGZLiquidGlassHUDWidget::OnPresenterStateUpdatedInternal);
+		OnPresenterStateUpdatedInternal();
 	}
 #endif
+}
+
+void UGZLiquidGlassHUDWidget::OnPresenterStateUpdatedInternal()
+{
+	OnPresenterStateUpdated();
 }

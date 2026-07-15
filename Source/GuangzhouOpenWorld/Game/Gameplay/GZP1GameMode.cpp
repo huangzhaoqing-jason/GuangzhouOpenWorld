@@ -5,9 +5,12 @@
 #include "Game/Gameplay/GZVerticalPathSystem.h"
 #include "Physics/JoltPhysicsModule/GZPhysicsInteractionSystem.h"
 #include "UI/LiquidGlass/GZLiquidGlassPresenter.h"
+#include "Scene/GSRendering/GZGSEnvironmentBridge.h"
+#include "Scene/GSRendering/GZGSRendererIntegration.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
+#include "Camera/CameraComponent.h"
 
 AGZP1GameMode::AGZP1GameMode()
 {
@@ -24,6 +27,7 @@ void AGZP1GameMode::BeginPlay()
 
 	InitializeP1Systems();
 	BuildP1SliceData();
+	BindGSToPlayerCamera();
 }
 
 void AGZP1GameMode::Tick(float DeltaSeconds)
@@ -45,6 +49,21 @@ void AGZP1GameMode::Tick(float DeltaSeconds)
 	if (PhysicsInteraction)
 	{
 		PhysicsInteraction->TickObjects(DeltaSeconds);
+	}
+
+	// 同步环境变量到 GS 渲染桥：湿度、风速、光照、降雨
+	if (EnvironmentBridge)
+	{
+		const float WindSpeed = 2.0f + Wetness01 * 6.0f;
+		const float LightIntensity = FMath::Lerp(1.0f, 0.55f, Wetness01);
+		const float RainIntensity = Wetness01 > 0.6f ? (Wetness01 - 0.6f) / 0.4f : 0.0f;
+		const float TimeOfDay = 12.0f;
+		EnvironmentBridge->SetEnvironment(Wetness01, WindSpeed, LightIntensity, RainIntensity, TimeOfDay);
+
+		if (GSRenderer)
+		{
+			GSRenderer->SetEnvironmentParameters(Wetness01, WindSpeed, LightIntensity, RainIntensity);
+		}
 	}
 
 	TickMission(DeltaSeconds);
@@ -70,6 +89,13 @@ void AGZP1GameMode::InitializeP1Systems()
 
 	Presenter = NewObject<UGZLiquidGlassPresenter>(this);
 	Presenter->Initialize();
+
+	EnvironmentBridge = NewObject<UGZGSEnvironmentBridge>(this);
+	EnvironmentBridge->Initialize();
+
+	GSRenderer = NewObject<UGZGSRendererIntegration>(this);
+	GSRenderer->Initialize();
+	GSRenderer->LoadNativePlugin();
 }
 
 void AGZP1GameMode::ApplyPerformanceFallback()
@@ -298,6 +324,30 @@ void AGZP1GameMode::UpdatePresenter(float DeltaSeconds)
 	{
 		Presenter->SetSkidWarning(false);
 	}
+}
+
+void AGZP1GameMode::BindGSToPlayerCamera()
+{
+	if (!GSRenderer)
+	{
+		return;
+	}
+
+	APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	APawn* Pawn = PC ? PC->GetPawn() : nullptr;
+	if (!Pawn)
+	{
+		return;
+	}
+
+	UCameraComponent* Camera = Pawn->FindComponentByClass<UCameraComponent>();
+	if (!Camera)
+	{
+		return;
+	}
+
+	GSRenderer->SetupPostProcessBridge(Camera);
+	GSRenderer->ApplySharedPostProcess(Camera);
 }
 
 FVector AGZP1GameMode::GetPlayerPawnLocation() const

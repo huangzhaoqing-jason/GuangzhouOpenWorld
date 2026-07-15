@@ -42,7 +42,6 @@ public class GuangzhouOpenWorld : ModuleRules
 			"RenderCore",
 			"Renderer",
 			"RHI",
-			"MetalRHI",
 			"CoreAudio",
 			"AudioMixer",
 			"AudioMixerCore",
@@ -112,7 +111,12 @@ public class GuangzhouOpenWorld : ModuleRules
 				"Network/EOSSystem",
 			});
 
-			PublicFrameworks.AddRange(new string[]
+			PublicDependencyModuleNames.AddRange(new string[]
+			{
+				"MetalRHI",
+			});
+
+		PublicFrameworks.AddRange(new string[]
 			{
 				"Metal",
 				"MetalKit",

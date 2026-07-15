@@ -83,7 +83,7 @@ FString UGZMetalShaderCache::DistrictToCellName(EGZCityDistrict District) const
 	case EGZCityDistrict::PanyuUniversity:  return TEXT("University");
 	case EGZCityDistrict::HuangpuPort:      return TEXT("Port");
 	case EGZCityDistrict::NanshaNewArea:    return TEXT("Nansha");
-	case EGZCityDistrict::PearlRiver:       return TEXT("River");
+	case EGZCityDistrict::ZhujiangRiver:    return TEXT("River");
 	default:                                return TEXT("Common");
 	}
 }

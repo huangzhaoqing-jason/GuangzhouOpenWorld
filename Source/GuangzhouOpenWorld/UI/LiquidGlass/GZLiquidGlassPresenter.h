@@ -29,6 +29,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetConflictStage(int32 NPCId, EGZNPCConflictStage Stage);
 
+	UFUNCTION(BlueprintCallable)
+	void UnregisterConflict(int32 NPCId);
+
 	// 交互提示
 	UFUNCTION(BlueprintCallable)
 	void SetInteractionPrompt(const FText& Prompt);
@@ -70,4 +73,8 @@ public:
 
 private:
 	void NotifyChanged();
+	void RecalculateHighestConflictStage();
+
+	UPROPERTY()
+	TMap<int32, EGZNPCConflictStage> ConflictStages;
 };
