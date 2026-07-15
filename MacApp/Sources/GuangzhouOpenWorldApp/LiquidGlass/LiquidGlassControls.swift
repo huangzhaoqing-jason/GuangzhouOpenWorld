@@ -20,18 +20,10 @@ struct LiquidGlassButtonSystem: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                        .opacity(isFocused ? 0.45 : 0.28)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.white.opacity(isFocused ? 0.25 : 0.12), lineWidth: 0.5)
-                )
                 .scaleEffect(isPressed ? 0.96 : 1.0)
         }
-        .buttonStyle(.plain)
+        // macOS 27 Beta 3: 使用系统 .glass buttonStyle
+        .buttonStyle(.glass)
         // 系统级悬停效果，自动适配 Mac 触控板
         .hoverEffect(.highlight)
         .focused($isFocused)

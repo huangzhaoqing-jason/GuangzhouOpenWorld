@@ -54,38 +54,14 @@ jobs:
     needs: [swift-linux-headless]
     steps:
       - uses: actions/checkout@v4
-      - name: Generate UI-Audit report
+      - name: Verify UI-Audit report exists
         run: |
-          mkdir -p docs/audits
-          cat > docs/audits/ui-audit-001.md <<'EOF'
-          # [UI-Audit] Liquid Glass APP Shell v1
-
-          ## Module
-          SwiftUI APP Shell (Launch / MainMenu / Settings / Album / Codex)
-
-          ## Evaluation Dimensions (1-10)
-
-          | Dimension | Score | Notes |
-          |---|---|---|
-          | 苹果理念契合度 | 8 | 内容优先、玻璃材质、克制布局；主菜单信息层级清晰 |
-          | macOS 27 Beta 规范符合度 | 7 | 使用 `.ultraThinMaterial` 与 spring 动画；需真机验证 Developer Beta API |
-          | 动效流畅度与打断体验 | 8 | ZStack + transition + spring；所有导航可反向触发 |
-          | 无障碍完整性 | 8 | 所有按钮添加 `accessibilityLabel`；设置页支持键盘导航 |
-          | 与游戏画面融合一致性 | 7 | SparkRenderView 占位已实现；Metal 共享纹理需 macOS 联调 |
-
-          ## Average
-          **7.6 / 10**
-
-          ## Required Refactor
-          - 真机验证 macOS 27 `glassBackground` / `materialActiveAppearance` API。
-          - 补充 VoiceOver 详细提示与动态字体自适应测试。
-          - 将 `GameRenderBackground` 替换为 Spark 实时纹理注入。
-
-          ## Status
-          Pending macOS 27 Developer Beta verification.
-          EOF
+          if [ ! -f "docs/audits/ui-audit-003.md" ]; then
+            echo "Missing docs/audits/ui-audit-003.md"
+            exit 1
+          fi
       - name: Upload UI-Audit artifact
         uses: actions/upload-artifact@v4
         with:
           name: ui-audit-report
-          path: docs/audits/ui-audit-001.md
+          path: docs/audits/ui-audit-003.md

@@ -7,6 +7,7 @@ import SwiftUI
     LiquidGlassPreviewContainer(
         lowPowerMode: false,
         reduceTransparency: false,
+        increaseContrast: false,
         opacity: 0.28
     )
     .frame(width: 900, height: 600)
@@ -16,7 +17,38 @@ import SwiftUI
     LiquidGlassPreviewContainer(
         lowPowerMode: true,
         reduceTransparency: true,
+        increaseContrast: false,
         opacity: 0.45
+    )
+    .frame(width: 900, height: 600)
+}
+
+#Preview("增加对比度") {
+    LiquidGlassPreviewContainer(
+        lowPowerMode: false,
+        reduceTransparency: false,
+        increaseContrast: true,
+        opacity: 0.5
+    )
+    .frame(width: 900, height: 600)
+}
+
+#Preview("全局透明度滑块 - Ultra Clear") {
+    LiquidGlassPreviewContainer(
+        lowPowerMode: false,
+        reduceTransparency: false,
+        increaseContrast: false,
+        opacity: 0.0
+    )
+    .frame(width: 900, height: 600)
+}
+
+#Preview("全局透明度滑块 - Fully Tinted") {
+    LiquidGlassPreviewContainer(
+        lowPowerMode: false,
+        reduceTransparency: false,
+        increaseContrast: false,
+        opacity: 1.0
     )
     .frame(width: 900, height: 600)
 }
@@ -24,6 +56,7 @@ import SwiftUI
 struct LiquidGlassPreviewContainer: View {
     let lowPowerMode: Bool
     let reduceTransparency: Bool
+    let increaseContrast: Bool
     let opacity: Double
 
     @State private var previewState = GZUIState()
@@ -56,13 +89,20 @@ struct LiquidGlassPreviewContainer: View {
                 LiquidGlassToggle(title: "雨刷", isOn: $toggleValue)
                     .frame(width: 300)
 
-                Text("低电量: \(lowPowerMode ? "开" : "关") · 减少透明度: \(reduceTransparency ? "开" : "关")")
+                Text("低电量: \(lowPowerMode ? "开" : "关") · 减少透明度: \(reduceTransparency ? "开" : "关") · 增加对比度: \(increaseContrast ? "开" : "关") · 透明度: \(Int(opacity * 100))%")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             .padding()
         }
         .environment(\.colorScheme, .dark)
+        .environment(\.accessibilityIncreaseContrast, increaseContrast)
+        .onAppear {
+            previewState.lowPowerMode = lowPowerMode
+            previewState.reduceTransparency = reduceTransparency
+            previewState.increaseContrast = increaseContrast
+            previewState.liquidGlassOpacity = opacity
+        }
     }
 }
 

@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - 子任务1：HUD模块 - 系统级材质联动与可调性
 
-/// 游戏HUD：与 macOS 27 Liquid Glass 系统材质联动
+/// 游戏HUD：与 macOS 27 Beta 3 Liquid Glass 系统材质联动
 struct LiquidGlassHUD: View {
     @Bindable var state: GZUIState
 
@@ -24,14 +24,15 @@ struct LiquidGlassHUD: View {
         }
         // 强制深色环境以激活液态折射特性
         .environment(\.colorScheme, .dark)
-        // 监听系统减少透明度辅助功能
+        // 监听系统辅助功能：减少透明度 / 增加对比度
         .environment(\.accessibilityReduceTransparency, state.reduceTransparency)
+        .environment(\.accessibilityIncreaseContrast, state.increaseContrast)
         .onAppear { state.startSystemObservation() }
     }
 }
 
 struct HUDTopBar: View {
-    let state: GZUIState
+    @Bindable var state: GZUIState
 
     var body: some View {
         HStack {
@@ -47,7 +48,7 @@ struct HUDTopBar: View {
 
             HStack(spacing: 8) {
                 Image(systemName: "wifi")
-                Image(systemName: "battery.100")
+                Image(systemName: state.lowPowerMode ? "battery.25" : "battery.100")
             }
             .foregroundStyle(.secondary)
         }
@@ -56,7 +57,7 @@ struct HUDTopBar: View {
 
 struct HUDTabButton: View {
     let tab: GZUIState.HUDTab
-    let state: GZUIState
+    @Bindable var state: GZUIState
 
     @State private var isPressed: Bool = false
 
@@ -70,13 +71,10 @@ struct HUDTabButton: View {
                 .foregroundStyle(isSelected ? .primary : .secondary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(isSelected ? Color.white.opacity(0.15) : Color.clear)
-                )
                 .scaleEffect(isPressed ? 0.94 : 1.0)
         }
-        .buttonStyle(.plain)
+        // macOS 27 Beta 3: 使用系统 .glass buttonStyle 获得原生 Liquid Glass 按钮
+        .buttonStyle(.glass)
         // 系统级悬停效果
         .hoverEffect(.highlight)
         .simultaneousGesture(
@@ -98,7 +96,7 @@ struct HUDTabButton: View {
 }
 
 struct HUDPerformancePanel: View {
-    let state: GZUIState
+    @Bindable var state: GZUIState
 
     var body: some View {
         HStack(spacing: 16) {
@@ -129,34 +127,12 @@ struct HUDPerformancePanel: View {
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(.ultraThinMaterial)
-                .opacity(state.reduceTransparency ? 0.45 : state.liquidGlassOpacity)
+                .opacity(state.effectiveGlassOpacity)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(state.effectiveStrokeOpacity), lineWidth: 0.5)
+                )
         )
-    }
-}
-
-// MARK: - 系统级联动扩展
-
-extension GZUIState {
-    /// 启动系统设置监听：低电量模式、减少透明度、全局玻璃透明度
-    fileprivate func startSystemObservation() {
-        self.lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
-        self.reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
-
-        // 模拟 macOS 27 全局 Liquid Glass 透明度设置（UserDefaults 键）
-        if let opacity = UserDefaults.standard.object(forKey: "com.apple.glassEffectGlobalOpacity") as? Double {
-            self.liquidGlassOpacity = opacity
-        }
-
-        // 实际 macOS 27 可通过 NSNotificationCenter 监听系统设置变更
-        NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("AppleGlassEffectOpacityDidChangeNotification"),
-            object: nil,
-            queue: .main
-        ) { [weak self] note in
-            if let opacity = note.userInfo?["opacity"] as? Double {
-                self?.liquidGlassOpacity = opacity
-            }
-        }
     }
 }
 

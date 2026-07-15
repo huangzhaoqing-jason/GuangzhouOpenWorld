@@ -3,7 +3,8 @@ import SwiftUI
 
 // MARK: - 子任务2：游戏主UI框架 - 原生容器架构
 
-/// Mac游戏主界面：使用 NavigationSplitView 作为根容器，继承系统自动布局优化
+/// Mac游戏主界面：使用 NavigationSplitView 作为根容器
+/// macOS 27 Beta 3 适配：uniform toolbars、edge-to-edge sidebars、统一圆角、scroll edge effect
 struct GameMainUI: View {
     @EnvironmentObject var appState: AppState
     @State private var selectedSidebarItem: SidebarItem = .world
@@ -11,12 +12,16 @@ struct GameMainUI: View {
     var body: some View {
         NavigationSplitView {
             SidebarView(state: appState.uiState, selection: $selectedSidebarItem)
-                .frame(minWidth: 220)
-                .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 300)
+                .frame(minWidth: LiquidGlassConstants.sidebarMinWidth)
+                .navigationSplitViewColumnWidth(
+                    min: LiquidGlassConstants.sidebarMinWidth,
+                    ideal: LiquidGlassConstants.sidebarIdealWidth,
+                    max: LiquidGlassConstants.sidebarMaxWidth
+                )
         } detail: {
             GameMainDetailView(state: appState.uiState, selectedItem: selectedSidebarItem)
         }
-        // 安全区域融合：将HUD嵌入系统安全区域
+        // macOS 27: 安全区域融合，将HUD嵌入系统安全区域
         .safeAreaInset(edge: .top, spacing: 0) {
             if appState.uiState.isHUDVisible {
                 LiquidGlassHUD(state: appState.uiState)
@@ -66,15 +71,21 @@ enum SidebarItem: String, CaseIterable, Identifiable {
 }
 
 struct SidebarView: View {
-    let state: GZUIState
+    @Bindable var state: GZUIState
     @Binding var selection: SidebarItem
 
     var body: some View {
         List(SidebarItem.allCases, selection: $selection) { item in
             Label(item.rawValue, systemImage: item.systemImage)
                 .tag(item)
+                .font(.body.weight(.medium))
+                // macOS 27 Golden Gate Beta 3: 侧边栏彩色图标回归
+                .foregroundStyle(item.accentColor)
+                .imageScale(.large)
         }
+        // macOS 27: 侧边栏贴边，不再悬浮
         .listStyle(.sidebar)
+        .scrollDisabled(true)
         .navigationTitle("Open广州")
         .toolbar {
             ToolbarItem {
@@ -82,13 +93,26 @@ struct SidebarView: View {
                     Image(systemName: "sidebar.left")
                 }
                 .help("切换边栏")
+                .buttonStyle(.glass)
             }
         }
     }
 }
 
+extension SidebarItem {
+    var accentColor: Color {
+        switch self {
+        case .world: return .blue
+        case .mission: return .orange
+        case .vehicle: return .green
+        case .codex: return .purple
+        case .settings: return .gray
+        }
+    }
+}
+
 struct GameMainDetailView: View {
-    let state: GZUIState
+    @Bindable var state: GZUIState
     let selectedItem: SidebarItem
 
     var body: some View {
@@ -96,19 +120,49 @@ struct GameMainDetailView: View {
             SparkRenderView()
                 .ignoresSafeArea()
 
-            VStack {
-                Text(selectedItem.rawValue)
-                    .font(.largeTitle.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                    )
+            ScrollView {
+                VStack(spacing: 24) {
+                    Text(selectedItem.rawValue)
+                        .font(.largeTitle.weight(.bold))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 16)
+                        .background(
+                            LiquidGlassCard()
+                        )
 
-                Spacer()
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, minHeight: 800)
+                .padding()
             }
-            .padding()
+            // macOS 27 Golden Gate Beta 3: 统一工具栏滚动边缘效果，提升可读性
+            .scrollEdgeEffectStyle(.automatic, for: .top)
+        }
+        // macOS 27: uniform toolbar 使用 ToolbarSpacer 与 overflow 支持
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: {}) {
+                    Image(systemName: "magnifyingglass")
+                }
+                .help("搜索")
+                .buttonStyle(.glass)
+            }
+
+            ToolbarItem(placement: .automatic) {
+                Button(action: {}) {
+                    Image(systemName: "bell")
+                }
+                .help("通知")
+                .buttonStyle(.glass)
+            }
+
+            ToolbarSpacer()
+
+            ToolbarOverflowMenu {
+                Button("导出截图", action: {})
+                Button("分享位置", action: {})
+            }
         }
     }
 }

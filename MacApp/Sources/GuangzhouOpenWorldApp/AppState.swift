@@ -13,6 +13,7 @@ final class AppState: ObservableObject {
         case codex
     }
 
+    // 使用 @Published 确保 ObservableObject 与 SwiftUI 正确绑定
     @Published var phase: AppPhase = .launch
     @Published var isTransitioning: Bool = false
     @Published var isGameVisible: Bool = true
