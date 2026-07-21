@@ -17,4 +17,11 @@ final class GuangzhouOpenWorldAppTests: XCTestCase {
         let bridge = MetalTextureBridge.shared
         XCTAssertNotNil(bridge)
     }
+
+    func testMissionAct1CatalogLoads() {
+        let catalog = MissionCatalogLoader.loadAct1()
+        XCTAssertEqual(catalog.act, 1)
+        XCTAssertFalse(catalog.missions.isEmpty)
+        XCTAssertEqual(catalog.district_id, "zhujiang_new_town")
+    }
 }
