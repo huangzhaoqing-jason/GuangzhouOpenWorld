@@ -2,6 +2,7 @@
 
 > **维护者本机无引擎时**：只维护本清单与约定，**不要**勾选「已通过」。  
 > **执行环境**：安装 Unreal Engine **5.8** 的机器或云。  
+> **逐步操作**：优先跟 [M2_RUNBOOK.md](M2_RUNBOOK.md)。  
 > 相关：[ROADMAP_3A.md](ROADMAP_3A.md) · [ENGINE_STRATEGY.md](ENGINE_STRATEGY.md) · [TECH_STACK_FREE.md](TECH_STACK_FREE.md)
 
 ---

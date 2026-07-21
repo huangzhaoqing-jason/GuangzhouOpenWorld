@@ -15,7 +15,8 @@
 
 | 必读 | 链接 |
 |------|------|
-| **交接（上课回来先看）** | [Docs/handoff/HANDOFF.md](Docs/handoff/HANDOFF.md) |
+| **交接（先看）** | [Docs/handoff/HANDOFF.md](Docs/handoff/HANDOFF.md) |
+| M2 运行手册（有 UE） | [Docs/M2_RUNBOOK.md](Docs/M2_RUNBOOK.md) |
 | 实现状态 | [Docs/REALITY_STATUS.md](Docs/REALITY_STATUS.md) |
 | 3A 里程碑 | [Docs/ROADMAP_3A.md](Docs/ROADMAP_3A.md) |
 | 免费技术栈 | [Docs/TECH_STACK_FREE.md](Docs/TECH_STACK_FREE.md) |
@@ -124,8 +125,9 @@ Megascans / MetaHuman / Blender 资产按 [TECH_STACK_FREE.md](Docs/TECH_STACK_F
 3. [Docs/ENGINE_STRATEGY.md](Docs/ENGINE_STRATEGY.md)  
 4. [Docs/ROADMAP_3A.md](Docs/ROADMAP_3A.md)  
 5. [Docs/STORY_BIBLE.md](Docs/STORY_BIBLE.md) / [Docs/Data/GUANGZHOU_DISTRICTS.md](Docs/Data/GUANGZHOU_DISTRICTS.md)  
-6. [Docs/M2_PREP_CHECKLIST.md](Docs/M2_PREP_CHECKLIST.md)（有引擎时）  
-7. [Docs/PROJECT_ARCHITECTURE.md](Docs/PROJECT_ARCHITECTURE.md)（目标架构；进度以状态表为准）  
+6. [Docs/M2_RUNBOOK.md](Docs/M2_RUNBOOK.md)（有引擎时逐步做）  
+7. [Docs/M2_PREP_CHECKLIST.md](Docs/M2_PREP_CHECKLIST.md)  
+8. [Docs/PROJECT_ARCHITECTURE.md](Docs/PROJECT_ARCHITECTURE.md)（目标架构；进度以状态表为准）  
 
 ---
 

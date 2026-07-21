@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "act": 2,
+  "title": "旧城与握手楼",
+  "district_id": "liwan_xiguan",
+  "notes": "Act2 seeds. district_id is primary hub; some missions use yuexiu_old_town. Not auto-loaded by C++ yet (Act1 only).",
+  "missions": [
+    {
+      "id": "ms_21_key_handoff",
+      "type": "MainStory",
+      "title": "密钥入西关",
+      "district_id": "liwan_xiguan",
+      "landmark": "qilou_arcade",
+      "status": "Locked",
+      "objectives": [
+        { "description": "携带幕1密钥碎片抵达骑楼街接点", "targetCount": 1 },
+        { "description": "与潮汐网格接头人完成暗语校验", "targetCount": 1 }
+      ],
+      "reward": { "cash": 1500, "rep_tide_grid": 5 },
+      "wanted_risk": 1,
+      "requires": ["ms_03_dual_meet"]
+    },
+    {
+      "id": "ms_22_handshake_climb",
+      "type": "MainStory",
+      "title": "握手楼上行",
+      "district_id": "yuexiu_old_town",
+      "landmark": "chengzhongcun_block",
+      "status": "Locked",
+      "objectives": [
+        { "description": "沿垂直路径登上指定握手楼天台", "targetCount": 1 },
+        { "description": "取回被扣的信号中继模块", "targetCount": 1 }
+      ],
+      "reward": { "cash": 2000, "item": "signal_relay_mod" },
+      "wanted_risk": 2,
+      "requires": ["ms_21_key_handoff"]
+    },
+    {
+      "id": "ms_23_black_market_swap",
+      "type": "MainStory",
+      "title": "黑市交换条件",
+      "district_id": "liwan_xiguan",
+      "landmark": "night_market_alley",
+      "status": "Locked",
+      "objectives": [
+        { "description": "在夜市巷完成潮汐网格要挟交换", "targetCount": 1 },
+        { "description": "保护「顺路」线不被秩序租赁截获", "targetCount": 1 }
+      ],
+      "reward": { "cash": 2500, "rep_signal_broker": 5 },
+      "wanted_risk": 2,
+      "requires": ["ms_22_handshake_climb"]
+    },
+    {
+      "id": "sd_21_qilou_errand",
+      "type": "Side",
+      "title": "骑楼短单",
+      "district_id": "liwan_xiguan",
+      "landmark": "qilou_arcade",
+      "status": "Available",
+      "objectives": [
+        { "description": "在骑楼底层完成三笔短送", "targetCount": 3 }
+      ],
+      "reward": { "cash": 500, "rep_signal_broker": 3 },
+      "wanted_risk": 0
+    },
+    {
+      "id": "sd_22_oldtown_listen",
+      "type": "Side",
+      "title": "旧城窃听点",
+      "district_id": "yuexiu_old_town",
+      "landmark": "yuexiu_backstreet",
+      "status": "Available",
+      "objectives": [
+        { "description": "布置两处窃听点", "targetCount": 2 },
+        { "description": "回收录音芯片", "targetCount": 1 }
+      ],
+      "reward": { "cash": 700, "rep_tide_grid": 2 },
+      "wanted_risk": 1
+    },
+    {
+      "id": "wd_21_alley_cooldown",
+      "type": "Wanted",
+      "title": "巷弄降温",
+      "district_id": "liwan_xiguan",
+      "landmark": "night_market_alley",
+      "status": "Locked",
+      "objectives": [
+        { "description": "在巷弄甩掉巡逻", "targetCount": 1 },
+        { "description": "通缉星级下降", "targetCount": 1 }
+      ],
+      "reward": { "cash": 0, "wanted_delta": -2 },
+      "wanted_risk": 3,
+      "requires": ["ms_22_handshake_climb"]
+    }
+  ]
+}

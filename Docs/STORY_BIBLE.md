@@ -42,9 +42,18 @@
 花城广场到江边的开放轴上，「顺路」接到一单异常夜配；「底噪」同时被秩序租赁盯上。玩家学会：移动、小任务、通缉 0–2 星、阅读 Codex。  
 **收束**：在江边目击流明控股销毁硬盘，获得进入幕 2 的权限密钥（道具占位）。
 
-### 幕 2 — 旧城与握手楼（越秀 / 荔湾方向）
+### 幕 2 — 旧城与握手楼（越秀 / 荔湾）*种子已写*
 
-权限密钥指向西关与城中村信号黑市；潮汐网格要挟交换。玩法扩：载具追逐、垂直路径、更多 Side。
+| 节拍 | 任务 id | 区划 | 玩法重点 |
+|------|---------|------|----------|
+| 2.1 密钥入西关 | `ms_21_key_handoff` | `liwan_xiguan` | 骑楼接点、暗语、潮汐网格 |
+| 2.2 握手楼上行 | `ms_22_handshake_climb` | `yuexiu_old_town` | 垂直路径、天台取模块 |
+| 2.3 黑市交换 | `ms_23_black_market_swap` | `liwan_xiguan` | 要挟交换、双身份掩护 |
+| Side | `sd_21_*` / `sd_22_*` | 西关 / 越秀 | 短送、窃听 |
+| Wanted | `wd_21_alley_cooldown` | 西关巷弄 | 3 星降温 |
+
+**收束**：拿到 `signal_relay_mod`，潮汐网格开放跨江线索 → 幕 3。  
+数据：[Data/missions_act2.json](Data/missions_act2.json)（C++ 暂只自动加载幕 1；幕 2 有引擎后再挂加载入口）。
 
 ### 幕 3 — 跨江与港（海珠 / 黄埔意向）
 
@@ -63,9 +72,10 @@
 
 ### 加载约定（有 UE 后）
 
-1. 将 [Data/missions_act1.json](Data/missions_act1.json) 放到 `Content/Data/` 或通过 `FFileHelper` 读项目 `Docs/Data/`（开发期）。  
-2. 启动时解析 JSON → 调用 `UGZMissionManager` 注册（**本次不改 C++**，避免无引擎编译）。  
-3. Mac 壳已用同结构 JSON 做 Mock UI。
+1. 幕 1：`Content/Data/missions_act1.json`（`GZGameInstance` 已调用 `LoadAct1MissionsFromJson`）。  
+2. 幕 2：`Docs/Data/missions_act2.json` — 同步到 Content 后增加 `LoadAct2…`（待做）。  
+3. Mac 壳 Mock 可读 act1（及后续合并目录）。  
+4. 改 JSON 后跑：`python3 Scripts/validate_mission_data.py` 与 `Scripts/sync_missions_json.sh`。
 
 ---
 
