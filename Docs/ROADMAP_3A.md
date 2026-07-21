@@ -156,8 +156,8 @@ flowchart LR
 
 ## 建议工作顺序
 
-1. **无引擎**：保持 M0 + M1；推进剧情圣经、区划数据、MacApp UI Mock、[M2_PREP_CHECKLIST.md](M2_PREP_CHECKLIST.md)。  
-2. **有 UE5.8 环境**：按清单执行 M1b → M2 → M3（珠江新城切片 + `missions_act1.json`）。  
+1. **无引擎**：保持文档/剧情/JSON/Mac Mock；跟 [HANDOFF.md](handoff/HANDOFF.md)。  
+2. **有 UE5.8**：按 [M2_RUNBOOK.md](M2_RUNBOOK.md) 执行 M1b → M2 → 再 M3。  
 3. 只有 M3 通过后，再谈八区、大规模 Mass、联机。  
 4. **UE6 发布后**：按 ENGINE_STRATEGY 整仓替换，再重验 M1b–M3。
 

@@ -49,6 +49,24 @@ struct HUDTopBar: View {
 
                 WantedStarsView(stars: state.wantedStars)
 
+                HStack(spacing: 4) {
+                    Button {
+                        state.applyWantedStars(state.wantedStars - 1)
+                    } label: {
+                        Image(systemName: "minus.circle")
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("降低通缉")
+
+                    Button {
+                        state.applyWantedStars(state.wantedStars + 1)
+                    } label: {
+                        Image(systemName: "plus.circle")
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("升高通缉")
+                }
+
                 HStack(spacing: 8) {
                     Image(systemName: "wifi")
                     Image(systemName: state.lowPowerMode ? "battery.25" : "battery.100")

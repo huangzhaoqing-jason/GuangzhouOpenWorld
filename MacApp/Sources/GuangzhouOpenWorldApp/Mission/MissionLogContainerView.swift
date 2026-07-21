@@ -98,6 +98,12 @@ struct MissionDetailView: View {
                 Text("状态：\(mission.status) · 通缉风险 \(mission.wanted_risk ?? 0)")
                     .font(.callout)
 
+                if let requires = mission.requires, !requires.isEmpty {
+                    Text("前置：\(requires.joined(separator: ", "))")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
                 Divider()
 
                 Text("目标")
