@@ -49,7 +49,7 @@
 | 角色 / 相机 | `GZCharacter` | **代码草稿** | 第三人称骨架逻辑；缺动画/网格 |
 | 玩家控制（武器/通缉/载具输入） | `GZPlayerController` | **代码草稿** | 未与真实关卡、Mass、物理联调 |
 | 存档 | `GZSaveGame` / `GZSaveGameManager` | **代码草稿** | 本地存档路径存在；云端依赖 EOS stub |
-| 任务 / 背包 / 设置 | `GZMissionManager` 等 | **代码草稿** | 管理器级 API，无 Content 任务数据 |
+| 任务 / 背包 / 设置 | `GZMissionManager` 等 | **代码草稿** | `LoadAct1MissionsFromJson` 可从 `Content/Data` 或 `Docs/Data` 注册幕 1；无 Content 任务关卡 |
 | 登录 / 账号 | `GZAccountLoginManager` + EOS | **Stub** | 显式依赖真实 EOS SDK |
 | 主菜单 / 选角 Widget | `GZMainMenuWidget` 等 | **代码草稿** | 无验证过的 UMG 资源与流程 |
 | 城市事件 / 洪水 / 职业 / 双角色等 | `Game/Gameplay/*` | **代码草稿** | 系统设计稿级代码，未达可玩切片 |
