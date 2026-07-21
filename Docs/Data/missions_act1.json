@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "act": 1,
+  "title": "中轴线",
+  "district_id": "zhujiang_new_town",
+  "notes": "Seeds for GZMissionManager EGZMissionType. Not loaded by C++ yet. MacApp Mission Log reads a copy under Resources.",
+  "missions": [
+    {
+      "id": "ms_01_night_drop",
+      "type": "MainStory",
+      "title": "夜配异常单",
+      "district_id": "zhujiang_new_town",
+      "landmark": "huacheng_square",
+      "status": "Available",
+      "objectives": [
+        { "description": "在花城广场接单终端确认订单", "targetCount": 1 },
+        { "description": "送达江边指定柜点", "targetCount": 1 }
+      ],
+      "reward": { "cash": 800, "rep_signal_broker": 5 },
+      "wanted_risk": 0
+    },
+    {
+      "id": "ms_02_witness_drive",
+      "type": "MainStory",
+      "title": "硬盘雨",
+      "district_id": "zhujiang_new_town",
+      "landmark": "pearl_river_front_axis",
+      "status": "Locked",
+      "objectives": [
+        { "description": "跟踪流明控股黑色轿车至江边", "targetCount": 1 },
+        { "description": "拍摄销毁过程（占位道具：镜头）", "targetCount": 1 }
+      ],
+      "reward": { "cash": 0, "item": "axis_key_fragment" },
+      "wanted_risk": 1,
+      "requires": ["ms_01_night_drop"]
+    },
+    {
+      "id": "ms_03_dual_meet",
+      "type": "MainStory",
+      "title": "双身份对撞",
+      "district_id": "zhujiang_new_town",
+      "landmark": "opera_house",
+      "status": "Locked",
+      "objectives": [
+        { "description": "在大剧院外与另一身份线会面", "targetCount": 1 },
+        { "description": "交换密钥碎片", "targetCount": 1 }
+      ],
+      "reward": { "cash": 1200, "rep_tide_grid": 3 },
+      "wanted_risk": 1,
+      "requires": ["ms_02_witness_drive"]
+    },
+    {
+      "id": "sd_01_signal_board",
+      "type": "Side",
+      "title": "信号板第一单",
+      "district_id": "zhujiang_new_town",
+      "landmark": "guangdong_museum",
+      "status": "Available",
+      "objectives": [
+        { "description": "从信号掮客接 Side 工单", "targetCount": 1 },
+        { "description": "在省博附近完成监听布置", "targetCount": 1 }
+      ],
+      "reward": { "cash": 400, "rep_signal_broker": 10 },
+      "wanted_risk": 0
+    },
+    {
+      "id": "sd_02_glass_errand",
+      "type": "Side",
+      "title": "幕墙清洁工单",
+      "district_id": "zhujiang_new_town",
+      "landmark": "east_tower",
+      "status": "Available",
+      "objectives": [
+        { "description": "到达东塔裙楼服务入口", "targetCount": 1 },
+        { "description": "取回被扣的快递柜芯片", "targetCount": 1 }
+      ],
+      "reward": { "cash": 600, "rep_lumen_hold": -2 },
+      "wanted_risk": 1
+    },
+    {
+      "id": "wd_01_two_star_heat",
+      "type": "Wanted",
+      "title": "两星降温",
+      "district_id": "zhujiang_new_town",
+      "landmark": "liede_bridge",
+      "status": "Locked",
+      "objectives": [
+        { "description": "甩掉秩序租赁巡逻", "targetCount": 1 },
+        { "description": "在猎德附近改换载具外观（占位）", "targetCount": 1 }
+      ],
+      "reward": { "cash": 0, "wanted_delta": -2 },
+      "wanted_risk": 2,
+      "requires": ["ms_02_witness_drive"]
+    },
+    {
+      "id": "cl_01_neon_tags",
+      "type": "Collection",
+      "title": "霓虹贴纸七张",
+      "district_id": "zhujiang_new_town",
+      "landmark": "library",
+      "status": "Available",
+      "objectives": [
+        { "description": "收集珠江新城轴线上的贴纸点", "targetCount": 7 }
+      ],
+      "reward": { "cash": 300, "codex": "neon_folk" },
+      "wanted_risk": 0
+    },
+    {
+      "id": "rc_01_axis_sprint",
+      "type": "Racing",
+      "title": "中轴夜冲",
+      "district_id": "zhujiang_new_town",
+      "landmark": "huacheng_square",
+      "status": "Available",
+      "objectives": [
+        { "description": "从花城广场冲到江边检查点", "targetCount": 1 }
+      ],
+      "reward": { "cash": 1000, "rep_tide_grid": 2 },
+      "wanted_risk": 1
+    }
+  ]
+}

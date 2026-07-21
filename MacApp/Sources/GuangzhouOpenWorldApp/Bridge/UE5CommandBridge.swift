@@ -17,6 +17,9 @@ public enum UE5Command: Sendable {
     case teleportPlayer(x: Float, y: Float, z: Float)
     case updateSharedTexture(SharedTextureDescriptor)
     case syncPostProcess(exposure: Float, bloom: Float, colorTemp: Float)
+    case startMission(String)
+    case completeMission(String)
+    case setWantedStars(Int)
 }
 
 /// 从 UE5 逻辑容器发往 SwiftUI APP 的状态事件
@@ -26,6 +29,7 @@ public enum UE5GameEvent: Sendable {
     case playerPosition(x: Float, y: Float, z: Float)
     case performanceReport(fps: Float, memoryMB: Float)
     case missionUpdate(String)
+    case wantedChanged(Int)
     case postProcessUpdated(exposure: Float, bloom: Float, colorTemp: Float)
 }
 
@@ -35,7 +39,7 @@ public protocol UE5CommandBridgeProtocol: AnyObject {
     var onEvent: ((UE5GameEvent) -> Void)? { get set }
 }
 
-/// 本地空桥接，用于编译与 headless 测试
+/// 本地空桥接，用于编译与 headless 测试；mission/wanted 本地回放
 @MainActor
 public final class UE5CommandBridgeStub: UE5CommandBridgeProtocol {
     public var onEvent: ((UE5GameEvent) -> Void)?
@@ -43,12 +47,13 @@ public final class UE5CommandBridgeStub: UE5CommandBridgeProtocol {
     public init() {}
 
     public func send(_ command: UE5Command) {
-        // Headless 测试：直接回送确认事件
         switch command {
         case .startGame:
             onEvent?(.loadingProgress(0.5))
             onEvent?(.sceneReady)
-        case .setGraphicsQuality(let quality):
+            onEvent?(.missionUpdate("夜配异常单｜在花城广场接单终端确认订单"))
+            onEvent?(.wantedChanged(0))
+        case .setGraphicsQuality:
             onEvent?(.performanceReport(fps: 60.0, memoryMB: 1024.0))
         case .syncPostProcess(let exposure, let bloom, let colorTemp):
             MetalTextureBridge.shared.updatePostProcess(exposure: exposure, bloom: bloom, colorTemp: colorTemp)
@@ -59,6 +64,12 @@ public final class UE5CommandBridgeStub: UE5CommandBridgeProtocol {
                 bloom: descriptor.bloomIntensity,
                 colorTemp: descriptor.colorTemperature
             )
+        case .startMission(let missionId):
+            onEvent?(.missionUpdate("START \(missionId)"))
+        case .completeMission(let missionId):
+            onEvent?(.missionUpdate("COMPLETE \(missionId)"))
+        case .setWantedStars(let stars):
+            onEvent?(.wantedChanged(min(max(stars, 0), 5)))
         default:
             break
         }

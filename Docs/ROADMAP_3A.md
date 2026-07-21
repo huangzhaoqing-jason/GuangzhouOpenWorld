@@ -4,7 +4,8 @@
 > **现状**: 见 [REALITY_STATUS.md](REALITY_STATUS.md)。**M0 已完成**；**M1（仓库侧）** 见本文件。  
 > **引擎**: 目标钉 **UE5.8**；**UE6 发布后整仓替换**（[ENGINE_STRATEGY.md](ENGINE_STRATEGY.md)）。  
 > **免费栈**: [TECH_STACK_FREE.md](TECH_STACK_FREE.md)。  
-> **工作模式**: 维护者本机可能无法安装引擎；**GitHub = 唯一免费代码缓存**。游玩类验收仅在有 UE5.8 的环境执行（M1b 起）。
+> **工作模式**: 维护者本机可能无法安装引擎；**GitHub = 唯一免费代码缓存**。游玩类验收仅在有 UE5.8 的环境执行（M1b 起）。  
+> **无引擎可推进**: 剧情 / macOS 27 UI / 广州区划数据 — [STORY_BIBLE.md](STORY_BIBLE.md) · [Data/GUANGZHOU_DISTRICTS.md](Data/GUANGZHOU_DISTRICTS.md) · [M2_PREP_CHECKLIST.md](M2_PREP_CHECKLIST.md)。
 
 ```mermaid
 flowchart LR
@@ -155,8 +156,8 @@ flowchart LR
 
 ## 建议工作顺序
 
-1. **无引擎**：完成并保持 M0 + M1（文档/配置/源码缓存）。  
-2. **有 UE5.8 环境**：执行 M1b → M2 → M3。  
+1. **无引擎**：保持 M0 + M1；推进剧情圣经、区划数据、MacApp UI Mock、[M2_PREP_CHECKLIST.md](M2_PREP_CHECKLIST.md)。  
+2. **有 UE5.8 环境**：按清单执行 M1b → M2 → M3（珠江新城切片 + `missions_act1.json`）。  
 3. 只有 M3 通过后，再谈八区、大规模 Mass、联机。  
 4. **UE6 发布后**：按 ENGINE_STRATEGY 整仓替换，再重验 M1b–M3。
 

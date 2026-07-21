@@ -30,6 +30,13 @@ public final class GZUIState {
     public var fps: Double = 60.0
     public var memoryMB: Double = 1024.0
 
+    /// 通缉星级 Mock（0–5）
+    public var wantedStars: Int = 0
+
+    /// 当前任务目标一行 Mock
+    public var activeMissionTitle: String = "夜配异常单"
+    public var activeMissionObjective: String = "在花城广场接单终端确认订单"
+
     /// HUD可见性
     public var isHUDVisible: Bool = true
 
@@ -37,6 +44,17 @@ public final class GZUIState {
     public var isSidebarVisible: Bool = true
 
     public init() {}
+
+    public func applyMissionMock(_ mission: MissionSeed?) {
+        guard let mission else { return }
+        activeMissionTitle = mission.title
+        activeMissionObjective = mission.objectives.first?.description ?? ""
+        wantedStars = min(max(mission.wanted_risk ?? 0, 0), 5)
+    }
+
+    public func applyWantedStars(_ stars: Int) {
+        wantedStars = min(max(stars, 0), 5)
+    }
 
     /// sending 关键字确保跨 actor 传递数据无竞争
     public func updatePerformance(_ report: sending GZPerformanceReport) {

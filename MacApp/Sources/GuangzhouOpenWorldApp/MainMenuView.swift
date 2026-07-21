@@ -16,7 +16,7 @@ struct MainMenuView: View {
                         .font(.system(size: 56, weight: .semibold, design: .rounded))
                         .matchedGeometryEffect(id: "app-title", in: appState.transitionNamespace, properties: .frame, isSource: true)
 
-                    Text("让每一位玩家体验业界顶尖视觉画面")
+                    Text("近未来广州 · 珠江新城第一幕（Mock UI）")
                         .font(.title3)
                         .foregroundStyle(.secondary)
                 }
@@ -46,6 +46,8 @@ struct MainMenuView: View {
         switch item {
         case .play, .newGame:
             appState.transition(to: .playing)
+        case .missionLog:
+            appState.transition(to: .missionLog)
         case .settings:
             appState.transition(to: .settings)
         case .album:

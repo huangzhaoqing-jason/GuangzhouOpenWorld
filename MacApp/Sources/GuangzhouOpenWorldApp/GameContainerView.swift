@@ -24,7 +24,17 @@ struct GameContainerView: View {
                 }
 
                 Spacer()
+
+                if appState.uiState.isHUDVisible {
+                    LiquidGlassHUD(state: appState.uiState)
+                        .padding(24)
+                        .frame(maxWidth: 520, alignment: .leading)
+                }
             }
+        }
+        .onAppear {
+            let catalog = MissionCatalogLoader.loadAct1()
+            appState.uiState.applyMissionMock(catalog.missions.first { $0.status == "Available" } ?? catalog.missions.first)
         }
     }
 }

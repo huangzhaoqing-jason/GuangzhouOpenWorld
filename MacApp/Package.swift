@@ -16,6 +16,9 @@ let targets: [Target] = [
     .executableTarget(
         name: "GuangzhouOpenWorldApp",
         dependencies: ["GZSparkBridge"],
+        resources: [
+            .process("Resources")
+        ],
         swiftSettings: [
             .enableExperimentalFeature("StrictConcurrency")
         ]

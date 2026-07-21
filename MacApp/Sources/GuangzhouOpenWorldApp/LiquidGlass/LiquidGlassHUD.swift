@@ -35,23 +35,59 @@ struct HUDTopBar: View {
     @Bindable var state: GZUIState
 
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Open广州")
-                    .font(.headline.weight(.semibold))
-                Text("天河CBD · 雨天")
-                    .font(.caption)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Open广州")
+                        .font(.headline.weight(.semibold))
+                    Text("珠江新城 · Mock")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                WantedStarsView(stars: state.wantedStars)
+
+                HStack(spacing: 8) {
+                    Image(systemName: "wifi")
+                    Image(systemName: state.lowPowerMode ? "battery.25" : "battery.100")
+                }
+                .foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(state.activeMissionTitle)
+                    .font(.caption.weight(.semibold))
+                Text(state.activeMissionObjective)
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .lineLimit(2)
             }
-
-            Spacer()
-
-            HStack(spacing: 8) {
-                Image(systemName: "wifi")
-                Image(systemName: state.lowPowerMode ? "battery.25" : "battery.100")
-            }
-            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .opacity(state.effectiveGlassOpacity)
+            )
+            .accessibilityLabel("当前任务 \(state.activeMissionTitle)")
         }
+    }
+}
+
+struct WantedStarsView: View {
+    let stars: Int
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<5, id: \.self) { index in
+                Image(systemName: index < stars ? "star.fill" : "star")
+                    .font(.caption2)
+                    .foregroundStyle(index < stars ? Color.orange : Color.secondary.opacity(0.4))
+            }
+        }
+        .accessibilityLabel("通缉 \(stars) 星")
     }
 }
 

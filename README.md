@@ -11,7 +11,7 @@
 1. **现在还不能当游戏玩。** `Content/` 几乎为空，没有可加载的城市地图与美术资源。  
 2. **仓库是系统脚手架 + 文档缓存**：C++ / 配置 / SwiftUI 壳；EOS 等为 stub；**Jolt / SoLoud 默认关闭**，物理/音频走 UE 原生（Chaos + 内置 Audio）。  
 3. **旧「4A+ 全绿」≠ 已完成。** 配置声明不是真机真图验收。  
-4. **本机装不了引擎也没关系**：继续把代码和文档推到 GitHub；游玩验收留给有 **UE5.8** 的环境（路线图 **M1b** 起）。
+4. **本机装不了引擎也没关系**：继续把代码和文档推到 GitHub；游玩验收留给有 **UE5.8** 的环境（路线图 **M1b** 起）。无引擎仍可推进：**剧情 / macOS 27 UI / 广州区划数据**。
 
 | 必读 | 链接 |
 |------|------|
@@ -19,6 +19,9 @@
 | 3A 里程碑 | [Docs/ROADMAP_3A.md](Docs/ROADMAP_3A.md) |
 | 免费技术栈 | [Docs/TECH_STACK_FREE.md](Docs/TECH_STACK_FREE.md) |
 | 引擎策略（5.8→UE6） | [Docs/ENGINE_STRATEGY.md](Docs/ENGINE_STRATEGY.md) |
+| M2 预备清单 | [Docs/M2_PREP_CHECKLIST.md](Docs/M2_PREP_CHECKLIST.md) |
+| 剧情圣经 | [Docs/STORY_BIBLE.md](Docs/STORY_BIBLE.md) |
+| 广州区划数据 | [Docs/Data/GUANGZHOU_DISTRICTS.md](Docs/Data/GUANGZHOU_DISTRICTS.md) |
 
 ---
 
@@ -61,8 +64,11 @@ GuangzhouOpenWorld/
 ├── Docs/
 │   ├── REALITY_STATUS.md
 │   ├── ROADMAP_3A.md
-│   ├── TECH_STACK_FREE.md   # 零收入免费技术栈
-│   ├── ENGINE_STRATEGY.md   # UE5.8 钉与 UE6 整换
+│   ├── TECH_STACK_FREE.md
+│   ├── ENGINE_STRATEGY.md
+│   ├── M2_PREP_CHECKLIST.md
+│   ├── STORY_BIBLE.md
+│   ├── Data/                # 区划、幕1任务种子 JSON
 │   └── ...
 ├── MacApp/
 ├── Plugins/                 # Jolt/SoLoud 默认关闭
@@ -116,7 +122,9 @@ Megascans / MetaHuman / Blender 资产按 [TECH_STACK_FREE.md](Docs/TECH_STACK_F
 2. [Docs/TECH_STACK_FREE.md](Docs/TECH_STACK_FREE.md)  
 3. [Docs/ENGINE_STRATEGY.md](Docs/ENGINE_STRATEGY.md)  
 4. [Docs/ROADMAP_3A.md](Docs/ROADMAP_3A.md)  
-5. [Docs/PROJECT_ARCHITECTURE.md](Docs/PROJECT_ARCHITECTURE.md)（目标架构；进度以状态表为准）  
+5. [Docs/STORY_BIBLE.md](Docs/STORY_BIBLE.md) / [Docs/Data/GUANGZHOU_DISTRICTS.md](Docs/Data/GUANGZHOU_DISTRICTS.md)  
+6. [Docs/M2_PREP_CHECKLIST.md](Docs/M2_PREP_CHECKLIST.md)（有引擎时）  
+7. [Docs/PROJECT_ARCHITECTURE.md](Docs/PROJECT_ARCHITECTURE.md)（目标架构；进度以状态表为准）  
 
 ---
 
