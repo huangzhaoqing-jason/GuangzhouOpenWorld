@@ -22,6 +22,7 @@
 - `Scripts/validate_mission_data.py`、`Scripts/sync_missions_json.sh`  
 - 默认地图配置改为指向 **`GZ_BoxWorld`**（文件仍须你在 UE 里创建）  
 - PR #1 / #2 CI 全绿、可合并；#2 已含 #1；均已标 ready for review（评论权限不足未能留言）
+- **PR #3**（本分支）：https://github.com/huangzhaoqing-jason/GuangzhouOpenWorld/pull/3 — 任务 JSON 加载器 + HANDOFF
 
 ---
 
