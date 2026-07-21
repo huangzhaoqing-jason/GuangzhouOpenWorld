@@ -8,21 +8,22 @@
 > - **配置声明** — 仅写在 `.ini` / `.uproject` / checklist，不等于可用  
 > - **缺失** — Content、第三方二进制或地图资产不存在  
 
-相关文档：[ROADMAP_3A.md](ROADMAP_3A.md) · [README.md](../README.md)
+相关文档：[ROADMAP_3A.md](ROADMAP_3A.md) · [TECH_STACK_FREE.md](TECH_STACK_FREE.md) · [ENGINE_STRATEGY.md](ENGINE_STRATEGY.md) · [README.md](../README.md)
 
 ---
 
 ## 1. 一句话结论
 
-本仓库是 **广州开放世界的系统脚手架与目标架构**，不是可玩的 3A 游戏。
+本仓库是 **广州开放世界的系统脚手架与目标架构**，不是可玩的 3A 游戏。GitHub 为无本机引擎时的 **完整代码缓存**。
 
 | 维度 | 现状 |
 |------|------|
 | 可游玩地图 / 模型 / 材质 | **缺失**（`Content/` 几乎为空） |
 | 默认关卡 `GZ_MainWorld` | **缺失**（`Config/DefaultEngine.ini` 已引用） |
-| 引擎 / 第三方真实版本 | **目标声明**，本仓库环境未安装 UE，无法编译验证 |
+| 引擎 | **目标钉 UE5.8**（`EngineAssociation=5.8`）；**无本机/本环境编译验证**；将来 UE6 整仓替换 |
+| 物理策略 | **Chaos 优先**（零收入）；历史配置曾倾向 Jolt |
 | 联机 / 云存档 EOS | **Stub**（`USE_REAL_EOS_SDK=0`） |
-| Jolt / SoLoud 插件 | **包装模块**，无完整上游 SDK 二进制 |
+| Jolt / SoLoud 插件 | **可选包装，默认 Disabled**；无完整上游 SDK 二进制 |
 | 旧「4A+ 175/175」清单 | **配置声明 ≠ 实测通过** |
 
 ---
@@ -36,7 +37,7 @@
 | 城市场景资产 | — | **缺失** | 无 Nanite 建筑、道路、植被、车辆网格 |
 | 音频资产 | — | **缺失** | 无 WAV/OGG 内容资源 |
 | UI 蓝图 / UMG 资产 | — | **缺失** | 登录/菜单多为 C++ Widget 类，无配套 Content |
-| `.uproject` | `GuangzhouOpenWorld.uproject` | **配置声明** | `EngineAssociation=5.8` 等为**目标**关联，非「已交付编译」证明 |
+| `.uproject` | `GuangzhouOpenWorld.uproject` | **配置声明** | `EngineAssociation=5.8` 为目标钉；Jolt/SoLoud 默认 Disabled；非「已交付编译」证明 |
 
 ---
 
@@ -68,15 +69,16 @@
 
 ---
 
-## 5. 物理（`Physics/` + `Plugins/JoltPhysics`）
+## 5. 物理（Chaos 优先；`Physics/` + 可选 `Plugins/JoltPhysics`）
 
 | 模块 | 状态 | 说明 |
 |------|------|------|
-| 车辆 / 水体 / 破坏 / 风力 | **代码草稿** | 多为算法与参数模拟接口 |
-| Jolt 插件 | **Stub / 包装** | 内存池、桥接、自检；无完整 Jolt v6.0.1 运行时二进制 |
-| CMake 第三方脚本 | **配置声明** | `Scripts/ThirdPartyBuild/` 需本机实际编出库才算可用 |
+| Chaos（项目零收入默认） | **目标 / 配置待有引擎验证** | 与 [TECH_STACK_FREE.md](TECH_STACK_FREE.md) 一致；载具走 Chaos Vehicles 意图 |
+| 车辆 / 水体 / 破坏 / 风力（项目 C++） | **代码草稿** | 多为算法与参数接口；未与 Chaos 真机联调 |
+| Jolt 插件 | **Stub / 包装，默认 Disabled** | 历史路径；无完整运行时二进制；不阻挡原生打开工程 |
+| CMake 第三方脚本 | **配置声明** | 仅在重新启用 Jolt 时需要 |
 
-**未实测**: 16-DOF 车辆、SPH 水面、大规模破坏在 Mac 真机上的表现。
+**未实测**: Chaos / 原 Jolt 路径下的载具与破坏在真机真图上的表现。
 
 ---
 
@@ -96,7 +98,8 @@
 
 | 模块 | 状态 | 说明 |
 |------|------|------|
-| `GZAudioManager` + SoLoud 插件 | **Stub / 包装** | 通道组与桥接声明；无 SoLoud 2026 完整库与音频资产 |
+| UE 内置 Audio（默认） | **目标** | 零收入优先；待有引擎与资产验收 |
+| `GZAudioManager` + SoLoud 插件 | **Stub / 包装，默认 Disabled** | 可选；无完整 SoLoud 库与音频资产 |
 | `GZNetworkManager` | **代码草稿** | Session/气泡逻辑偏声明 |
 | `GZEOSAuthInterface` | **Stub** | 登录/云存档/加解密均打日志降级 |
 
@@ -127,9 +130,11 @@
 
 | 现状档 | 大致卡在 |
 |--------|----------|
-| 文档诚实化 | **M0**（本文档所属） |
-| 无 UE / 无 Content | **未进入 M1 / M2** |
+| 文档诚实化 | **M0 已完成** |
+| 仓库侧 5.8 + 免费栈 | **M1 已完成** |
+| 无 UE 环境打开工程 | **M1b 未开始** |
+| 无 Content | **M2 未开始** |
 | 天气/角色/车辆草稿 | 最早服务于 **M3**，当前未达标 |
-| 八区 PCG 模板 / Mass 12k | **M4+** 才有意义，当前不可验收 |
+| 八区 PCG 模板 / Mass 大规模 | **M4+** 才有意义，当前不可验收 |
 
 下一步请看：[ROADMAP_3A.md](ROADMAP_3A.md)。

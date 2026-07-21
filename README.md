@@ -1,18 +1,24 @@
 # 广州开放世界（Guangzhou Open World）
 
 **目标**：以广州市为背景的开放世界游戏（自由探索方向对标 GTA / 赛博朋克），质量目标为可验证的 **3A（AAA）**。  
-**平台意向**：Apple Silicon Mac（macOS 14+）。
+**引擎钉**：Unreal Engine **5.8**（将来 **UE6 整仓替换**）。  
+**平台意向**：Apple Silicon Mac（有引擎的环境）；维护者也可 **仅用 GitHub 作代码缓存**。
 
 ---
 
-## 先读这三句（现状）
+## 先读这几句（现状）
 
 1. **现在还不能当游戏玩。** `Content/` 几乎为空，没有可加载的城市地图与美术资源。  
-2. **仓库里主要是系统脚手架**：C++ / 配置 / SwiftUI 壳、接口声明与部分逻辑草稿；EOS、Jolt、SoLoud 等存在 **stub 或包装层**。  
-3. **旧文档里的「4A+ / 175 项全绿」不等于已完成。** 那些多半是配置声明，不是真机真图验收。
+2. **仓库是系统脚手架 + 文档缓存**：C++ / 配置 / SwiftUI 壳；EOS 等为 stub；**Jolt / SoLoud 默认关闭**，物理/音频走 UE 原生（Chaos + 内置 Audio）。  
+3. **旧「4A+ 全绿」≠ 已完成。** 配置声明不是真机真图验收。  
+4. **本机装不了引擎也没关系**：继续把代码和文档推到 GitHub；游玩验收留给有 **UE5.8** 的环境（路线图 **M1b** 起）。
 
-详细对照：[Docs/REALITY_STATUS.md](Docs/REALITY_STATUS.md)  
-怎么做到 3A：[Docs/ROADMAP_3A.md](Docs/ROADMAP_3A.md)（里程碑 M0→M5）
+| 必读 | 链接 |
+|------|------|
+| 实现状态 | [Docs/REALITY_STATUS.md](Docs/REALITY_STATUS.md) |
+| 3A 里程碑 | [Docs/ROADMAP_3A.md](Docs/ROADMAP_3A.md) |
+| 免费技术栈 | [Docs/TECH_STACK_FREE.md](Docs/TECH_STACK_FREE.md) |
+| 引擎策略（5.8→UE6） | [Docs/ENGINE_STRATEGY.md](Docs/ENGINE_STRATEGY.md) |
 
 ---
 
@@ -20,10 +26,11 @@
 
 | 项 | 说明 |
 |----|------|
-| 场景目标 | 还原广州核心城区；首个可玩切片定为 **天河 / 珠江新城 CBD 一小块**（见路线图 M3） |
-| 质量目标 | **3A**：以游玩录像、帧率与验收清单为准，不以 checklist 勾选为准 |
-| 技术栈 | 以 **本机可安装的正式版 Unreal Engine 5** 为准；仓库中 UE 5.8 / Metal 4.3 / SoLoud 2026 等版本号视为 **目标/历史声明**，开工前须按 Epic 实际发布版本重新锁定 |
-| 工作模式 | 学习与研究向工程；资产未获官方授权前不得当作商业发布内容 |
+| 场景目标 | 广州核心城区；首个可玩切片：**天河 / 珠江新城 CBD 一小块**（M3） |
+| 质量目标 | **3A**：游玩录像与验收清单，不以 checklist 勾选为准 |
+| 技术栈 | **UE5.8 原生免费模块优先**（Nanite / Lumen / Substrate / WP / PCG / Chaos / Mass 等）+ Blender / GDAL+PDAL / Audacity / LMMS |
+| 授权 | 零收入阶段按 Epic 与各工具**官方条款**；Megascans / MetaHuman **不入库**，有引擎后再取 |
+| 工作模式 | GitHub 为完整代码缓存；学习研究向；未授权资产不得当商业成品 |
 
 ---
 
@@ -31,18 +38,17 @@
 
 **有：**
 
-- `Source/GuangzhouOpenWorld/` — GameMode、角色、AI/物理/音频/联机等 C++ 草稿与管理器  
-- `Config/` — 渲染、Mass、World Partition 等 CVar 与项目配置  
-- `MacApp/` — SwiftUI Liquid Glass 壳（Open广州）  
-- `Plugins/JoltPhysics`、`Plugins/SoLoud` — 插件包装与自检入口  
-- `Shaders/MetalShaders/` — LiquidGlass 等着色器源文件  
-- `Docs/` — 架构、状态表、3A 路线图  
+- `Source/GuangzhouOpenWorld/` — 玩法与系统 C++ 草稿  
+- `Config/` — 渲染 / Mass / World Partition 等配置声明  
+- `MacApp/` — SwiftUI 壳  
+- `Plugins/JoltPhysics`、`Plugins/SoLoud` — **可选包装源码（默认 Disabled）**  
+- `Shaders/MetalShaders/`、`Docs/`（含免费栈与引擎策略）  
 
-**没有（关键缺口）：**
+**没有：**
 
-- 可玩 `.umap` / 城市场景 / 角色与车辆网格  
-- 已验证的本机 UE 编译产物  
-- 完整 Jolt / SoLoud / EOS 运行时与云存档  
+- 可玩地图与城市场景 Content  
+- 本环境已验证的 UE5.8 编译产物  
+- 默认启用的 Jolt / SoLoud 运行时、真实 EOS 云存档  
 
 ---
 
@@ -50,17 +56,17 @@
 
 ```
 GuangzhouOpenWorld/
-├── Config/                  # 引擎与项目配置（声明 ≠ 已验收）
-├── Content/                 # 美术与关卡（当前几乎为空）
+├── Config/
+├── Content/                 # 当前几乎为空
 ├── Docs/
-│   ├── REALITY_STATUS.md    # 实现状态对照（必读）
-│   ├── ROADMAP_3A.md        # 3A 里程碑 M0–M5（必读）
-│   ├── PROJECT_ARCHITECTURE.md
-│   ├── 4A_STANDARDS_CHECKLIST.md  # 目标标准/配置核对，非完成证明
-│   └── OptimizationLogs/    # 历史过程日志，非完成证明
-├── MacApp/                  # SwiftUI 壳
-├── Plugins/                 # Jolt / SoLoud 包装
-├── Scripts/                 # macOS / 第三方构建脚本
+│   ├── REALITY_STATUS.md
+│   ├── ROADMAP_3A.md
+│   ├── TECH_STACK_FREE.md   # 零收入免费技术栈
+│   ├── ENGINE_STRATEGY.md   # UE5.8 钉与 UE6 整换
+│   └── ...
+├── MacApp/
+├── Plugins/                 # Jolt/SoLoud 默认关闭
+├── Scripts/
 ├── Shaders/MetalShaders/
 └── Source/GuangzhouOpenWorld/
 ```
@@ -71,63 +77,49 @@ GuangzhouOpenWorld/
 
 | 阶段 | 含义 | 当前 |
 |------|------|------|
-| M0 | 文档诚实化 | 本 README 所属 |
-| M1 | 本机正式版 UE 可打开工程 | 需自备引擎 |
-| M2 | 空白关卡第三人称可玩 | 未开始 |
-| M3 | CBD 垂直切片（原型门槛） | 未开始 |
-| M4 | 多城区 + 流送稳定 | 未开始 |
-| M5 | 玩法/音频/性能达 3A 验收清单 | 未开始 |
-
-完整 DoD 与「禁止宣称」条款见 [Docs/ROADMAP_3A.md](Docs/ROADMAP_3A.md)。
+| M0 | 文档诚实化 | **已完成** |
+| M1 | 仓库侧：5.8 钉 + 免费栈 + 插件策略 | **已完成** |
+| M1b | 有 UE5.8 的环境打开工程 | 未开始 |
+| M2 | 空白关卡可玩 | 未开始 |
+| M3 | CBD 垂直切片 | 未开始 |
+| M4–M5 | 扩城与 3A 打磨 | 未开始 |
 
 ---
 
-## 本地构建指引（macOS，需自备引擎）
-
-### 前置条件
-
-- Apple Silicon Mac（M1 / M2 / M3 等）  
-- macOS 14+  
-- Xcode（含命令行工具）  
-- **已安装的正式版 Unreal Engine 5**（版本以 Epic Launcher / 源码编译为准，并写回 `.uproject` 的 `EngineAssociation`）  
-- CMake 3.28+（若启用第三方物理/音频库）
-
-### 建议步骤
+## 有 UE5.8 时怎么开工程
 
 ```bash
 git clone <本仓库 URL>
-cd guangzhouopenworld
-
-# 1. 将 GuangzhouOpenWorld.uproject 中 EngineAssociation 改为你本机 UE 版本
-
-# 2. 第三方库：能编则编；编不过就先在 .uproject 里禁用 JoltPhysics / SoLoud
-# ./Scripts/ThirdPartyBuild/...   # 以脚本实际路径为准
-
-# 3. 生成工程并编译（路径换成你的引擎安装目录）
-# GenerateProjectFiles → Xcode/UBT 编译 → UnrealEditor 打开本工程
+cd GuangzhouOpenWorld
+# EngineAssociation 已钉 5.8；勿改成「已交付」叙事
+# JoltPhysics / SoLoud 应为 Disabled；物理用 Chaos，音频用 UE 内置
+# 使用本机安装的 UE5.8 生成工程并打开 UnrealEditor
 ```
 
-打包、Metal 着色器脚本等见 `Scripts/macOS/`。在 **M1 未完成** 前，勿把「脚本存在」写成「已成功出包」。
+Megascans / MetaHuman / Blender 资产按 [TECH_STACK_FREE.md](Docs/TECH_STACK_FREE.md) 在引擎侧获取，**不要把大型商业缓存硬塞进 Git**。
+
+无引擎时：只改文档与源码并 `git push`，完成度看 M0/M1，不看假编译。
 
 ---
 
-## 适配与降级（现状说明）
+## 适配说明
 
-- `Adapter/GZEOSAdapter.h`：`USE_REAL_EOS_SDK=0` 时走本地存档降级；EOS 认证接口为 **stub**。  
-- `Adapter/RHICrossPlatform.h` 等：跨平台宏映射；真实 MetalFX / 超分需本机验证。  
-- 插件与 Mass / World Partition：配置可写满，**无 Content 则无法验收**。
+- EOS：`USE_REAL_EOS_SDK=0` 本地降级；认证接口为 stub。  
+- 物理：**Chaos 优先**；Jolt 包装默认关闭。  
+- 音频：**UE 内置优先**；SoLoud 默认关闭。  
 
 ---
 
 ## 文档阅读顺序
 
-1. [Docs/REALITY_STATUS.md](Docs/REALITY_STATUS.md) — 各模块真实状态  
-2. [Docs/ROADMAP_3A.md](Docs/ROADMAP_3A.md) — 下一步做什么  
-3. [Docs/PROJECT_ARCHITECTURE.md](Docs/PROJECT_ARCHITECTURE.md) — 目标架构（实现进度以状态表为准）  
-4. [Docs/4A_STANDARDS_CHECKLIST.md](Docs/4A_STANDARDS_CHECKLIST.md) — 仅作目标/配置参考  
+1. [Docs/REALITY_STATUS.md](Docs/REALITY_STATUS.md)  
+2. [Docs/TECH_STACK_FREE.md](Docs/TECH_STACK_FREE.md)  
+3. [Docs/ENGINE_STRATEGY.md](Docs/ENGINE_STRATEGY.md)  
+4. [Docs/ROADMAP_3A.md](Docs/ROADMAP_3A.md)  
+5. [Docs/PROJECT_ARCHITECTURE.md](Docs/PROJECT_ARCHITECTURE.md)（目标架构；进度以状态表为准）  
 
 ---
 
 ## 声明
 
-本项目为学习与研究性质的游戏工程实践。城市景观、品牌、车辆等素材在获得合法授权前，仅可用于技术验证，不代表任何官方授权或已完成的商业级 3A 产品。
+本项目为学习与研究性质的游戏工程实践。城市景观、品牌、车辆等素材在获得合法授权前，仅可用于技术验证，不代表官方授权或已完成的商业级 3A 产品。引擎分成与商用条件以 **Epic 官方 EULA** 为准。

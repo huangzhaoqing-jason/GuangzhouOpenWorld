@@ -1,8 +1,8 @@
 {
 	"FileVersion": 3,
 	"EngineAssociation": "5.8",
-	"Category": "Guangzhou Open World (3A target, scaffold)",
-	"Description": "Guangzhou open-world scaffold targeting verifiable AAA (3A). Not a finished game; Content mostly empty. EngineAssociation is a target pin — lock to your installed UE5.",
+	"Category": "Guangzhou Open World (UE5.8 free native stack)",
+	"Description": "Guangzhou open-world scaffold. Target UE5.8 native free stack (Nanite/Lumen/Chaos/Mass). Jolt/SoLoud optional wrappers default off. Not a finished game; Content mostly empty. UE6 = full-repo replace later.",
 	"Modules": [
 		{
 			"Name": "GuangzhouOpenWorld",
@@ -11,7 +11,7 @@
 		}
 	],
 	"Plugins": [
-		{"Name": "JoltPhysics", "Enabled": true, "Version": "6.0.1"},
+		{"Name": "JoltPhysics", "Enabled": false, "Version": "6.0.1"},
 		{"Name": "ProceduralMeshComponent", "Enabled": true},
 		{"Name": "PCG", "Enabled": true, "Version": "5.8-2.3"},
 		{"Name": "MassAI", "Enabled": true},
@@ -27,7 +27,7 @@
 		{"Name": "AudioCapture", "Enabled": true},
 		{"Name": "Synthesis", "Enabled": true},
 		{"Name": "SoundFields", "Enabled": true},
-		{"Name": "SoLoud", "Enabled": true, "Version": "2026"},
+		{"Name": "SoLoud", "Enabled": false, "Version": "2026"},
 		{"Name": "RecastNavigation", "Enabled": true, "Version": "5.8-1.8"}
 	],
 	"TargetPlatforms": [
