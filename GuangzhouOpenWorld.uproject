@@ -1,8 +1,8 @@
 {
 	"FileVersion": 3,
 	"EngineAssociation": "5.8",
-	"Category": "Guangzhou 4A+ Open World UE5.8",
-	"Description": "Guangzhou 4A+ Open World - Beyond AAA Standards - UE5.8 + Metal 4.3",
+	"Category": "Guangzhou Open World (3A target, scaffold)",
+	"Description": "Guangzhou open-world scaffold targeting verifiable AAA (3A). Not a finished game; Content mostly empty. EngineAssociation is a target pin — lock to your installed UE5.",
 	"Modules": [
 		{
 			"Name": "GuangzhouOpenWorld",

@@ -1,19 +1,25 @@
-# GuangzhouOpenWorld - 4A+ Project Architecture
+# GuangzhouOpenWorld — 项目架构（目标架构说明）
+
+> **架构目标 vs 实现状态（2026-07-21）**  
+> 本文描述的是 **目标架构与模块划分**，不是「下列系统均已在可玩关卡中完成」。  
+> - 实现进度与 stub/缺失项 → [REALITY_STATUS.md](REALITY_STATUS.md)  
+> - 3A 里程碑 → [ROADMAP_3A.md](ROADMAP_3A.md)  
+> - `Content/Maps`、完整第三方运行时等 **当前缺失**，下文目录中的 Maps 等应理解为规划位置。
 
 ## Project Overview
 
 | Field | Value |
 |-------|-------|
-| **Project Name** | GuangzhouOpenWorld (GTA-广州) |
-| **Engine** | Unreal Engine 5.8 |
-| **Target Platform** | macOS (Apple Silicon only) |
-| **Graphics API** | Metal 4.3 |
-| **Shader Language** | Metal Shading Language 3.1 (MSL 3.1) |
+| **Project Name** | GuangzhouOpenWorld（广州开放世界） |
+| **Engine** | 目标：UE5 正式版（仓库曾关联 5.8，须按本机安装版本锁定） |
+| **Target Platform** | macOS（Apple Silicon） |
+| **Graphics API** | 目标：Metal（曾写 Metal 4.3，待本机验证） |
+| **Shader Language** | MSL（目标声明） |
 | **Language Standard** | C++20 |
-| **Build System** | UnrealBuildTool + Xcode 16.x |
-| **Quality Tier** | 4A+ (exceeds AAA) |
-| **Target Hardware** | M1 / M2 / M3 (8GB-128GB UMA) |
-| **Substrate** | Enabled (Substrate material system) |
+| **Build System** | UnrealBuildTool + Xcode |
+| **Quality Tier** | **3A（AAA）目标** — 以路线图实测为准，非「4A+ 已达成」 |
+| **Target Hardware** | M1 / M2 / M3 等 Apple Silicon |
+| **Substrate** | 配置意向启用（未在真图验收） |
 
 ---
 
