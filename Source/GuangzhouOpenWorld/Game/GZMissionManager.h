@@ -123,6 +123,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mission")
 	void RegisterMission(const FGZMissionData& Mission);
 
+	/** Load Act1 seeds from Content/Data or Docs/Data missions_act1.json. */
+	UFUNCTION(BlueprintCallable, Category = "Mission")
+	int32 LoadAct1MissionsFromJson();
+
 	UPROPERTY(BlueprintAssignable, Category = "Mission")
 	FOnMissionChanged OnMissionStarted;
 

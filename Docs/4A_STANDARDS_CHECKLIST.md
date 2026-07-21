@@ -1,8 +1,13 @@
-# 4A+ Standards Checklist - GuangzhouOpenWorld
+# 目标标准 / 配置核对表（原「4A+ Checklist」）
 
-> **Engine**: Unreal Engine 5.8 | **Graphics API**: Metal 4.3 | **Shader Language**: MSL 3.1
-> **4A+ Definition**: Exceeds AAA standards. Target quality tier above traditional AAA.
-> **Status Legend**: ✅ Verified | ⚠️ Partial | ❌ Missing | 🔧 In Progress
+> **阅读说明（2026-07-21）**  
+> 本文是 **目标参数与配置核对表**，不是「游戏已达到 4A/3A」的证明。  
+> 表中历史标记的 ✅ 多数表示「配置或接口已在仓库中写出」，**不等于**真机、真图、可玩验收。  
+> 质量目标已统一为可验证的 **3A**，见 [ROADMAP_3A.md](ROADMAP_3A.md)。模块真实状态见 [REALITY_STATUS.md](REALITY_STATUS.md)。
+>
+> **Engine（目标声明）**: Unreal Engine 5.x（仓库曾写 5.8）| **Graphics API（目标）**: Metal | **Shader Language**: MSL  
+> **Status Legend（下文历史用法）**: ✅ 配置/声明已写 | ⚠️ Partial | ❌ Missing | 🔧 In Progress  
+> **注意**: 下文「Verified」在历史文本中被滥用；请以 REALITY_STATUS 为准。
 
 ---
 
@@ -455,19 +460,19 @@
 
 ---
 
-## Summary
+## Summary（历史汇总 — 已作废为「完成度」指标）
 
-| Module | Total | ✅ Verified | ⚠️ Partial | ❌ Missing | 🔧 In Progress |
-|--------|-------|------------|------------|------------|----------------|
-| Rendering | 67 | 67 | 0 | 0 | 0 |
-| Physics | 22 | 22 | 0 | 0 | 0 |
-| AI | 10 | 10 | 0 | 0 | 0 |
-| Audio | 15 | 15 | 0 | 0 | 0 |
-| Network | 13 | 13 | 0 | 0 | 0 |
-| PCG | 11 | 11 | 0 | 0 | 0 |
-| Streaming | 15 | 15 | 0 | 0 | 0 |
-| Build & Deploy | 17 | 17 | 0 | 0 | 0 |
-| Documentation | 5 | 5 | 0 | 0 | 0 |
-| **TOTAL** | **175** | **175** | **0** | **0** | **0** |
+| Module | Total | 历史 ✅（仅配置/声明） | 真机真图验收 |
+|--------|-------|----------------------|--------------|
+| Rendering | 67 | 67（配置写出） | **未验收**（无 Content） |
+| Physics | 22 | 22 | **未验收**（Jolt 为包装/缺二进制） |
+| AI | 10 | 10 | **未验收** |
+| Audio | 15 | 15 | **未验收**（SoLoud 包装） |
+| Network | 13 | 13 | **未验收**（EOS stub） |
+| PCG | 11 | 11 | **未验收**（仅区划模板数据） |
+| Streaming | 15 | 15 | **未验收**（无 WP 地图） |
+| Build & Deploy | 17 | 17 | **未验收**（本环境无 UE） |
+| Documentation | 5 | 5 | 文档已部分纠正，见 README |
 
-**Overall 4A+ Compliance: 175/175 = 100%**
+**作废声明**: 不再使用「Overall 4A+ Compliance: 175/175 = 100%」作为项目完成度。  
+**当前完成度口径**: [ROADMAP_3A.md](ROADMAP_3A.md) 里程碑 + [REALITY_STATUS.md](REALITY_STATUS.md)。

@@ -11,6 +11,7 @@ final class AppState: ObservableObject {
         case settings
         case album
         case codex
+        case missionLog
     }
 
     // 使用 @Published 确保 ObservableObject 与 SwiftUI 正确绑定
@@ -25,6 +26,7 @@ final class AppState: ObservableObject {
     enum MenuItem: String, CaseIterable {
         case play = "继续游戏"
         case newGame = "新游戏"
+        case missionLog = "任务日志"
         case settings = "设置"
         case album = "相册"
         case codex = "Codex"

@@ -54,6 +54,8 @@ jobs:
     needs: [swift-linux-headless]
     steps:
       - uses: actions/checkout@v4
+      - name: Validate mission / district JSON
+        run: python3 Scripts/validate_mission_data.py
       - name: Verify UI-Audit report exists
         run: |
           if [ ! -f "docs/audits/ui-audit-003.md" ]; then
@@ -64,4 +66,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ui-audit-report
-          path: docs/audits/ui-audit-003.md
+          path: docs/audits/ui-audit-*.md

@@ -30,6 +30,9 @@ struct RootView: View {
             case .codex:
                 CodexContainerView()
                     .transition(.move(edge: .trailing).combined(with: .opacity))
+            case .missionLog:
+                MissionLogContainerView()
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
         .animation(

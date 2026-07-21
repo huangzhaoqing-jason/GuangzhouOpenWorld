@@ -27,6 +27,12 @@ void UGZGameInstance::Init()
 	SettingsManager->LoadSettings();
 	SystemSettings->LoadAllSettings();
 
+	if (MissionManager)
+	{
+		const int32 Loaded = MissionManager->LoadAct1MissionsFromJson();
+		UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("GZGameInstance: Act1 missions loaded = %d"), Loaded);
+	}
+
 	UE_LOG(LogGuangzhouOpenWorld, Log, TEXT("GZGameInstance initialized - all 6 managers ready"));
 }
 

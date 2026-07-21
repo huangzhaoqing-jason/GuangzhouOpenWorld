@@ -63,6 +63,8 @@ public class GuangzhouOpenWorld : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"DeveloperSettings",
+			"Json",
+			"JsonUtilities",
 		});
 
 		PublicIncludePaths.AddRange(new string[]

@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "authority": "Docs/Data/GUANGZHOU_DISTRICTS.md",
+  "notes": "Machine-readable district_id map. C++ enum alignment deferred until UE5.8 environment.",
+  "districts": [
+    {
+      "district_id": "zhujiang_new_town",
+      "name_zh": "珠江新城",
+      "priority": "P0",
+      "egz_city_district": "TianheCBD",
+      "pcg_type": "CBD",
+      "center_lat": 23.118,
+      "center_lon": 113.321
+    },
+    {
+      "district_id": "yuexiu_old_town",
+      "name_zh": "越秀旧城",
+      "priority": "P1",
+      "egz_city_district": "YuexiuOldTown",
+      "pcg_type": "OldTown",
+      "center_lat": 23.1291,
+      "center_lon": 113.2644
+    },
+    {
+      "district_id": "liwan_xiguan",
+      "name_zh": "荔湾西关",
+      "priority": "P1",
+      "egz_city_district": "LiwanXiguan",
+      "pcg_type": "Qilou",
+      "center_lat": 23.125,
+      "center_lon": 113.24
+    },
+    {
+      "district_id": "haizhu_waterfront",
+      "name_zh": "海珠滨江",
+      "priority": "P2",
+      "egz_city_district": "HaizhuWaterfront",
+      "pcg_type": "Riverfront",
+      "center_lat": 23.1,
+      "center_lon": 113.3
+    },
+    {
+      "district_id": "haizhu_innovation",
+      "name_zh": "海珠创新/琶洲意向",
+      "priority": "P2",
+      "egz_city_district": "HaizhuInnovation",
+      "pcg_type": null,
+      "center_lat": 23.1,
+      "center_lon": 113.38
+    },
+    {
+      "district_id": "baiyun_suburban",
+      "name_zh": "白云近郊",
+      "priority": "P3",
+      "egz_city_district": "BaiyunSuburban",
+      "pcg_type": "Park",
+      "center_lat": 23.18,
+      "center_lon": 113.28
+    },
+    {
+      "district_id": "panyu_university",
+      "name_zh": "番禺大学城",
+      "priority": "P2",
+      "egz_city_district": "PanyuUniversity",
+      "pcg_type": "University",
+      "center_lat": 23.05,
+      "center_lon": 113.39
+    },
+    {
+      "district_id": "panyu_suburb",
+      "name_zh": "番禺郊区",
+      "priority": "P3",
+      "egz_city_district": "PanyuSuburb",
+      "pcg_type": "Industrial",
+      "center_lat": 22.95,
+      "center_lon": 113.35
+    },
+    {
+      "district_id": "huangpu_port",
+      "name_zh": "黄埔港区",
+      "priority": "P3",
+      "egz_city_district": "HuangpuPort",
+      "pcg_type": null,
+      "center_lat": 23.1,
+      "center_lon": 113.45
+    },
+    {
+      "district_id": "nansha_new_area",
+      "name_zh": "南沙新区",
+      "priority": "P4",
+      "egz_city_district": "NanshaNewArea",
+      "pcg_type": null,
+      "center_lat": 22.8,
+      "center_lon": 113.55
+    },
+    {
+      "district_id": "zhujiang_river",
+      "name_zh": "珠江水域带",
+      "priority": "P1",
+      "egz_city_district": "ZhujiangRiver",
+      "pcg_type": "Riverfront",
+      "center_lat": 23.11,
+      "center_lon": 113.32
+    }
+  ]
+}
