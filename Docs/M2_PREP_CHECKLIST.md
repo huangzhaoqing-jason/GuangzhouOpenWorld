@@ -37,10 +37,11 @@ EditorStartupMap=/Game/Maps/GZ_MainWorld.GZ_MainWorld
 ## M2 — 空白可玩
 
 - [ ] 创建 `Content/Maps/GZ_BoxWorld`（平面 + 若干碰撞盒即可）
-- [ ] 默认地图改指向 `GZ_BoxWorld`
+- [ ] 确认 `DefaultEngine.ini` 已指向 `GZ_BoxWorld`（仓库已改；缺 umap 时编辑器会报警属预期）
 - [ ] 第三人称角色可移动（引擎模板或现有 `GZCharacter`）
 - [ ] 相机跟随正常
 - [ ] 本地存档：保存一次 → 退出 PIE → 读档位置合理
+- [ ] 日志中可见 `GZMissionJsonLoader: registered N missions`（`Content/Data/missions_act1.json`）
 - [ ] 录 30 秒操作视频归档（可选放 Issues / 网盘，不强制进 Git）
 
 **不做（M2）**：天气全套、Mass 万人、载具打磨、联机、珠江新城美术。

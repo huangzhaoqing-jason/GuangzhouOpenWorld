@@ -15,6 +15,7 @@
 
 | 必读 | 链接 |
 |------|------|
+| **交接（上课回来先看）** | [Docs/handoff/HANDOFF.md](Docs/handoff/HANDOFF.md) |
 | 实现状态 | [Docs/REALITY_STATUS.md](Docs/REALITY_STATUS.md) |
 | 3A 里程碑 | [Docs/ROADMAP_3A.md](Docs/ROADMAP_3A.md) |
 | 免费技术栈 | [Docs/TECH_STACK_FREE.md](Docs/TECH_STACK_FREE.md) |

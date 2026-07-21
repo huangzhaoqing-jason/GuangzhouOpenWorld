@@ -1,4 +1,5 @@
 #include "Game/GZMissionManager.h"
+#include "Game/GZMissionJsonLoader.h"
 #include "GuangzhouOpenWorld.h"
 
 UGZMissionManager::UGZMissionManager()
@@ -100,4 +101,9 @@ float UGZMissionManager::GetMissionProgress(const FName& MissionID) const
 void UGZMissionManager::RegisterMission(const FGZMissionData& Mission)
 {
 	MissionRegistry.Add(Mission);
+}
+
+int32 UGZMissionManager::LoadAct1MissionsFromJson()
+{
+	return FGZMissionJsonLoader::LoadAct1Into(*this);
 }
